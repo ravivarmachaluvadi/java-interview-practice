@@ -16,6 +16,8 @@
 !AAScratches/**/pom.xml
 !/.gitignore
 !/README.md
+!/tools/*.py
+!/tools/runjava
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---
 

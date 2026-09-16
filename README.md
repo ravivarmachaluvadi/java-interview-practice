@@ -40,22 +40,57 @@ foundational but the problem is medium, so it sits in `C` and is flagged must-kn
 | `05-Spring-Microservices` | A Spring Boot orders service, plus Kafka and security notes |
 | `06-SQL`, `07-Interview-QA-Memory`, `08-Reference` | Written revision material |
 
-## Running anything
+## Running code
 
-**Requires JDK 25.** Several files use `java.lang.IO.println` and instance `main`
-methods, which do not compile on 21.
+**Do NOT import this as an IntelliJ/Maven/Gradle project.** It will not work, and
+that is structural rather than a misconfiguration:
+
+- 628 of 643 files declare **no package**, so they all live in the default package.
+- Folder names like `01-Arrays` are **not valid Java identifiers** (leading digit,
+  hyphens), so they cannot be packages either.
+- **20 class names are declared in multiple files** - `TreeNode` in 48, `Node` in 21,
+  `Solution` in 18, `ListNode` in 17 - and many of those clashes are inside the *same*
+  folder. A project compiles a source root as one unit, so marking even one folder as
+  Sources Root produces dozens of duplicate-class errors.
+
+These were always IntelliJ **scratch files**, which the IDE compiles in isolation.
+That is the model to keep: 643 independent programs, not one project.
+
+### Use the runner
 
 ```bash
-javac -d /tmp/out path/to/A01_Something.java
-java -cp /tmp/out Something          # class name, not filename
+tools/runjava AAScratches/01-DSA/01-Arrays/A01_ArraySortedOrNot.java
+tools/runjava A02_TwoSum.java          # resolves by name, no path needed
+tools/runjava --find TwoSum            # locate files
+tools/runjava --list-mains <file>      # which classes have a main()
 ```
 
-Most files carry a `main()` with a worked example, so they run standalone and print
-labelled input and output.
+It compiles to a temp directory, then runs whichever class actually declares
+`main()`. **588 of 643 files run this way.**
 
-**The class name is not the filename.** Renaming into tiers deliberately left class
-names untouched so no cross-file reference could break — compile the file, then run
-the class.
+### Why not `java Foo.java`
+
+The JDK single-file launcher looks for a class named after the **file**. Files here
+are `<TIER><NN>_<Name>.java` while the class inside keeps its original name, so the
+launcher reports `can't find class` on ~113 of them. `runjava` finds the real class
+instead, which is worth +95 files.
+
+### Doing it by hand
+
+```bash
+javac -d out -sourcepath <folder> <file>.java
+java -cp out <ClassName>        # the CLASS name, not the filename
+```
+
+**Requires JDK 25.** Several files use `java.lang.IO.println` and `static void main`
+without `public`, neither of which compiles on 21. If `JAVA_HOME` points at an older
+JDK, `runjava` ignores it and picks the newest installed.
+
+### If you want the IDE experience back
+
+Copy the folders into IntelliJ's scratches directory
+(`%APPDATA%\JetBrains\<IDE>\scratches`). Scratch files are compiled individually,
+so the duplicate class names stop mattering and you get the green run gutter.
 
 ## Verification
 

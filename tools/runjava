@@ -1,0 +1,3 @@
+#!/bin/sh
+# Run a practice file: compiles it, then runs whichever class declares main().
+exec python "$(cygpath -w "$(dirname "$0")/runjava.py")" "$@"
