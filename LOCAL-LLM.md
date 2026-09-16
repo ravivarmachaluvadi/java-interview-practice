@@ -15,14 +15,44 @@ problems at **zero cloud cost**. Set up 16 Sep 2026.
 
 ```bash
 lms server start                    # once per reboot
-lms unload --all                    # ALWAYS do this first - see the trap below
+lms unload --all                    # ALWAYS first - see the trap below
 lms load openai/gpt-oss-20b --gpu off -c 16384 --parallel 1 -y
-lms ps                              # confirm what is loaded
-lms unload --all                    # free the 12 GB when done
 ```
 
-Loading takes about 45 seconds. An idle loaded model uses ~0% CPU, so seeing no CPU
-activity does not mean it is not loaded — check `lms ps`, not Task Manager.
+Loading takes about 45 seconds.
+
+## Check it
+
+```bash
+lms status                          # is the server up?
+lms ps                              # which model is loaded, and with what settings
+```
+
+An idle loaded model uses **~0% CPU**, so seeing no CPU activity does *not* mean it is
+unloaded. Check `lms ps`, not Task Manager.
+
+## Stop it
+
+Three separate things are running, and they stop independently. Pick the level you need:
+
+| Goal | Command | Frees |
+|---|---|---|
+| Free the RAM, keep the server ready | `lms unload --all` | **~12 GB** |
+| Also shut the API down | `lms server stop` | a little |
+| Quit entirely | Close LM Studio from the system tray | **~540 MB** |
+
+```bash
+lms unload --all                    # the one you normally want
+lms server stop                     # only if you want port 1234 closed
+```
+
+**`lms unload --all` is the one that matters** — the model is the 12 GB. The server
+itself and the LM Studio app are small by comparison. Leaving the server running costs
+almost nothing and saves you a step next time.
+
+Stopping is optional: the model is loaded with no TTL, so it stays until you unload it
+or reboot. If you would rather it release itself after idling, load it with
+`--ttl 1800` (30 minutes) and it unloads automatically.
 
 ## Two traps that cost real time
 
