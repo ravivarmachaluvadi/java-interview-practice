@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ *   Given a string, repeatedly delete adjacent pairs of identical characters until no such pairs remain.
+ *
+ * Approach:
+ *   Use a stack to keep track of the current processed characters.
+ *   For each character in the input, if it matches the top of the stack, pop the stack (remove the pair);
+ *   otherwise push the character onto the stack. After processing all characters, build the result from
+ *   the remaining stack contents.
+ *
+ * Complexity:
+ *   Time:  O(n) – each character is pushed and popped at most once.
+ *   Space: O(n) – worst‑case stack holds all characters of the input string.
+ */
 import java.util.Stack;
 
 class RemoveAdjacentDuplicates {

@@ -1,3 +1,16 @@
+/**
+ * Problem: Count the number of hits received in the last five minutes (300 seconds)
+ * for a web server, given timestamps in increasing order.
+ *
+ * Approach: Store each hit timestamp in a FIFO queue. When querying getHits,
+ * remove all timestamps older than 5 minutes from the current time and return
+ * the remaining queue size. This keeps only relevant hits in memory.
+ *
+ * Time Complexity:
+ *   - hit(): O(1) amortized
+ *   - getHits(): O(k), where k is the number of stale entries removed (≤ total hits)
+ *
+ * Space Complexity: O(n), where n is the maximum number of hits within any 5‑minute window. */
 import java.util.Deque;
 import java.util.LinkedList;
 

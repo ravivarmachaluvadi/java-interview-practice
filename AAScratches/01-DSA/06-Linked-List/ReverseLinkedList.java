@@ -1,3 +1,13 @@
+/**
+ * Problem: Reverse a singly linked list.
+ *
+ * Approach: Iterate through the list, reassigning each node's next pointer to its
+ * predecessor while maintaining references to the current and next nodes.
+ * After traversal, return the last processed node as the new head.
+ *
+ * Time Complexity: O(n) – each node is visited once.
+ * Space Complexity: O(1) – only a constant amount of extra pointers are used.
+ */
 class ReverseLinkedList {
 
     public ListNode reverseList(ListNode head) {

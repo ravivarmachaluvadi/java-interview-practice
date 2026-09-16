@@ -1,3 +1,15 @@
+/**
+ * Problem: Implement a hit counter that records the number of hits received in the past five minutes (300 seconds).
+ *
+ * Approach: Store each hit timestamp in a FIFO queue. When querying getHits, remove timestamps older than
+ *          timestamp - 300 from the front of the queue and return the remaining size.
+ *
+ * Time Complexity:
+ *   hit()      : O(1)
+ *   getHits()  : O(k) where k is the number of expired hits (amortized O(1) per hit over time).
+ *
+ * Space Complexity: O(n), where n is the maximum number of hits stored within any 5‑minute window.
+ */
 import java.util.Deque;
 import java.util.LinkedList;
 

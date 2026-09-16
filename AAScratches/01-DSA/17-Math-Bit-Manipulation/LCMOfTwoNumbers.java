@@ -1,3 +1,17 @@
+/**
+ * Computes the Least Common Multiple (LCM) of two integers.
+ *
+ * The program first calculates the Greatest Common Divisor (GCD) using
+ * Euclid's algorithm, then derives the LCM from the relation:
+ * LCM(a,b) = |a*b| / GCD(a,b).
+ *
+ * Approach: 
+ * 1. Compute GCD via iterative modulo reductions.
+ * 2. Multiply the two numbers and divide by the GCD to obtain the LCM.
+ *
+ * Time Complexity: O(log min(n1, n2)) for GCD; overall O(log min(n1, n2)).
+ * Space Complexity: O(1) – constant auxiliary space.
+ */
 class LCMOfTwoNumbers {
     private int GCD(int n1, int n2) {
         while (n1 > 0 && n2 > 0) {

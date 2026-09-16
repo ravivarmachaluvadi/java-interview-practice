@@ -1,3 +1,13 @@
+/**
+ * Problem: Given a string, find all lowercase alphabetic characters that do not appear in the string.
+ *
+ * Approach: Convert the string to lowercase and count occurrences of each letter using an array of size 26.
+ * Then iterate over the counts; any zero count indicates the corresponding character is missing,
+ * which is appended to the result string.
+ *
+ * Time Complexity: O(n + 26) ≈ O(n), where n is the length of the input string.
+ * Space Complexity: O(1) additional space (fixed-size array and output builder).
+ */
 class CharactersNotInString {
     public static void main(String[] args) {
         String str = "the sun rises from the east";

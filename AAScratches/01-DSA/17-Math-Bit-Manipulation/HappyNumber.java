@@ -36,4 +36,12 @@ class HappyNumber {
         return totalSum;
     }
 
+
+    public static void main(String[] args) {
+        int input = 19;
+        HappyNumber hn = new HappyNumber();
+        boolean result = hn.isHappy(input);
+        System.out.println("Input: " + input);
+        System.out.println("Output: " + result);
+    }
 }

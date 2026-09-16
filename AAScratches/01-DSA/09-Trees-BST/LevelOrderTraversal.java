@@ -20,6 +20,28 @@ class LevelOrderTraversal {
         }
         return result;
     }
+
+    public static void main(String[] args) {
+        // Build a small binary tree:
+        //        1
+        //       / \
+        //      2   3
+        //     / \   \
+        //    4   5   6
+        TreeNode root = new TreeNode();
+        root.val = 1;
+        root.left = new TreeNode(); root.left.val = 2;
+        root.right = new TreeNode(); root.right.val = 3;
+        root.left.left = new TreeNode(); root.left.left.val = 4;
+        root.left.right = new TreeNode(); root.left.right.val = 5;
+        root.right.right = new TreeNode(); root.right.right.val = 6;
+
+        LevelOrderTraversal solver = new LevelOrderTraversal();
+        List<List<Integer>> output = solver.levelOrder(root);
+
+        System.out.println("Input tree (root value): " + root.val);
+        System.out.println("Level order traversal result: " + output);
+    }
 }
 
 class TreeNode {

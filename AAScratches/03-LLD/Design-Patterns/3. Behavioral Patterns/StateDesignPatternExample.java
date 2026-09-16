@@ -1,3 +1,12 @@
+/**
+ * Problem: Simulate an e‑commerce order lifecycle (NEW → PAID → SHIPPED → DELIVERED) with possible cancellation at any stage.
+ *
+ * Approach: Implement the State Design Pattern. Each state is a separate class implementing OrderState; transitions are handled by calling setState on the context Order object, avoiding large if/else chains.
+ *
+ * Complexity:
+ *   Time – O(1) per operation (next, cancel, printStatus).
+ *   Space – O(1) additional space; only one state instance is held at a time.
+ */
 interface OrderState {
     void next(Order order);
 

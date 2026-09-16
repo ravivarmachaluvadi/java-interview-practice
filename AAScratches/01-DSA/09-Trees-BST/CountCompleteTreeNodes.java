@@ -1,3 +1,13 @@
+/**
+ * Counts the total number of nodes in a complete binary tree.
+ *
+ * The algorithm compares the heights of the leftmost and rightmost paths.
+ * If they are equal, the subtree is perfect and its node count is 2^height - 1.
+ * Otherwise it recursively counts nodes in both subtrees.
+ *
+ * Time Complexity: O((log n)^2) in worst case (each level may trigger two height scans).
+ * Space Complexity: O(log n) due to recursion depth.
+ */
 class CountCompleteTreeNodes {
 
     public static int countNodes(TreeNode root) {

@@ -1,3 +1,18 @@
+/**
+ * Prints numbers from 0 to 99 in alternating even and odd order using two threads.
+ *
+ * The EvenPrinter thread prints when the shared counter is even, while the OddPrinter
+ * thread prints when it is odd. They coordinate via a ReentrantLock and its wait/notify
+ * mechanism on a common monitor object.
+ *
+ * Approach:
+ * 1. Each printer acquires the lock and loops until the counter reaches 100.
+ * 2. If it's not this thread's turn, it waits; otherwise it prints, increments,
+ *    and notifies the other thread.
+ *
+ * Time Complexity: O(n) where n = 100 (constant work per number).
+ * Space Complexity: O(1) – only a few primitive variables are used.
+ */
 import java.util.concurrent.locks.ReentrantLock;
 
 class Scratch {

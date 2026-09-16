@@ -1,3 +1,13 @@
+/**
+ * Parses JSON strings representing different response types (Customer, Address, Order) and prints a specific field from each.
+ *
+ * The program defines generic Gson TypeTokens for each concrete Response<T> type, then inspects the input JSON to determine which
+ * type it contains. It deserializes using the appropriate TypeToken and outputs either the customer's name, address street,
+ * or order amount.
+ *
+ * Time Complexity: O(n) per JSON string, where n is the length of the string (Gson parsing).
+ * Space Complexity: O(m) for the parsed object graph, with m proportional to the size of the JSON payload.
+ */
 package casting;
 
 import com.google.gson.Gson;

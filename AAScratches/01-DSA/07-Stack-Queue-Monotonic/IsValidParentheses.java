@@ -1,3 +1,12 @@
+/**
+ * Problem: Determine whether a string consisting solely of '(' and ')' characters is a valid parentheses sequence.
+ *
+ * Approach: Iterate through the string, maintaining a counter that increments for '(' and decrements for ')'.
+ * If the counter ever becomes negative, an unmatched closing parenthesis has been encountered, so return false.
+ * After processing all characters, the counter must be zero to indicate every opening parenthesis was matched.
+ *
+ * Time Complexity: O(n), where n is the length of the input string (single pass).
+ * Space Complexity: O(1) – only a single integer counter is used regardless of input size. */
 class IsValidParentheses {
     public static void main(String[] args) {
         System.out.println(isValid("()()()()"));

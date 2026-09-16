@@ -1,3 +1,17 @@
+/**
+ * Determines the winner of a round‑robin tournament.
+ *
+ * Given a list of matches (each match is a pair of team names) and a parallel list of results
+ * where 1 indicates the home team won and 0 indicates the away team won, this method returns
+ * the team that has won the most matches. If multiple teams tie for the highest number of wins,
+ * the first one encountered in the iteration order is returned.
+ *
+ * The algorithm iterates once over all matches, updating a hash map that tracks each team's win count.
+ * After each update it checks whether this team now holds the maximum score seen so far.
+ *
+ * Time Complexity: O(n) where n is the number of matches.
+ * Space Complexity: O(k) for storing scores of k distinct teams (k ≤ n).
+ */
 import java.util.HashMap;
 import java.util.List;
 

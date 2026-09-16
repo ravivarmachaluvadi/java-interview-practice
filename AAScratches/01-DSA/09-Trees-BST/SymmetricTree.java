@@ -1,3 +1,12 @@
+/**
+ * Problem: Determine whether a binary tree is symmetric around its center.
+ *
+ * Approach: Recursively compare pairs of nodes from opposite sides of the root,
+ * ensuring that values match and left/right subtrees are mirrors of each other.
+ *
+ * Time Complexity: O(n) – each node is visited once.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (worst‑case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left, right;

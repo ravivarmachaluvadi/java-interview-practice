@@ -1,3 +1,22 @@
+/**
+ * Problem:
+ *   Given an integer array, find the maximum possible sum of a non‑empty contiguous subarray
+ *   after deleting at most one element from that subarray.
+ *
+ * Approach:
+ *   Use dynamic programming with two states per index:
+ *     - noDelete[i]: max subarray sum ending at i without any deletion.
+ *     - withDelete[i]: max subarray sum ending at i having deleted exactly one element.
+ *   Transition:
+ *     noDelete[i]  = max(noDelete[i-1] + arr[i], arr[i])
+ *     withDelete[i]= max(noDelete[i-1],          // delete current element
+ *                       withDelete[i-1] + arr[i]) // extend previous deleted subarray
+ *   Track the global maximum across both states.
+ *
+ * Complexity:
+ *   Time:  O(n) – single pass over the array.
+ *   Space: O(1) – only constant extra variables are needed (arrays can be replaced by two ints).
+ */
 class MaximumSubarraySumWithOneDeletion {
     public static int maximumSum(int[] arr) {
         if (arr == null || arr.length == 0) {

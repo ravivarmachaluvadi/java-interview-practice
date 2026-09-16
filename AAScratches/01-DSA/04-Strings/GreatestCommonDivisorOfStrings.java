@@ -1,3 +1,19 @@
+/**
+ * Problem: Given two strings, find the largest string that can be concatenated
+ * to form both input strings. If no such string exists, return an empty string.
+ *
+ * Approach:
+ * 1. Verify that the two strings are compatible by checking if str1+str2 equals
+ *    str2+str1; otherwise, no common divisor exists.
+ * 2. Compute the greatest common divisor (GCD) of their lengths using Euclid’s
+ *    algorithm.
+ * 3. The GCD length determines the candidate substring: return the prefix of
+ *    str1 up to that length.
+ *
+ * Time Complexity: O(n + m), where n and m are the lengths of str1 and str2,
+ * because string concatenation and equality check dominate.
+ * Space Complexity: O(1) auxiliary space (ignoring input strings).
+ */
 class GreatestCommonDivisorOfStrings {
 
     public static String gcdOfStrings(String str1, String str2) {

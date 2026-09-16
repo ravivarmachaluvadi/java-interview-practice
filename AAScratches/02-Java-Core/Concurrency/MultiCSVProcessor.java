@@ -1,3 +1,16 @@
+/**
+ * MultiCSVProcessor
+ *
+ * Problem: Compute aggregate statistics (total rows, average/min/max salary) across multiple CSV files in a directory.
+ *
+ * Approach:
+ * 1. List all .csv files in the given folder.
+ * 2. Process each file concurrently using a fixed thread pool; each task parses its file and collects per-file stats.
+ * 3. Wait for all tasks to finish, then merge the individual statistics into global totals.
+ *
+ * Time Complexity: O(N) where N is the total number of rows across all CSV files (each row processed once).
+ * Space Complexity: O(1) auxiliary space per file plus O(F) for storing futures and stats lists, where F is the number of files.
+ */
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;

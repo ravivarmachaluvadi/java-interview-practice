@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ *   Given a string, find the longest contiguous substring consisting of identical characters
+ *   and return that substring.
+ *
+ * Approach:
+ *   Scan the string once while tracking the current run length and character.
+ *   When the run ends, update the maximum if needed.
+ *   After the loop, perform one final check for a run ending at the string's end.
+ *
+ * Complexity:
+ *   Time:  O(n) – single pass over the input string
+ *   Space: O(1) – only constant auxiliary variables are used
+ */
 import java.util.*;
 
 class ImportantLongestUniformSubstring {

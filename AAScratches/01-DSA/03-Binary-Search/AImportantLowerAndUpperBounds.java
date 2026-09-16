@@ -1,3 +1,13 @@
+/**
+ * Problem: Given a sorted integer array, find the first (lower bound) and last+1 (upper bound)
+ * indices where a target value could be inserted while maintaining order.
+ *
+ * Approach: Binary search twice. For lower bound, track the smallest index with arr[i] >= target.
+ * For upper bound, track the smallest index with arr[i] > target. Both searches run in O(log n).
+ *
+ * Time Complexity: O(log n) per call (total O(log n)).
+ * Space Complexity: O(1) auxiliary space.
+ */
 public class AImportantLowerAndUpperBounds {
     public static int findLowerBound(int[] arr, int target) {
         int low = 0, high = arr.length - 1;

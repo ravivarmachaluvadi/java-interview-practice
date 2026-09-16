@@ -1,3 +1,16 @@
+/**
+ * Problem:
+ *   Add two non‑negative integers represented as decimal strings without using
+ *   built‑in big integer libraries.
+ *
+ * Approach:
+ *   Process both strings from least significant digit to most, summing digits
+ *   with carry. Append each result digit to a StringBuilder and reverse at the end.
+ *
+ * Complexity:
+ *   Time:  O(max(n, m)) where n and m are lengths of the input strings.
+ *   Space: O(max(n, m)) for the resulting string (plus constant auxiliary space).
+ */
 class AddStrings {
     public static String addStrings(String num1, String num2) {
         StringBuilder result = new StringBuilder();

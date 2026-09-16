@@ -1,3 +1,12 @@
+/**
+ * Finds the pair of sweetness and savoriness values whose sum is closest to a target value K.
+ *
+ * The algorithm iterates over all combinations of one sweetness and one savory value,
+ * computing their sum and tracking the pair with minimal absolute difference from K.
+ *
+ * Time Complexity: O(n*m) where n = sweetness.length, m = savoriness.length.
+ * Space Complexity: O(1), aside from input arrays and constant auxiliary variables.
+ */
 class SweetAndSavory {
     public static void main(String[] args) {
         int[] sweetness = {1, 2, 3};

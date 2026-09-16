@@ -1,3 +1,13 @@
+/**
+ * Problem: Concurrently append 2 million CSV records to a single file using multiple threads.
+ *
+ * Approach: A fixed thread pool submits tasks that generate a record string and
+ * then acquire a ReentrantLock before writing the record with FileWriter in append mode.
+ * The lock ensures only one thread writes at a time, preventing interleaved output.
+ *
+ * Time Complexity: O(N) where N is RECORD_COUNT (each record is generated and written once).
+ * Space Complexity: O(1) auxiliary space; memory usage grows only for the record string per task.
+ */
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.concurrent.Executors;

@@ -1,3 +1,17 @@
+/**
+ * Demonstrates how to safely interrupt a long‑running thread.
+ *
+ * The main method starts a worker thread that prints numbers 0–99,
+ * sleeping two seconds between each print. After five seconds the
+ * main thread interrupts the worker and waits for it to finish.
+ *
+ * The worker checks for interruption after each sleep; if interrupted
+ * (either via isInterrupted() or an InterruptedException), it exits
+ * gracefully, printing a message before returning.
+ *
+ * Time Complexity: O(n) where n = 100 iterations (constant in this demo).
+ * Space Complexity: O(1) – only a few primitive variables are used.
+ */
 
 class ThreadInterruptDemo {
     public static void main(String[] args) throws InterruptedException {

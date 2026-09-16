@@ -1,3 +1,18 @@
+/**
+ * Problem: Given a 2D grid of characters and a target word, determine whether the word can be formed by
+ * moving only right or down from any starting cell, and if so, return the sequence of coordinates that
+ * spell the word.
+ *
+ * Approach: Perform a depth‑first search (DFS) from every cell. At each step match the current grid
+ * character with the corresponding letter in the word; then recursively explore the two allowed moves
+ * (right and down). Backtrack when a path fails, storing successful coordinates along the way.
+ *
+ * Time Complexity: O(N*M*2^L) in the worst case, where N×M is the grid size and L is the length of the word,
+ * because each cell can spawn up to two recursive calls per letter. In practice the search stops early
+ * when a match is found or boundaries are hit.
+ *
+ * Space Complexity: O(L) for the recursion stack and path list, plus O(1) auxiliary space aside from the input grid.
+ */
 import java.util.*;
 
 public class WordPathFinder {

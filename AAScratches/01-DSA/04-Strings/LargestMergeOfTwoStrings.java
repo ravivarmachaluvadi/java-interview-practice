@@ -34,4 +34,16 @@ class LargestMergeOfTwoStrings {
 
         return sb.toString();
     }
+
+    public static void main(String[] args) {
+        LargestMergeOfTwoStrings solver = new LargestMergeOfTwoStrings();
+        String word1 = "cabaa";
+        String word2 = "bcaaa";
+        System.out.println("Input:");
+        System.out.println("word1 = \"" + word1 + "\"");
+        System.out.println("word2 = \"" + word2 + "\"");
+        String result = solver.largestMerge(word1, word2);
+        System.out.println("\nOutput:");
+        System.out.println(result);
+    }
 }

@@ -1,3 +1,18 @@
+/**
+ * Problem: Given a string of digits and a target value, generate all possible
+ * expressions by inserting '+', '-', or '*' between the digits (without reordering)
+ * such that the expression evaluates to the target.
+ *
+ * Approach: Depth‑first search with backtracking. At each position we try every
+ * possible next number segment, recursively building the expression while keeping
+ * track of the current evaluated value and the last multiplied term to handle
+ * multiplication precedence correctly. Leading zeros are skipped unless the
+ * segment is exactly "0".
+ *
+ * Time Complexity: O(4^n) in the worst case (each digit can start a new number or
+ * be combined with previous digits, and each position has up to 3 operators).
+ * Space Complexity: O(n) for recursion stack plus result list size.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

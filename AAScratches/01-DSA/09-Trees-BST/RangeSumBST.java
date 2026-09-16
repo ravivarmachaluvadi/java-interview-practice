@@ -1,3 +1,16 @@
+/**
+ * Problem: Given a binary search tree (BST) and an inclusive range [low, high],
+ * compute the sum of all node values that fall within this range.
+ *
+ * Approach: Recursively traverse the BST. For each node:
+ *   - Add its value if it lies in the range.
+ *   - Recurse left only if the node's value is greater than low (possible smaller nodes).
+ *   - Recurse right only if the node's value is less than high (possible larger nodes).
+ *
+ * Time Complexity: O(n) in worst case, where n is number of nodes
+ * (all nodes may be visited). Best case O(log n) for a balanced tree with narrow range.
+ * Space Complexity: O(h), where h is the height of the tree due to recursion stack.
+ */
 class TreeNode {
     int data;
     TreeNode left, right;

@@ -1,3 +1,14 @@
+/**
+ * Problem: Determine whether two binary trees are structurally identical and have the same node values.
+ *
+ * Approach: Recursively compare corresponding nodes of both trees:
+ *   - If both nodes are null, they match.
+ *   - If one is null or their values differ, trees are not the same.
+ *   - Otherwise, recursively check left subtrees and right subtrees.
+ *
+ * Time Complexity: O(n) – each node is visited once.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (worst case O(n), average O(log n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

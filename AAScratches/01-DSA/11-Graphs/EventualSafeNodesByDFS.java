@@ -1,3 +1,22 @@
+/**
+ * Problem: Given a directed graph represented by an adjacency list, find all
+ * vertices that are eventually safe. A vertex is safe if every possible path
+ * starting from it leads to a terminal node (no outgoing edges) and never enters
+ * a cycle.
+ *
+ * Approach: Perform DFS with three boolean arrays:
+ * - vis: marks nodes visited in any DFS traversal,
+ * - pathVis: marks nodes on the current recursion stack,
+ * - check: records whether a node is safe.
+ * During DFS, if we encounter a back edge (pathVis[neighbor] == true) or
+ * revisit an already visited node that is not yet determined safe, we detect
+ * a cycle and return true. If no cycles are reachable from the current node,
+ * mark it as safe.
+ *
+ * Complexity:
+ * Time:  O(V + E) – each edge and vertex is processed once during DFS.
+ * Space: O(V) – recursion stack plus three boolean arrays of size V.
+ */
 import java.util.*;
 
 class EventualSafeNodesByDFS {

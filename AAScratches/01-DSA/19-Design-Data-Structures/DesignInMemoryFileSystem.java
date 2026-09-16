@@ -1,3 +1,28 @@
+/**
+ * Implements an in‑memory file system that supports creating directories,
+ * adding and reading files, and listing directory contents.
+ *
+ * The API mirrors typical shell commands:
+ * - {@code ls(path)} returns a sorted list of names in the given directory
+ *   or the single file name if the path points to a file.
+ * - {@code mkdir(path)} creates all intermediate directories along the path.
+ * - {@code addContentToFile(filePath, content)} appends text to an existing
+ *   file or creates it if absent.
+ * - {@code readContentFromFile(filePath)} returns the full contents of a file.
+ *
+ * Internally each directory is represented by a {@link Dir} object that holds
+ * maps for subdirectories and files. Traversal follows the path components,
+ * creating nodes as needed for {@code mkdir} and file creation.
+ *
+ * Time Complexity:
+ * - ls, mkdir, addContentToFile, readContentFromFile: O(L + K log K)
+ *   where L is the number of path segments and K is the number of entries
+ *   in a directory (for sorting during ls).
+ *
+ * Space Complexity:
+ * - O(N) total, where N is the number of distinct directories and files
+ *   stored in memory. Each file's content contributes to this space.
+ */
 import java.util.*;
 
 class Dir {

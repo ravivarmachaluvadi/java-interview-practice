@@ -1,3 +1,19 @@
+/**
+ * Problem:
+ *   Given the head of a singly linked list, return the middle node.
+ *   If the list has an even number of nodes, return the first node
+ *   of the two middle nodes (i.e., the lower median).
+ *
+ * Approach:
+ *   Use the fast and slow pointer technique.  Both pointers start at the head;
+ *   move `fast` two steps and `slow` one step per iteration until `fast`
+ *   reaches the end or has no next node.  At that point, `slow` points to
+ *   the middle node.
+ *
+ * Complexity:
+ *   Time:  O(n) – each node is visited at most once by the fast pointer.
+ *   Space: O(1) – only a constant number of pointers are used.
+ */
 class Node {
     int data;
     Node next;

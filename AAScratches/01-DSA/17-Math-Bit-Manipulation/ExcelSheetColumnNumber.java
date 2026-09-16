@@ -1,3 +1,13 @@
+/**
+ * Converts an Excel column title (e.g., "A", "AB") into its corresponding 1‑based integer index.
+ *
+ * The algorithm treats the title as a base‑26 number where 'A' = 1, 'B' = 2, … , 'Z' = 26.
+ * It iterates over each character, multiplies the accumulated result by 26,
+ * and adds the current letter’s value.
+ *
+ * Time Complexity: O(n) – one pass through the string of length n.
+ * Space Complexity: O(1) – only a few integer variables are used regardless of input size.
+ */
 class ExcelSheetColumnNumber {
 
     public static int titleToNumber(String columnTitle) {

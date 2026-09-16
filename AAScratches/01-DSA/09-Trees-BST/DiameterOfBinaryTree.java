@@ -1,3 +1,16 @@
+/**
+ * Problem: Compute the diameter of a binary tree, defined as the number of nodes on
+ * the longest path between any two leaves (or endpoints). The example tree has a
+ * diameter of 3.
+ *
+ * Approach: Perform a depth‑first traversal that returns the height of each subtree.
+ * While computing heights, update a global maximum with the sum of left and right
+ * depths at every node. This sum represents the path length passing through that node.
+ *
+ * Complexity:
+ *   Time O(n) – each node is visited once.
+ *   Space O(h) – recursion stack depth equals tree height (worst‑case O(n)).
+ */
 class DiameterOfBinaryTree {
     private int maxDia = 0;
 

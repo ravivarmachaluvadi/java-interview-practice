@@ -1,3 +1,16 @@
+/**
+ * Problem: Sort an integer array in ascending order using the Bubble Sort algorithm.
+ *
+ * Approach: Repeatedly iterate through the array, swapping adjacent elements that are out of order.
+ * Each outer loop iteration guarantees that the largest unsorted element moves to its correct
+ * position at the end of the array. The inner loop runs only over the unsorted portion,
+ * reducing comparisons as sorting progresses.
+ *
+ * Time Complexity: O(n²) in worst and average cases; best case (already sorted) can be optimized to O(n)
+ * with a flag, but this implementation does not use that optimization.
+ *
+ * Space Complexity: O(1) auxiliary space – the sort is performed in place using only a few temporary variables.
+ */
 import java.util.Arrays;
 
 class BubbleSort {

@@ -1,3 +1,16 @@
+/**
+ * Problem: Given n computers (0‑based indices) and a list of undirected connections,
+ * determine the minimum number of cable re‑connections required to connect all
+ * computers into a single network. If it is impossible, return -1.
+ *
+ * Approach: Use a Disjoint Set Union (Union‑Find) with path compression and
+ * union by rank to group connected components. Count the number of distinct
+ * components; at least (components - 1) extra cables are needed to connect them.
+ *
+ * Complexity:
+ *   Time   O(n + m α(n))  where m is the number of edges and α is the inverse Ackermann function.
+ *   Space  O(n)
+ */
 import java.util.*;
 
 class DisjointSet {

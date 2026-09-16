@@ -1,3 +1,15 @@
+/**
+ * Problem: For each element in an integer array, find the next greater element to its right.
+ * If no such element exists, return -1 for that position.
+ *
+ * Approach: Use a stack to keep indices of elements whose next greater hasn't been found yet.
+ * Iterate through the array; while the current value is greater than the value at the top index,
+ * pop and record the current value as the next greater. Push each index onto the stack.
+ * After traversal, remaining indices in the stack have no greater element; set their result to -1.
+ *
+ * Time Complexity: O(n) – each element is pushed and popped at most once.
+ * Space Complexity: O(n) – auxiliary stack plus output array of size n.
+ */
 import java.util.Stack;
 
 class NextGreaterElements {

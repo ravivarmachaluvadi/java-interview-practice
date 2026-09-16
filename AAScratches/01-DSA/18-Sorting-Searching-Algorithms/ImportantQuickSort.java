@@ -1,3 +1,15 @@
+/**
+ * Problem: Sort an integer array in ascending order using the QuickSort algorithm.
+ *
+ * Approach: Recursively partition the array around a pivot (last element), moving
+ * elements ≤ pivot to its left and > pivot to its right, then sort each subarray.
+ *
+ * Time Complexity: Average O(n log n); worst-case O(n²) when the pivot is always
+ * the smallest or largest element.
+ *
+ * Space Complexity: O(log n) auxiliary space for recursion stack on average;
+ * O(n) in the worst case due to deep recursion depth.
+ */
 import java.util.Arrays;
 class ImportantQuickSort {
 

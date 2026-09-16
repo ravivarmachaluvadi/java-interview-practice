@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a perfect binary tree, reverse the node values at every odd level
+ * (levels 1,3,5,... counting root as level 0). The structure of the tree remains unchanged.
+ *
+ * Approach: Perform a depth‑first traversal pairing symmetric nodes from left and right subtrees.
+ * At each even recursion depth (which corresponds to an odd level in the original tree),
+ * swap the values of the paired nodes. Recurse on the children with swapped positions
+ * to continue the process for deeper levels.
+ *
+ * Time Complexity: O(n) – every node is visited once.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (O(log n) for a perfect binary tree).
+ */
 class TreeNode {
     int val;
     TreeNode left;

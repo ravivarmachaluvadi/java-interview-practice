@@ -1,3 +1,13 @@
+/**
+ * Problem: Count the total number of square submatrices that contain only 1s in a binary matrix.
+ *
+ * Approach: Dynamic programming – for each cell (i,j) with value 1, compute the size of the largest
+ * square ending at that cell as one plus the minimum of its top, left, and top-left neighbors.
+ * Sum all computed sizes to get the total count. The input matrix is updated in place to store these sizes.
+ *
+ * Time Complexity: O(rows × cols) – each cell processed a constant number of times.
+ * Space Complexity: O(1) additional space (in‑place DP), aside from the output integer.
+ */
 class CountSquareSubmatricesWithAllOnes {
     public int countSquares(int[][] matrix) {
         int rows = matrix.length;

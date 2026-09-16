@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ *   Given an array of job durations, compute the average waiting time when jobs are scheduled
+ *   using the Shortest Job First (SJF) strategy.
+ *
+ * Approach:
+ *   1. Sort the job durations in ascending order.
+ *   2. Iterate through the sorted list, accumulating total elapsed time and summing each job's
+ *      waiting time before it starts.
+ *   3. Divide the total waiting time by the number of jobs to obtain the average.
+ *
+ * Complexity:
+ *   Time:  O(n log n) due to sorting (n = number of jobs).
+ *   Space: O(1) auxiliary space, ignoring the input array and sort overhead.
+ */
 
 import java.util.Arrays;
 

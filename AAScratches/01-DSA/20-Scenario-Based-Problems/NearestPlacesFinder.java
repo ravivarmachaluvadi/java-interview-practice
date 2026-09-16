@@ -1,3 +1,12 @@
+/**
+ * Finds the k closest places to a given latitude/longitude using the Haversine formula.
+ *
+ * The algorithm computes the great‑circle distance from the user location to each
+ * place, sorts all places by that distance, and returns the first k entries.
+ *
+ * Time Complexity: O(n log n) due to sorting (n = number of places).
+ * Space Complexity: O(1) auxiliary space beyond the input list; the sort is in‑place.
+ */
 import java.util.*;
 
 class Place {

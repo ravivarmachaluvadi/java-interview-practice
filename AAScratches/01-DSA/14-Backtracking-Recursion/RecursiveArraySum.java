@@ -12,4 +12,12 @@ class RecursiveArraySum {
         // Add current element and recurse to next element
         return nums[ind] + sum(nums, ind + 1);
     }
+
+    public static void main(String[] args) {
+        RecursiveArraySum solver = new RecursiveArraySum();
+        int[] example = {3, 5, -2, 7};
+        int result = solver.arraySum(example);
+        System.out.println("Input array: " + java.util.Arrays.toString(example));
+        System.out.println("Output sum: " + result);
+    }
 }

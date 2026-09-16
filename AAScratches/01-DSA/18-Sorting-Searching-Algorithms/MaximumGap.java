@@ -50,4 +50,12 @@ class MaximumGap {
         }
         return maxGap;
     }
+
+    public static void main(String[] args) {
+        int[] nums = {3, 6, 9, 1};
+        MaximumGap solver = new MaximumGap();
+        int result = solver.maximumGap(nums);
+        System.out.println("Input: " + java.util.Arrays.toString(nums));
+        System.out.println("Maximum gap: " + result);
+    }
 }

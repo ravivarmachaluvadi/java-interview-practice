@@ -1,3 +1,14 @@
+/**
+ * Problem: Given two strings, find the smallest substring of the first string that contains all characters
+ * (with multiplicity) from the second string.
+ *
+ * Approach: Use a sliding window with two pointers. Maintain frequency maps for the target string and the current window.
+ * Expand the right pointer until all required characters are present, then contract the left pointer to shrink the window while still valid,
+ * updating the best answer when a smaller valid window is found.
+ *
+ * Time Complexity: O(n + m) where n is the length of the source string and m is the length of the target string.
+ * Space Complexity: O(k), with k being the number of distinct characters in the target string (for frequency maps).
+ */
 import java.util.*;
 
 class MinimumWindowSubstring {

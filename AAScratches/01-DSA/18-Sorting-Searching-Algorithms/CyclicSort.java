@@ -1,3 +1,19 @@
+/**
+ * Problem:
+ * Sort an array of integers where each integer is in the range 1 to n (n = array length) by placing
+ * each number at its correct index (value - 1). The input array contains a permutation of 1..n.
+ *
+ * Approach:
+ * Iterate through the array. For each element, compute its target index as value-1.
+ * If the current element is not in its target position, swap it with the element at that
+ * target index. Continue until all elements are correctly positioned.
+ *
+ * Time Complexity:
+ * O(n) – Each element is swapped at most once to reach its correct spot.
+ *
+ * Space Complexity:
+ * O(1) – In-place sorting using only a few auxiliary variables.
+ */
 import java.util.Arrays;
 
 class CyclicSort {

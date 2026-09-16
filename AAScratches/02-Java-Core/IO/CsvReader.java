@@ -1,3 +1,18 @@
+/**
+ * Reads a CSV file line by line and processes each record concurrently using a thread pool.
+ *
+ * The program opens "output.csv", submits each line to an ExecutorService for processing,
+ * counts the number of processed lines, and reports the total count along with elapsed time.
+ *
+ * Approach:
+ * 1. Use BufferedReader to stream the file.
+ * 2. Submit each line as a task to a fixed thread pool (currently single-threaded).
+ * 3. Increment an AtomicLong counter in each task; optionally process the record.
+ * 4. Await termination and output statistics.
+ *
+ * Time Complexity: O(n) where n is the number of lines, since each line is read and processed once.
+ * Space Complexity: O(1) auxiliary space (excluding input storage); the thread pool size is constant.
+ */
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;

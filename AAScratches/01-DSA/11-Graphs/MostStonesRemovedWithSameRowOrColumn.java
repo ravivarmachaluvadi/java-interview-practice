@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ * Given a set of stones on a 2D grid, each stone can be removed if there exists another stone in the same row or column.
+ * Find the maximum number of stones that can be removed while leaving at least one stone in every connected component.
+ *
+ * Approach:
+ * Treat rows and columns as nodes in a bipartite graph; connect a row node to a column node for each stone.
+ * Use a Disjoint Set Union (Union-Find) with union-by-size to merge connected nodes.
+ * The number of stones that can be removed equals total stones minus the number of connected components.
+ *
+ * Complexity:
+ * Time:  O(n α(n)) where n is the number of stones and α is the inverse Ackermann function.
+ * Space: O(r + c) for rows, columns, and DSU arrays (r = max row index, c = max column index).
+ */
 import java.util.*;
 
 class DisjointSet {

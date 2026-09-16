@@ -1,3 +1,13 @@
+/**
+ * Problem: Count the number of subsequences in an integer array whose elements sum to a given target value.
+ *
+ * Approach: Recursively explore each element with two choices—include it (subtracting its value from the remaining sum)
+ * or exclude it—and count successful paths that reduce the remaining sum to zero. The recursion stops when the
+ * remaining sum is negative or all elements have been considered.
+ *
+ * Time Complexity: O(2^n) in the worst case, where n is the number of array elements (each element can be chosen or not).
+ * Space Complexity: O(n) due to the recursion stack depth.
+ */
 class CountSubsequenceWithTargetSum {
 
     private int func(int ind, int sum, int[] nums) {

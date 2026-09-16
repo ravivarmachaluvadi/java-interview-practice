@@ -1,3 +1,15 @@
+/**
+ * Problem: Delete a node with a given key from a Binary Search Tree (BST).
+ *
+ * Approach:
+ * 1. Recursively locate the node to delete by comparing the key with current node values.
+ * 2. If the node has no or one child, replace it with its non-null child (or null).
+ * 3. If the node has two children, find the inorder successor (minimum in right subtree),
+ *    copy its value into the node, and recursively delete that successor from the right subtree.
+ *
+ * Time Complexity: O(h) where h is the height of the tree (average O(log n), worst-case O(n)).
+ * Space Complexity: O(h) due to recursion stack (same bounds as time).
+ */
 class DeleteNodeInBST {
 
     public TreeNode deleteNode(TreeNode root, int key) {

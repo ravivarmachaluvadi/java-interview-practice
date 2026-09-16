@@ -1,3 +1,14 @@
+/**
+ * Problem: For a list of Employee objects, compute the maximum salary per department
+ * and also collect employees with salaries above 7000 grouped by their departments.
+ *
+ * Approach: Use Java 8 Streams with Collectors.groupingBy. The first collector uses
+ * collectingAndThen to transform the Optional<Employee> returned by maxBy into a double.
+ * The second collector applies filtering before collecting toList, yielding only high‑earning employees per department.
+ *
+ * Time Complexity: O(n) for both operations (single pass over the list).
+ * Space Complexity: O(d + k), where d is the number of departments and k is the number of employees with salary > 7000.
+ */
 
 import java.util.*;
 import java.util.stream.*;

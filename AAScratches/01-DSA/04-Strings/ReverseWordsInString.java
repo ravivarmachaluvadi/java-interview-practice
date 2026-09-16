@@ -1,3 +1,15 @@
+/**
+ * Problem:
+ * Given a string containing words separated by spaces, return a new string with the order of the words reversed.
+ *
+ * Approach:
+ * 1. Trim leading/trailing whitespace and split on one or more spaces to get an array of words.
+ * 2. Iterate the array backwards, appending each word to a StringBuilder with single spaces between them.
+ *
+ * Complexity:
+ * Time: O(n) where n is the length of the input string (splitting + building result).
+ * Space: O(n) for the array of words and the resulting string.
+ */
 class ReverseWordsInString {
 
     public String reverseWords(String s) {

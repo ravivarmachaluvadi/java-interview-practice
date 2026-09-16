@@ -1,3 +1,13 @@
+/**
+ * Computes the integer part of the square root of a non‑negative integer.
+ *
+ * The method uses binary search on the range [1, x] to find the largest
+ * integer m such that m*m ≤ x.  Division is used instead of multiplication
+ * to avoid overflow when checking mid*mid against x.
+ *
+ * Time Complexity: O(log x) – each iteration halves the search interval.
+ * Space Complexity: O(1) – only a few integer variables are used.
+ */
 class SquareRoot {
     public static int getMySqrt(int x) {
         if (x == 0) return 0; // Square root of 0 is 0

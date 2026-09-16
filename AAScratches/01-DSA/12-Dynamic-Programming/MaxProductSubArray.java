@@ -1,3 +1,16 @@
+/**
+ * Problem:
+ *   Find the maximum product of any contiguous subarray within a given integer array.
+ *
+ * Approach:
+ *   Iterate through the array while maintaining two running products: one from the
+ *   left (pre) and one from the right (suff). Reset each to 1 whenever a zero is
+ *   encountered, then update the answer with the maximum of pre and suff at each step.
+ *
+ * Complexity:
+ *   Time O(n) – single pass over the array.
+ *   Space O(1) – constant auxiliary space.
+ */
 class MaxProductSubArray {
     public static int maxProductSubArray(int[] arr) {
         int n = arr.length; //size of array.

@@ -1,3 +1,14 @@
+/**
+ * Problem: Extract all unique substrings (tuples) of a given length from an input string.
+ *
+ * Approach: Iterate over the string, taking each consecutive slice of the specified
+ * length and adding it to a HashSet which automatically removes duplicates.
+ *
+ * Time Complexity: O(n), where n is the length of the input string,
+ * since each character is processed once.
+ *
+ * Space Complexity: O(k), where k is the number of unique substrings generated,
+ * as they are stored in the HashSet. */
 import java.util.Arrays;
 import java.util.HashSet;
 

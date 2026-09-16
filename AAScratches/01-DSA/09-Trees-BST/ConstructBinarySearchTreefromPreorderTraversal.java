@@ -1,3 +1,16 @@
+/**
+ * Problem: Construct a Binary Search Tree (BST) from its preorder traversal.
+ *
+ * Approach:
+ * Use recursion with bounds to consume the preorder array in order.
+ * Maintain an index pointer `i`. For each call, if the current value lies
+ * outside the allowed range [l, u], return null. Otherwise create a node,
+ * increment `i`, and recursively build left subtree with upper bound = val
+ * and right subtree with lower bound = val.
+ *
+ * Time Complexity: O(n) – each element is processed once.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (worst‑case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

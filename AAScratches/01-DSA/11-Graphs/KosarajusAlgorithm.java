@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ *   Given a directed graph with V vertices and adjacency list representation,
+ *   compute the number of strongly connected components (SCCs) using Kosaraju's algorithm.
+ *
+ * Approach:
+ *   1. Perform DFS on the original graph to fill a stack with vertices in order of finishing times.
+ *   2. Build the transpose (reversed) graph.
+ *   3. Pop vertices from the stack and run DFS on the transposed graph; each DFS visit
+ *      identifies one SCC, incrementing the count.
+ *
+ * Complexity:
+ *   Time:  O(V + E) – two passes of DFS plus graph reversal.
+ *   Space: O(V + E) – adjacency lists, reverse graph, stack, and visited arrays.
+ */
 import java.util.*;
 
 class KosarajusAlgorithm {

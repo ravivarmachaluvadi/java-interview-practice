@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a sorted array of integers, find the starting and ending indices
+ * of a specified target value. If the target is not present, return [-1, -1].
+ *
+ * Approach: Use two binary searches—one to locate the first occurrence and one for
+ * the last. Each search runs in O(log n) time by narrowing the search window based
+ * on comparisons with the middle element.
+ *
+ * Complexity:
+ *   Time:  O(log n) + O(log n) = O(log n)
+ *   Space: O(1) auxiliary space (in-place algorithm)
+ */
 class FirstAndLastOccurrence {
 
     private int firstOccurrence(int[] nums, int target) {

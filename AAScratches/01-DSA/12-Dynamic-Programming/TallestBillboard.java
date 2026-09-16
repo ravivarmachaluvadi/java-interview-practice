@@ -1,3 +1,17 @@
+/**
+ * Problem: Given an array of rod lengths, partition them into two groups such that the sums of each group are equal.
+ * The goal is to maximize this common sum; if no such partition exists, return 0.
+ *
+ * Approach: Dynamic programming over possible height differences.
+ * dp[d] stores the maximum achievable shorter support height when the difference between supports is d.
+ * For each rod, update dp by either adding it to the taller side (increase diff), or to the shorter side
+ * (reduce diff and increase the shorter height accordingly). A clone of the previous state ensures
+ * transitions use only earlier values.
+ *
+ * Time Complexity: O(n * S) where n is number of rods and S is the total sum of all rod lengths,
+ * because each rod iterates over all possible differences up to S.
+ * Space Complexity: O(S), storing one array of size (S + 1).
+ */
 import java.util.Arrays;
 
 class TallestBillboard {

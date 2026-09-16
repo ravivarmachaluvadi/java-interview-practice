@@ -23,4 +23,14 @@ class ImportantLongestSubarrayWithSumKHash {
         }
         return maxLength;
     }
+
+    public static void main(String[] args) {
+        int[] nums = {1, -1, 5, -2, 3};
+        int k = 3;
+        ImportantLongestSubarrayWithSumKHash solver = new ImportantLongestSubarrayWithSumKHash();
+        int result = solver.longestSubarrayWithSumK(nums, k);
+        System.out.println("Input array: java.util.Arrays.toString(nums)");
+        System.out.println("Target sum K: " + k);
+        System.out.println("Longest subarray length with sum K: " + result);
+    }
 }

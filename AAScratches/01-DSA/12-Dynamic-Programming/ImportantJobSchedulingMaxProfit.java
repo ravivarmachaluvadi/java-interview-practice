@@ -1,3 +1,18 @@
+/**
+ * Problem: Given arrays of start times, end times and profits for a set of jobs,
+ * find the maximum total profit achievable by selecting non‑overlapping jobs.
+ *
+ * Approach:
+ * 1. Wrap each job into an object and sort all jobs by their end time.
+ * 2. Use dynamic programming where dp[i] stores the best profit up to job i.
+ *    For each job, binary search for the last job that ends before it starts,
+ *    add its profit to the current job's profit, and take the maximum with
+ *    dp[i‑1].
+ *
+ * Complexity:
+ * Time   O(n log n) – sorting plus n binary searches (log n each).
+ * Space  O(n)      – for the jobs array and the dp array.
+ */
 import java.util.*;
 class Job {
     int start, end, profit;
@@ -66,5 +81,25 @@ class ImportantJobSchedulingMaxProfit {
             }
         }
         return -1;
+    }
+
+    public static void main(String[] args) {
+        int[] start = {1, 3, 0, 5, 8, 5};
+        int[] end   = {2, 4, 6, 7, 9, 9};
+        int[] profit= {50, 20, 100, 200, 150, 170};
+
+        ImportantJobSchedulingMaxProfit solver = new ImportantJobSchedulingMaxProfit();
+        int maxProfit = solver.jobScheduling(start, end, profit);
+
+        System.out.println("Input:");
+        System.out.print("Start times: ");
+        for (int s : start) System.out.print(s + " ");
+        System.out.println("\nEnd times:   ");
+        for (int e : end) System.out.print(e + " ");
+        System.out.println("\nProfits:     ");
+        for (int p : profit) System.out.print(p + " ");
+
+        System.out.println("\n\nOutput:");
+        System.out.println("Maximum Profit = " + maxProfit);
     }
 }

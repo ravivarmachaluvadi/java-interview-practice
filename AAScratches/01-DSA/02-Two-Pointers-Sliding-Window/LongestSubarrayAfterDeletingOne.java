@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ * Given a binary array, find the length of the longest contiguous subarray that contains only 1s
+ * after removing exactly one element from the array.
+ *
+ * Approach:
+ * Scan the array while keeping track of consecutive 1s before and after each zero.
+ * For every zero encountered, compute the potential maximum by adding the counts of
+ * preceding and following 1s. Update the result accordingly.
+ * After the loop, handle the last segment and special case when no zeros exist.
+ *
+ * Time Complexity: O(n) – single pass through the array.
+ * Space Complexity: O(1) – constant auxiliary space.
+ */
 class LongestSubarrayAfterDeletingOne {
 
     public static int longestSubarray(int[] nums) {

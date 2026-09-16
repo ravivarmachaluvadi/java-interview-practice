@@ -1,3 +1,14 @@
+/**
+ * Problem: Return the distinct prime factors of a given integer n.
+ *
+ * Approach: Iterate i from 2 to n; if i divides n, add it to the list and
+ * repeatedly divide n by i until no longer divisible. This yields each prime
+ * factor exactly once.
+ *
+ * Time Complexity: O(√n) in practice (worst‑case O(n) when n is prime).
+ * Space Complexity: O(k), where k is the number of distinct prime factors,
+ * since we store them in an ArrayList.
+ */
 import java.util.ArrayList;
 
 class PrimeFactors {

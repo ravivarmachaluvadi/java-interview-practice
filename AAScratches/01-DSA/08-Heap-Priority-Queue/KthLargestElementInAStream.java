@@ -25,4 +25,18 @@ class KthLargestElementInAStream {
         }
         return minHeap.peek();  // the root is the kth largest element
     }
+
+    public static void main(String[] args) {
+        int k = 3;
+        int[] initialNums = {4, 5, 8, 2};
+        KthLargestElementInAStream kth = new KthLargestElementInAStream();
+        kth.KthLargest(k, initialNums);
+        System.out.println("Initial stream: " + java.util.Arrays.toString(initialNums));
+        System.out.println("k = " + k + ", current kth largest after initialization: " + kth.add(0)); // dummy add to get current kth
+        int[] newVals = {3, 5, 10, 9};
+        for (int val : newVals) {
+            int kthLargest = kth.add(val);
+            System.out.println("After adding " + val + ", kth largest is: " + kthLargest);
+        }
+    }
 }

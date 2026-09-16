@@ -1,3 +1,14 @@
+/**
+ * Problem: Find all elements that appear in three sorted integer arrays, without duplicates.
+ *
+ * Approach: Use a three‑pointer technique to traverse the arrays simultaneously.
+ * At each step compare the current values; if they match, record it (ensuring no
+ * repetition) and advance all pointers. Otherwise advance the pointer pointing
+ * to the smallest value to catch up.
+ *
+ * Time Complexity: O(n + m + p), where n, m, p are lengths of the three arrays.
+ * Space Complexity: O(k), where k is the number of common elements (output size).
+ */
 import java.util.*;
 class IntersectionOfThreeSortedArrays {
     public static void main(String[] args) {

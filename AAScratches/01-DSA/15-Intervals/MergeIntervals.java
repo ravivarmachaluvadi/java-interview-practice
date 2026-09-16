@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a list of intervals with start and end points, merge all overlapping
+ * intervals so that the resulting list contains only mutually disjoint intervals.
+ *
+ * Approach: Sort intervals by their start value. Iterate through sorted intervals,
+ * keeping a list of merged intervals. For each interval, if it does not overlap
+ * with the last merged interval, append it; otherwise update the end of the last
+ * merged interval to the maximum of both ends.
+ *
+ * Time Complexity: O(n log n) due to sorting (n = number of intervals).
+ * Space Complexity: O(n) for the output list and auxiliary space used by sort.
+ */
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,5 +37,31 @@ class MergeIntervals {
             }
         }
         return merged;
+    }
+
+    public static void main(String[] args) {
+        // Build example input
+        List<Interval> input = new ArrayList<>();
+        Interval a = new Interval(); a.start = 1; a.end = 3;
+        Interval b = new Interval(); b.start = 2; b.end = 6;
+        Interval c = new Interval(); c.start = 8; c.end = 10;
+        Interval d = new Interval(); d.start = 15; d.end = 18;
+        input.add(a); input.add(b); input.add(c); input.add(d);
+
+        // Call merge
+        MergeIntervals mi = new MergeIntervals();
+        List<Interval> output = mi.merge(input);
+
+        // Print input
+        System.out.println("Input intervals:");
+        for (Interval i : input) {
+            System.out.println("[" + i.start + ", " + i.end + "]");
+        }
+
+        // Print output
+        System.out.println("\nMerged intervals:");
+        for (Interval i : output) {
+            System.out.println("[" + i.start + ", " + i.end + "]");
+        }
     }
 }

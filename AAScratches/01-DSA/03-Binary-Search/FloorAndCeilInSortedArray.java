@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ *   Given a sorted array of integers and a target value x, find the floor (greatest element ≤ x)
+ *   and ceil (smallest element ≥ x) in the array.
+ *
+ * Approach:
+ *   Use binary search twice: one to locate the largest element not exceeding x,
+ *   another to locate the smallest element not less than x. Each search updates an
+ *   answer variable when a candidate is found and narrows the search bounds accordingly.
+ *
+ * Complexity:
+ *   Time:  O(log n) for each of floor and ceil, total O(log n).
+ *   Space: O(1) auxiliary space (in-place operations only).
+ */
 class FloorAndCeilInSortedArray {
     private int findFloor(int[] nums, int n, int x) {
         int low = 0, high = n - 1, ans = -1;

@@ -1,3 +1,16 @@
+/**
+ * Problem: Detect whether an undirected graph contains a cycle.
+ *
+ * Approach:
+ * 1. Perform BFS from each unvisited vertex, keeping track of the parent node for
+ *    every visited vertex.
+ * 2. If during traversal we encounter an already visited vertex that is not
+ *    the parent of the current vertex, a back‑edge indicates a cycle.
+ * 3. The DFS version is provided but commented out; BFS suffices.
+ *
+ * Time Complexity: O(V + E) – each vertex and edge is processed once.
+ * Space Complexity: O(V) for the visited array and queue (or recursion stack in DFS).
+ */
 import java.util.*;
 
 class CheckForCycleInUnDirected {

@@ -1,3 +1,14 @@
+/**
+ * Problem: Demonstrates how to retrieve the greatest key less than or equal to a given value
+ * from a TreeMap using the floorKey method.
+ *
+ * Approach: Create a TreeMap, insert integer keys with string values,
+ * then call floorKey on various inputs to show its behavior when no key is ≤ the argument,
+ * when an intermediate key exists, and when an exact match exists.
+ *
+ * Time Complexity: O(log n) per floorKey lookup (TreeMap uses a Red‑Black tree).
+ * Space Complexity: O(n) for storing n entries in the TreeMap. 
+ */
 import java.util.*;
 
 class FloorKeyExample {

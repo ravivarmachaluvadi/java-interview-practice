@@ -1,3 +1,17 @@
+/**
+ * Problem: Given an even‑length singly linked list, find the maximum sum of any pair of twin nodes.
+ * A node at index i is a twin with the node at index n-1-i (0‑based indexing).
+ *
+ * Approach:
+ * 1. Use fast and slow pointers to locate the middle of the list.
+ * 2. Reverse the second half of the list in place.
+ * 3. Traverse both halves simultaneously, computing sums of corresponding nodes
+ *    and tracking the maximum sum.
+ *
+ * Time Complexity: O(n) – one pass to find the middle, one pass to reverse,
+ *                    and one pass to compute sums.
+ * Space Complexity: O(1) – only a few pointers are used; no additional data structures.
+ */
 class ListNode {
     int val;
     ListNode next;

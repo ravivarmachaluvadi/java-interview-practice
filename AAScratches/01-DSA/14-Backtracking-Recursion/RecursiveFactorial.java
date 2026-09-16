@@ -5,4 +5,12 @@ class RecursiveFactorial {
         // Recursive case: n * factorial of n-1
         return n * factorial(n - 1);
     }
+
+    public static void main(String[] args) {
+        RecursiveFactorial rf = new RecursiveFactorial();
+        int input = 5;
+        long result = rf.factorial(input);
+        System.out.println("Input: " + input);
+        System.out.println("Output (factorial): " + result);
+    }
 }

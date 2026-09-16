@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ *   Reverse a singly linked list in groups of size K.
+ *
+ * Approach:
+ *   Iterate through the list, find the Kth node for each group,
+ *   detach the group, reverse it using an iterative helper,
+ *   and reconnect the reversed segments. If the last segment
+ *   has fewer than K nodes, leave it unchanged.
+ *
+ * Complexity:
+ *   Time:  O(n) – each node is visited a constant number of times.
+ *   Space: O(1) – reversal is done in place with only a few pointers.
+ */
 class Node {
     int data;
     Node next;

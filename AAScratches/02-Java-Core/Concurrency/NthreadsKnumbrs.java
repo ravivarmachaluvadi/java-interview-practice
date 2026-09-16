@@ -1,3 +1,15 @@
+/**
+ * Problem: Print numbers 1 to 100 using four threads, each thread printing numbers that satisfy
+ * a specific modulo condition (value % 4 == remainder). The output must be in ascending order.
+ *
+ * Approach: Each Printer thread synchronizes on a shared ValueObject. Inside the synchronized block,
+ * it loops until the value exceeds 100. If the current value matches its modulo condition, the thread
+ * prints and increments the value, then notifies all waiting threads. Otherwise, it waits for a
+ * notification. This ensures orderly printing without race conditions.
+ *
+ * Time Complexity: O(n) where n = 100 (each number is processed once).
+ * Space Complexity: O(1) auxiliary space; only a few integer variables and the shared object are used.
+ */
 class NthreadsKnumbrs {
     static int val = 100;
     public static void main(String[] args) {

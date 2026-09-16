@@ -1,3 +1,14 @@
+/**
+ * Problem: Implements a Disjoint Set Union (Union-Find) data structure with path compression and union by size.
+ *
+ * Approach: Each element starts as its own set. `findUPar` recursively finds the ultimate parent while compressing paths.
+ * `unionBySize` merges two sets, attaching the smaller tree to the larger one and updating sizes.
+ *
+ * Time Complexity:
+ *   - Amortized O(α(n)) per operation (inverse Ackermann), effectively constant for all practical n.
+ *
+ * Space Complexity: O(n) for parent and size arrays.
+ */
 import java.util.*;
 
 class DisjointSet {

@@ -1,3 +1,12 @@
+/**
+ * Determines whether a given integer is a prime number.
+ *
+ * The algorithm checks divisibility from 2 up to the square root of n.
+ * If any divisor divides n evenly, it returns false; otherwise true.
+ *
+ * Time Complexity: O(√n) per call to {@code isPrime}.
+ * Space Complexity: O(1).
+ */
 class PrimeCheck {
 
     public static boolean isPrime(int n) {

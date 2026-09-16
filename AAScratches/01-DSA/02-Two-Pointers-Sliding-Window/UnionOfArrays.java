@@ -1,3 +1,14 @@
+/**
+ * Problem: Compute the union of two sorted integer arrays without duplicates.
+ *
+ * Approach: Use two pointers to traverse both arrays simultaneously, adding
+ * elements to a result list only when they are not already present as the last
+ * added element. After one array is exhausted, append remaining unique elements
+ * from the other array.
+ *
+ * Time Complexity: O(n + m), where n and m are the lengths of the input arrays.
+ * Space Complexity: O(k), where k is the size of the union (at most n + m).
+ */
 import java.util.*;
 
 class UnionOfArrays {

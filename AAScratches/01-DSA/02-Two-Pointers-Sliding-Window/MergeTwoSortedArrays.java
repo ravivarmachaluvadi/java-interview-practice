@@ -1,3 +1,15 @@
+/**
+ * Problem: Merge two sorted integer arrays in place without using extra space.
+ *
+ * Approach: Uses the Shell sort style gap method. Initially set a gap equal to half of
+ * the combined length (rounded up). Compare and swap elements that are 'gap' apart,
+ * handling three cases: element from arr1 vs arr2, both from arr2, or both from arr1.
+ * After each full pass, reduce the gap until it becomes 1, then finish.
+ *
+ * Time Complexity: O((m + n) log(m + n)) where m and n are lengths of the arrays,
+ * due to repeated halving of the gap and linear scans per gap size.
+ * Space Complexity: O(1), only a few integer variables are used; no additional arrays.
+ */
 class MergeTwoSortedArrays {
     public static void main(String[] args) {
         int[] arr1 = {1, 3, 5, 7, 9, 11};

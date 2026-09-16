@@ -1,3 +1,14 @@
+/**
+ * Implements an LFU (Least Frequently Used) cache with O(1) get and put operations.
+ *
+ * Problem: Design a cache that evicts the key with the lowest access frequency when capacity is exceeded.
+ * Approach: Use a hash map to store key → node, another map from frequency → doubly linked list of nodes,
+ * and track the current minimum frequency. On get/put, update the node's frequency by moving it
+ * between lists; evict the tail of the min-frequency list when needed.
+ *
+ * Time Complexity: O(1) per get or put operation.
+ * Space Complexity: O(capacity) for storing nodes and frequency buckets.
+ */
 import java.util.*;
 
 class DLLNode {

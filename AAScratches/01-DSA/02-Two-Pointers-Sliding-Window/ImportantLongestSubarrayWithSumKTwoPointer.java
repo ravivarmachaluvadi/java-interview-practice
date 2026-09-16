@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ *   Given an integer array and a target sum k, find the length of the longest contiguous subarray whose elements sum to exactly k.
+ *
+ * Approach:
+ *   Two methods are provided:
+ *   1) longestSubarrayWithSumKV2 uses a prefix‑sum hash map to record the first index where each cumulative sum occurs.  
+ *      For each position i, if (prefixSum - k) exists in the map, a subarray ending at i with sum k is found; its length is compared to the current maximum.
+ *   2) longestSubarrayWithSumK employs a sliding‑window (two pointers). The window expands rightwards while adding elements; when the sum exceeds k it shrinks from the left until the sum ≤ k.  
+ *      Whenever the sum equals k, the window length is considered for the answer.
+ *
+ * Complexity:
+ *   longestSubarrayWithSumKV2:  O(n) time, O(n) space (hash map).
+ *   longestSubarrayWithSumK:    O(n) time, O(1) space.
+ */
 import java.util.HashMap;
 import java.util.Map;
 

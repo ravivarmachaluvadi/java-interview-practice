@@ -1,3 +1,17 @@
+/**
+ * Problem: Search for a target integer in a 2D matrix where each row is sorted
+ * ascending left-to-right and the first integer of each row is greater than the last
+ * integer of the previous row.
+ *
+ * Approach:
+ * 1) Treat the matrix as a flattened sorted array and perform binary search on indices.
+ * 2) Convert a linear index to (row, col) via division and modulo.
+ * 3) Alternatively, start from top-right corner and move left or down based on comparison.
+ *
+ * Time Complexity: O(log(m*n)) for the binary search version; O(m+n) for the
+ * top-right traversal version.
+ * Space Complexity: O(1) – only a few integer variables are used.
+ */
 class Search2DMatrix {
 
     public static boolean searchMatrix(int[][] matrix, int target) {

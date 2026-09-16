@@ -1,3 +1,14 @@
+/**
+ * Problem: Sort a singly linked list in ascending order.
+ *
+ * Approach:
+ * 1. Use merge sort on the linked list by recursively splitting it into halves
+ *    using fast/slow pointers until sublists of size one are reached.
+ * 2. Merge the sorted halves with a two‑pointer technique, building a new list.
+ *
+ * Time Complexity: O(n log n) – each level splits the list in half and merges all nodes once.
+ * Space Complexity: O(log n) – recursion depth for merge sort; no extra data structures used.
+ */
 class ListNode {
     int val;
     ListNode next;

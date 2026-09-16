@@ -1,3 +1,14 @@
+/**
+ * Problem: Find the median of two sorted integer arrays in O(log(min(m,n))) time.
+ *
+ * Approach: Perform a binary search on the smaller array to partition both arrays
+ * such that all elements on the left side are less than or equal to those on the right.
+ * The correct partition satisfies l1 <= r2 and l2 <= r1. Once found, compute the median
+ * from the boundary values of the partitions.
+ *
+ * Time Complexity: O(log min(m,n)) where m and n are the lengths of the two arrays.
+ * Space Complexity: O(1) auxiliary space.
+ */
 class ImportantMedianOfTwoSortedArrays {
     public static void main(String[] args) {
         int[] arr1 = {1, 2};

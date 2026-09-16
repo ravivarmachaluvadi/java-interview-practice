@@ -1,3 +1,17 @@
+/**
+ * Demonstrates various Java Stream operations:
+ * - Counts occurrences of integers in an array.
+ * - Filters strings by prefix and converts to arrays/lists.
+ * - Flattens a list of lists into a single list.
+ * - Groups employees by department and finds the highest salary per group.
+ *
+ * Approach: Use stream pipelines with collectors such as groupingBy, counting,
+ * filtering, flatMap, and maxBy. Convert between primitive arrays and boxed types
+ * where necessary.
+ *
+ * Time Complexity: O(n) for each independent stream operation (n = number of elements).
+ * Space Complexity: O(k) for the resulting collections (k ≤ n), plus overhead for intermediate streams.
+ */
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;

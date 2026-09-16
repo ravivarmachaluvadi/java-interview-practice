@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a sentence, capitalize the first and last character of each word.
+ *
+ * Approach: Split the input string into words, transform each word by
+ * converting its first and last characters to uppercase using a StringBuilder,
+ * then rejoin the words with spaces.
+ *
+ * Time Complexity: O(n) where n is the length of the input string (each character
+ * processed once during split, transformation, and join).
+ *
+ * Space Complexity: O(n) for the resulting string and intermediate arrays.
+ */
 class CapitalizeFirstAndLastCharacterOfEachWord {
 
     public String setCapital(String s) {

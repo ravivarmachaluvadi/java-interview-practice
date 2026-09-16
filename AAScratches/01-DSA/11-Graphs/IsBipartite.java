@@ -1,3 +1,14 @@
+/**
+ * Determines whether an undirected graph is bipartite.
+ *
+ * The algorithm colors each connected component using two colors via DFS.
+ * If a neighbor has the same color as the current node, the graph is not
+ * bipartite and false is returned immediately; otherwise all nodes are
+ * colored successfully.
+ *
+ * Time Complexity: O(V + E) – each vertex and edge is visited once during DFS.
+ * Space Complexity: O(V + E) – adjacency list storage plus recursion stack up to V.
+ */
 import java.util.*;
 
 class IsBipartite {

@@ -1,3 +1,15 @@
+/**
+ * Problem: Determine whether a singly linked list is a palindrome.
+ *
+ * Approach:
+ * 1. Use fast and slow pointers to find the middle of the list.
+ * 2. Reverse the second half in place.
+ * 3. Compare nodes from the start and from the reversed second half.
+ * 4. Restore the original list structure (optional).
+ *
+ * Time Complexity: O(n) – one pass to find middle, one to reverse, one to compare.
+ * Space Complexity: O(1) – only a few pointers are used; no extra data structures.
+ */
 class ListNode {
     int val;
     ListNode next;

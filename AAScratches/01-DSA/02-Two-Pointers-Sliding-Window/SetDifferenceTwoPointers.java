@@ -1,3 +1,18 @@
+/**
+ * Computes the symmetric difference of two integer arrays.
+ *
+ * Given two unsorted arrays, this method returns a list containing all
+ * elements that appear in exactly one of the arrays (i.e., the union minus the intersection).
+ *
+ * Approach:
+ * 1. Sort both input arrays.
+ * 2. Use two pointers to traverse them simultaneously, adding the smaller element
+ *    when they differ and advancing appropriately; skip equal elements.
+ * 3. Append any remaining elements from either array after traversal.
+ *
+ * Time Complexity: O(n log n + m log m) due to sorting (n = nums1.length, m = nums2.length).
+ * Space Complexity: O(n + m) for the result list and the sorted arrays' overhead.
+ */
 import java.util.*;
 
 class SetDifferenceTwoPointers {

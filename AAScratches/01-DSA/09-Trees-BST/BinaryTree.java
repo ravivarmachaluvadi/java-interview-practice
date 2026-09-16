@@ -1,3 +1,14 @@
+/**
+ * Problem: Given a binary tree, find all nodes that are exactly K edges away from a specified target node.
+ *
+ * Approach:
+ * 1. Perform a DFS to map each child to its parent for upward traversal.
+ * 2. Use BFS starting at the target node, exploring left, right, and parent neighbors while tracking visited nodes.
+ * 3. Stop when the desired distance K is reached; collect remaining nodes in the queue as results.
+ *
+ * Time Complexity: O(N) – each node is processed once during DFS and at most once during BFS.
+ * Space Complexity: O(N) – for the parent map, visited set, and BFS queue (worst‑case all nodes).
+ */
 import java.util.*;
 
 class TreeNode {

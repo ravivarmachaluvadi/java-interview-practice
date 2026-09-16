@@ -1,3 +1,16 @@
+/**
+ * Determines whether a given numeric string is strobogrammatic,
+ * i.e., it looks the same when rotated 180 degrees.
+ *
+ * The algorithm checks characters from both ends moving inward.
+ * For each pair, it verifies that the left character has a valid
+ * mapping (0↔0, 1↔1, 6↔9, 8↔8, 9↔6) and that this mapped value equals
+ * the right character. If any check fails, the string is not strobogrammatic.
+ *
+ * Time Complexity: O(n), where n is the length of the input string,
+ * since each character is examined at most once.
+ * Space Complexity: O(1), aside from the constant‑size mapping table.
+ */
 import java.util.*;
 
 class StrobogrammaticNumber {

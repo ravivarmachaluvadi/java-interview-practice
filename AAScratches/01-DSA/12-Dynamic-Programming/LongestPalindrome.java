@@ -1,3 +1,15 @@
+/**
+ * Finds the longest palindromic substring within a given string.
+ *
+ * The algorithm transforms the input by inserting delimiters to handle even-length
+ * palindromes uniformly, then applies Manacher's linear-time method to compute
+ * palindrome radii around each center. Finally it reconstructs the best substring
+ * from the original string.
+ *
+ * Time Complexity: O(n) where n is the length of the input string (after
+ * transformation).  
+ * Space Complexity: O(n) for the transformed string and radius array.  
+ */
 class LongestPalindrome {
     public String longestPalindrome(String s) {
         StringBuilder sPrime = new StringBuilder("#");
@@ -44,5 +56,13 @@ class LongestPalindrome {
                 startIndex,
                 startIndex + maxLength
         );
+    }
+
+    public static void main(String[] args) {
+        LongestPalindrome solver = new LongestPalindrome();
+        String input = "babad";
+        String output = solver.longestPalindrome(input);
+        System.out.println("Input:   \"" + input + "\"");
+        System.out.println("Output:  \"" + output + "\"");
     }
 }

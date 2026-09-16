@@ -1,3 +1,14 @@
+/**
+ * Implements a simple producer–consumer problem using a shared queue.
+ *
+ * The producer thread generates sequential integers and enqueues them,
+ * while the consumer thread dequeues and prints each value. Both threads
+ * synchronize on the same monitor, using wait() when the queue is full or empty
+ * and notifyAll() after producing or consuming to wake the other thread.
+ *
+ * Time Complexity: O(n) for n produced/consumed items (each operation is constant time).
+ * Space Complexity: O(1) additional space beyond the single-element queue used as a buffer.
+ */
 import java.util.LinkedList;
 import java.util.Queue;
 

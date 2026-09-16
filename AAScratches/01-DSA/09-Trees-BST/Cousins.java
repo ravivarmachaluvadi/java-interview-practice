@@ -44,6 +44,33 @@ class Cousins {
         }
         return false;
     }
+
+    public static void main(String[] args) {
+        // Build a small binary tree:
+        //        1
+        //       / \
+        //      2   3
+        //     /   /
+        //    4   5
+        TreeNode root = new TreeNode();
+        root.val = 1;
+        TreeNode node2 = new TreeNode(); node2.val = 2;
+        TreeNode node3 = new TreeNode(); node3.val = 3;
+        TreeNode node4 = new TreeNode(); node4.val = 4;
+        TreeNode node5 = new TreeNode(); node5.val = 5;
+        root.left = node2; root.right = node3;
+        node2.left = node4;
+        node3.left = node5;
+
+        Cousins solver = new Cousins();
+
+        int A = 4, B = 5;
+        boolean result = solver.isCousins(root, A, B);
+
+        System.out.println("Input tree: 1-2-3 with children 4 under 2 and 5 under 3");
+        System.out.println("Checking if nodes " + A + " and " + B + " are cousins.");
+        System.out.println("Output: " + result);
+    }
 }
 
 class TreeNode {

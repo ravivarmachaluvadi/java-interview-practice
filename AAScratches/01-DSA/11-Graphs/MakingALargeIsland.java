@@ -1,3 +1,15 @@
+/**
+ * Problem: Given an n×n binary matrix, change at most one 0 to 1 and return the
+ * maximum possible size of a connected component (island) of 1s.
+ *
+ * Approach: Use a Disjoint Set Union to merge all existing islands. For each
+ * zero cell, collect unique neighboring island representatives, sum their sizes,
+ * add one for the flipped cell, and track the maximum. Finally compare with
+ * any pre‑existing island size in case no flip improves it.
+ *
+ * Time Complexity: O(n² α(n)) – linear scans plus DSU operations per edge.
+ * Space Complexity: O(n²) for parent, rank, size arrays and auxiliary sets.
+ */
 import java.util.*;
 
 class DisjointSet {

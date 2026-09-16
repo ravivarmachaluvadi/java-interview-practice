@@ -1,3 +1,14 @@
+/**
+ * Finds the longest palindromic substring in a given string using Manacher's algorithm.
+ *
+ * The algorithm transforms the input by inserting separators to handle even-length
+ * palindromes uniformly, then iteratively expands around each center while
+ * reusing previously computed palindrome lengths via symmetry. After processing,
+ * it reconstructs the longest palindrome from the original string indices.
+ *
+ * Time Complexity: O(n) where n is the length of the input string.
+ * Space Complexity: O(n) for the transformed string and auxiliary arrays.
+ */
 class ImportantLongestPalindrome {
     public static String longestPalindrome(String s) {
         StringBuilder sPrime = new StringBuilder("#");

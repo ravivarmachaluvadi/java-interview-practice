@@ -1,3 +1,13 @@
+/**
+ * Problem: Determine whether a binary tree is height-balanced.
+ *
+ * Approach: Recursively compute subtree heights; if any subtree is unbalanced,
+ * propagate -1 upward to short-circuit further checks. A node is balanced
+ * when the absolute difference of left and right subtree heights ≤ 1.
+ *
+ * Time Complexity: O(n) – each node visited once.
+ * Space Complexity: O(h) – recursion stack depth, where h is tree height (worst‑case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

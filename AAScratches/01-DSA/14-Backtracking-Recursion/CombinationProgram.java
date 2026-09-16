@@ -1,3 +1,20 @@
+/**
+ * Generates all Cartesian product combinations from a list of lists.
+ *
+ * The program takes multiple lists (e.g., ["A","B","C"], ["1","2"], ["X","Y","Z"])
+ * and produces every possible combination where one element is chosen from each
+ * sublist, printing them to the console.
+ *
+ * Approach:
+ * Recursively build permutations by selecting an element from the current list,
+ * appending it to a running permutation, then recursing to the next depth.
+ * When all depths are processed, add the completed permutation to the result set.
+ *
+ * Time Complexity: O(n₁ × n₂ × … × n_k) where n_i is the size of each sublist
+ * (total number of generated permutations).
+ * Space Complexity: O(k + m) where k is the recursion depth (number of lists)
+ * and m is the total number of permutations stored in memory.
+ */
 import java.util.*;
 
 class CombinationProgram {

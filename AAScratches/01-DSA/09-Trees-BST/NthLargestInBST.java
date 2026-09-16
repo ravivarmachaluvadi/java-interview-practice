@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a binary search tree (BST), find the Nth largest element in the tree.
+ *
+ * Approach: Perform a reverse inorder traversal (right → node → left) which visits nodes
+ * in descending order. Keep a counter of visited nodes; when the counter equals N, record
+ * the current node's value as the result and stop further recursion.
+ *
+ * Time Complexity: O(H + N) where H is the tree height; in worst case O(n) for skewed trees,
+ * but typically O(log n) on balanced BSTs. The traversal stops after visiting N nodes.
+ *
+ * Space Complexity: O(H) due to recursion stack depth, which is at most the height of the tree.
+ */
 class NthLargestInBST {
     private int count = 0;
     private int result = -1;

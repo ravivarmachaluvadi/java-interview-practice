@@ -1,3 +1,18 @@
+/**
+ * Converts an integer into its English word representation using the Indian numbering system.
+ *
+ * The method handles numbers up to 99,99,99,999 (hundreds of crores) by breaking them into
+ * crore, lakh, thousand, hundred and the last two digits. Each segment is converted with
+ * helper arrays for values below twenty and tens multiples.
+ *
+ * Approach:
+ *   1. Decompose the number into crore, lakh, thousand, hundred and remainder parts.
+ *   2. Convert each part to words using lookup tables.
+ *   3. Concatenate segments, inserting "and" when appropriate, then trim and collapse spaces.
+ *
+ * Time Complexity: O(1) – constant work for a fixed-size integer.
+ * Space Complexity: O(1) – only a few string buffers are used regardless of input size.
+ */
 class NumberToWordsConverter {
 
     private static final String[] lessThan20 = {

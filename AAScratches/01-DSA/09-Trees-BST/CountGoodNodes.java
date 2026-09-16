@@ -24,6 +24,33 @@ class CountGoodNodes {
         good += countGoodNodes(node.right, maxVal);
         return good;
     }
+
+    public static void main(String[] args) {
+        // Build a small binary tree:
+        //        3
+        //       / \
+        //      1   4
+        //     / \   \
+        //    3   2   5
+        TreeNode root = new TreeNode();
+        root.val = 3;
+        root.left = new TreeNode();
+        root.right = new TreeNode();
+        root.left.val = 1;
+        root.right.val = 4;
+        root.left.left = new TreeNode();
+        root.left.right = new TreeNode();
+        root.left.left.val = 3;
+        root.left.right.val = 2;
+        root.right.right = new TreeNode();
+        root.right.right.val = 5;
+
+        CountGoodNodes solver = new CountGoodNodes();
+        int result = solver.goodNodes(root);
+
+        System.out.println("Input tree: [3,1,4,3,2,null,5]");
+        System.out.println("Number of good nodes: " + result);
+    }
 }
 
 class TreeNode {

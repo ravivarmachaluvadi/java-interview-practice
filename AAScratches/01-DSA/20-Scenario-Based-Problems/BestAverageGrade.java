@@ -1,3 +1,13 @@
+/**
+ * Problem: Given a list of student name–score pairs, find the highest average score among all students.
+ *
+ * Approach: Build a map from each student to a list of their scores. Then compute the average for each
+ * student's score list and track the maximum average found. Return the floor of that maximum as an integer.
+ *
+ * Time Complexity: O(n) where n is the number of input pairs (building the map and computing averages).
+ * Space Complexity: O(m + k) where m is the number of distinct students and k is the total number of scores
+ * stored in the lists. The additional space is dominated by the map and its value lists.
+ */
 import java.util.*;
 
 class BestAverageGrade {

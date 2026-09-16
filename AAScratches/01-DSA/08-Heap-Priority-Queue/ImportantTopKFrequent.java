@@ -1,3 +1,12 @@
+/**
+ * Problem: Given an integer array nums and an integer k, return the k most frequent elements.
+ *
+ * Approach: Count frequencies with a HashMap, then maintain a min-heap (PriorityQueue) of size at most k
+ * to keep the top k entries by frequency. Finally extract keys from the heap into the result array.
+ *
+ * Time Complexity: O(n log k), where n is nums.length (building the map is O(n), each heap operation is O(log k)).
+ * Space Complexity: O(n) for the frequency map plus O(k) for the heap and result array.
+ */
 import java.util.*;
 
 class ImportantTopKFrequent {

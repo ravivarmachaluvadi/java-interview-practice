@@ -1,3 +1,18 @@
+/**
+ * Implements a simple thread pool that accepts {@link Callable} tasks and returns {@link Future}
+ * objects for asynchronous execution. Tasks are queued in a blocking queue and worker threads
+ * continuously poll the queue, executing each task via {@code FutureTask.run()}.
+ *
+ * <p>Approach:
+ * 1. Create a fixed number of {@code WorkerThread}s that run indefinitely.
+ * 2. Submit tasks by wrapping them in {@link FutureTask} and enqueuing into a
+ *    {@link java.util.concurrent.LinkedBlockingQueue}.
+ * 3. Workers take tasks from the queue, execute them, and store results in the future.
+ *
+ * <p>Time Complexity: O(1) for task submission; O(n) to complete all queued tasks where n is
+ * number of submitted tasks (each executed once).
+ * <p>Space Complexity: O(m + n), where m is pool size (threads) and n is current queue length.
+ */
 import java.util.concurrent.*;
 
 class CustomFutureThreadPool {

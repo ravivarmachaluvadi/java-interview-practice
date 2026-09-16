@@ -1,3 +1,17 @@
+/**
+ * Problem: Print all subsets (the power set) of a given integer array.
+ *
+ * Approach: Recursively explore each element with two choices:
+ *   - Include the current element in the subset and recurse to the next index.
+ *   - Exclude the current element, backtrack by removing it from the list,
+ *     then recurse to the next index. When the end of the array is reached,
+ *     print the accumulated subset.
+ *
+ * Time Complexity: O(2^n) – each element has two choices, generating 2^n subsets.
+ * Space Complexity: O(n) – recursion stack depth and the current subset list
+ *   store at most n elements. The output itself requires O(2^n) space if stored,
+ *   but printing uses constant additional space beyond the recursion overhead.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

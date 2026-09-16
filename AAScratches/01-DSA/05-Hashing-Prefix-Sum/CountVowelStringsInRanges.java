@@ -1,3 +1,17 @@
+/**
+ * Counts how many words in each query range start and end with a vowel.
+ *
+ * The algorithm first builds a prefix sum array where each entry stores the
+ * cumulative count of "vowel words" (words whose first and last characters are
+ * vowels) up to that index. For each query [l, r] it returns
+ * prefix[r+1] - prefix[l], giving the number of vowel words in that subarray.
+ *
+ * Time Complexity: O(n + q), where n is the number of words and q is the
+ * number of queries. Each word and each query is processed once.
+ *
+ * Space Complexity: O(n) for the prefix sum array; all other data structures
+ * use constant space.
+ */
 import java.util.Arrays;
 
 class CountVowelStringsInRanges {

@@ -1,3 +1,14 @@
+/**
+ * Finds the second smallest element in a rotated sorted array of distinct integers.
+ *
+ * The algorithm first locates the index of the minimum element using binary search
+ * (O(log n) time).  Because the array is a rotation of an ascending sequence,
+ * the element immediately after the minimum (wrapping around to the start if needed)
+ * is the second smallest.  This value is returned in O(1) additional work.
+ *
+ * Time Complexity:   O(log n) – binary search for the minimum.
+ * Space Complexity:  O(1) – only a few integer variables are used.
+ */
 class SecondSmallestInRotatedArray {
 
     public static int findSecondSmallest(int[] nums) {

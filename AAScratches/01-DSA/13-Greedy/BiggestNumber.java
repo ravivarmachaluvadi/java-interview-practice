@@ -1,3 +1,13 @@
+/**
+ * Problem: Given an array of non‑negative integers, arrange them to form the largest possible integer when concatenated.
+ *
+ * Approach: Convert each integer to a string and sort using a custom comparator that orders two strings
+ * by comparing the concatenations "a+b" vs. "b+a". After sorting in descending order, concatenate all strings.
+ * If the highest value is "0", return "0" to avoid leading zeros.
+ *
+ * Time Complexity: O(n log n) for sorting, where n is the number of integers.
+ * Space Complexity: O(n) additional space for string array and result builder.
+ */
 import java.util.*;
 
 class BiggestNumber {

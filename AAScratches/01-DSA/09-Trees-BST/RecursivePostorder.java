@@ -1,3 +1,16 @@
+/**
+ * Problem:
+ *   Compute the post-order traversal of a binary tree and return the node values
+ *   as a list in left-right-root order.
+ *
+ * Approach:
+ *   Recursively visit the left subtree, then the right subtree,
+ *   and finally add the current node's value to the result list.
+ *
+ * Complexity:
+ *   Time:  O(n) – each node is visited once.
+ *   Space: O(h) – recursion stack depth equals tree height (worst-case O(n)).
+ */
 import java.util.ArrayList;
 import java.util.List;
 

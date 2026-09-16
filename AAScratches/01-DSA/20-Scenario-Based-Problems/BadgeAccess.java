@@ -1,3 +1,20 @@
+/**
+ * Problem: Given a list of badge scan times for employees (each entry is
+ * [name, HHMM]), find the first contiguous 60‑minute window in which an employee
+ * scans at least three times and output that employee’s name followed by the
+ * formatted times of that window.
+ *
+ * Approach:
+ * 1. Group all timestamps per employee and convert each HHMM string to minutes.
+ * 2. For each employee, sort their times and slide a window checking differences
+ *    ≤60 minutes; when a window contains ≥3 scans, record it and stop searching
+ *    further for that employee.
+ * 3. Print the results with times formatted back to HHMM.
+ *
+ * Time Complexity: O(n log n) – sorting each employee’s timestamps dominates,
+ * where n is total number of badge entries.
+ * Space Complexity: O(n) – storing all timestamps and intermediate lists.
+ */
 import java.util.*;
 
 public class BadgeAccess {

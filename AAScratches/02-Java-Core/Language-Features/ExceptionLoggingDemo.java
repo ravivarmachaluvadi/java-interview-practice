@@ -1,3 +1,18 @@
+/**
+ * Demonstrates exception logging using Lombok's @Slf4j.
+ *
+ * The program intentionally throws a RuntimeException in {@code longName()},
+ * catches it, and logs the error twice: once with a simple message
+ * concatenation and once using SLF4J's parameterized logging.
+ *
+ * Approach:
+ * 1. Throw an exception to simulate an error scenario.
+ * 2. Catch the exception and log its details via Lombok-generated logger.
+ * 3. Show both basic string concatenation and parameterized logging styles.
+ *
+ * Time Complexity: O(1) – a fixed number of operations regardless of input size.
+ * Space Complexity: O(1) – only constant auxiliary space is used for local variables.
+ */
 package com.example.learnlombok.exception;
 
 import lombok.extern.slf4j.Slf4j;

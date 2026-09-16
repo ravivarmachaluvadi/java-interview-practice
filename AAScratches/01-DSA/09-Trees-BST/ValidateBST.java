@@ -1,3 +1,16 @@
+/**
+ * Problem: Determine whether a binary tree satisfies the Binary Search Tree (BST)
+ * property – every node's value must be strictly greater than all values in its
+ * left subtree and strictly less than all values in its right subtree.
+ *
+ * Approach: Recursively traverse the tree while maintaining an allowed range
+ * for each node. For a node, check that its data lies within (minVal, maxVal).
+ * Recurse on the left child with updated maxVal = node.data and on the right
+ * child with minVal = node.data.
+ *
+ * Time Complexity: O(n) – each node is visited once.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (worst‑case O(n)).
+ */
 class Solution {
     private boolean checkBST(Node node, long minVal, long maxVal) {
         if (node == null) return true;

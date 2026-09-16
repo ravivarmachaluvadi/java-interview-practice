@@ -1,3 +1,14 @@
+/**
+ * Problem: Given an array of non‑negative integers where each element represents the amount of money in a house,
+ * determine the maximum amount that can be robbed without robbing two adjacent houses.
+ *
+ * Approach: Use dynamic programming to keep track of the best robbery total up to each house.
+ * For each house i, the optimal value is max(dp[i-1], dp[i-2] + nums[i]).
+ * A space‑optimized version maintains only the last two results instead of an array.
+ *
+ * Time Complexity: O(n) – one pass through the houses.
+ * Space Complexity: O(1) – constant extra space (or O(n) if using the full DP array).
+ */
 class HouseRobber {
 
     public static int rob(int[] nums) {

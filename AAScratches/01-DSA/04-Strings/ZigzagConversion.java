@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ *   Convert a string into its zigzag representation across a given number of rows
+ *   and read the result row by row.
+ *
+ * Approach:
+ *   Simulate the zigzag traversal using an array of StringBuilders, one per row.
+ *   Move a pointer downwards until the last row, then upwards, toggling direction at each end.
+ *   Append characters to the current row, then concatenate all rows for the final string.
+ *
+ * Complexity:
+ *   Time:  O(n) – each character is processed once.
+ *   Space: O(n) – storage for the StringBuilders holding all characters.
+ */
 class ZigzagConversion {
     public static String convert(String s, int numRows) {
         if (numRows == 1 || s.length() <= numRows) {

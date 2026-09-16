@@ -1,3 +1,16 @@
+/**
+ * GlobalExceptionHandler handles all uncaught exceptions in the application,
+ * converting them into standardized {@link ErrorResponse} objects for HTTP responses.
+ *
+ * <p>When a validation error occurs, it aggregates field errors and returns
+ * a 400 Bad Request with details. For missing orders it returns a 404 Not Found,
+ * and any other exception results in a 500 Internal Server Error.
+ *
+ * <p>The handler logs each incident for debugging purposes.
+ *
+ * <p>Time Complexity: O(n) where n is the number of field errors (validation case).
+ * Space Complexity: O(n) for storing error messages; constant otherwise.
+ */
 package com.target.orders.exception.handler;
 
 import com.target.orders.exception.exceptions.ErrorResponse;

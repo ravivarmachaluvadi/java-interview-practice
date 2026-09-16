@@ -1,3 +1,13 @@
+/**
+ * Problem: Implement a logger that suppresses duplicate messages within a 10‑second window.
+ *
+ * Approach: Keep a map from each message to the earliest timestamp at which it can be printed again.
+ * When a new request arrives, compare its timestamp with the stored value; if the current time is
+ * earlier, reject the message. Otherwise update the next allowed time to `timestamp + 10` and allow printing.
+ *
+ * Time Complexity: O(1) per call (hash map lookup/insert).
+ * Space Complexity: O(n) where n is the number of distinct messages seen so far.
+ */
 import java.util.HashMap;
 import java.util.Map;
 

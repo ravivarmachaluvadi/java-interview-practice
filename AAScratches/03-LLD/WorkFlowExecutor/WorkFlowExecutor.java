@@ -1,3 +1,23 @@
+/**
+ * Executes workflow tasks in a thread‑safe, ordered manner per key.
+ * <p>
+ * For each unique key (order number) it assigns a single‑threaded executor from a pool,
+ * ensuring that tasks with the same key run sequentially while allowing parallelism
+ * across different keys. Tasks are queued up to a configurable size; if the queue is full
+ * the task is rejected and an exception is thrown.
+ * <p>
+ * Approach:
+ * 1. On initialization, create {@code groupedProcessorCount} single‑threaded executors with bounded queues.
+ * 2. When {@link #submitTask(Procedure,String,String)} is called, compute a deterministic executor
+ *    index from the key and submit the task to that executor.
+ * 3. After execution, decrement the active order counter; if it reaches zero the mapping for that key
+ *    is removed, freeing resources.
+ * <p>
+ * Time Complexity: O(1) per submission (hash map lookup + modulo operation).
+ * Space Complexity: O(K) where K is the number of distinct keys in flight; each key holds a reference
+ * to its executor and an active counter. The total memory used by queues is bounded by {@code queueSize}
+ * per executor.
+ */
 package com.tgt.gom.federator.grouped_processor;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -250,6 +270,43 @@ public class WorkFlowExecutor {
      */
     public boolean isProcessorEnabled() {
         return isEnabled;
+    }
+
+    public static void main(String[] args) throws Exception {
+        WorkFlowExecutor executor = new WorkFlowExecutor();
+        // manually set fields that would normally come from Spring
+        java.lang.reflect.Field enabledField = WorkFlowExecutor.class.getDeclaredField("isEnabled");
+        enabledField.setAccessible(true);
+        enabledField.setBoolean(executor, true);
+        java.lang.reflect.Field countField = WorkFlowExecutor.class.getDeclaredField("groupedProcessorCount");
+        countField.setAccessible(true);
+        countField.setInt(executor, 2);
+        java.lang.reflect.Field queueField = WorkFlowExecutor.class.getDeclaredField("queueSize");
+        queueField.setAccessible(true);
+        queueField.setInt(executor, 10);
+
+        // initialize executor services
+        executor.init();
+
+        System.out.println("=== Input ===");
+        String payload1 = "Task A Payload";
+        String payload2 = "Task B Payload";
+        String key = "order123";
+
+        System.out.println("Submitting Task 1 with key: " + key);
+        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload), payload1, key);
+
+        System.out.println("Submitting Task 2 with same key to test ordering");
+        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload), payload2, key);
+
+        // give some time for tasks to complete
+        Thread.sleep(2000);
+
+        System.out.println("\n=== Output ===");
+        // output is printed by the procedure callbacks above
+
+        // shutdown executors gracefully
+        executor.awaitTermination();
     }
 }
 

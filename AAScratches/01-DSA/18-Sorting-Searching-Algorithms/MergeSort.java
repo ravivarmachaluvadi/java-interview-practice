@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ * Sort an integer array in ascending order using the Merge Sort algorithm.
+ *
+ * Approach:
+ * Recursively split the array into halves until single-element subarrays are reached,
+ * then merge sorted subarrays by comparing elements and building a new sorted array.
+ *
+ * Time Complexity:
+ * O(n log n) – each level of recursion processes all n elements, with log₂n levels.
+ *
+ * Space Complexity:
+ * O(n) – auxiliary arrays created during merging; recursion stack depth is O(log n).
+ */
 import java.util.Arrays;
 
 class MergeSort {

@@ -1,3 +1,16 @@
+/**
+ * Problem:
+ * Merge two strings by alternating characters from each string.
+ * If one string is longer, append the remaining suffix after the alternation ends.
+ *
+ * Approach:
+ * Use two indices to traverse both strings simultaneously,
+ * appending characters in turn until one string runs out.
+ * Then append any leftover characters from the longer string.
+ *
+ * Time Complexity: O(n + m) where n and m are lengths of word1 and word2.
+ * Space Complexity: O(n + m) for the resulting merged string.
+ */
 class MergeStringsAlternately {
 
     public static String mergeAlternately(String word1, String word2) {

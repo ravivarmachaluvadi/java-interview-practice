@@ -1,3 +1,17 @@
+/**
+ * Problem: Given a list of strings, find the longest string such that every prefix
+ * of it is also present in the list. If multiple candidates have the same length,
+ * return the lexicographically smallest one; if none exist, return "None".
+ *
+ * Approach: Build a Trie from all words. For each word, traverse the Trie while
+ * verifying that each visited node marks the end of a word (i.e., every prefix
+ * exists). Keep track of the best candidate by length and lexicographic order.
+ *
+ * Time Complexity: O(total characters in all words) for building the Trie,
+ * plus another O(total characters) for validation, overall O(N·L).
+ *
+ * Space Complexity: O(total characters) to store the Trie nodes. 
+ */
 import java.util.List;
 
 class Node {

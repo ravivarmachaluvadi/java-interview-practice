@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ *   Given a set of integers `arr` and two values `start` and `end`, find the minimal number of
+ *   multiplication operations needed to transform `start` into `end`. Each operation multiplies the
+ *   current value by any element of `arr` and takes the result modulo 100,000.
+ *
+ * Approach:
+ *   Treat each possible remainder (0–99,999) as a node in a graph. From a node `v`, an edge to
+ *   `(v * arr[i]) % mod` exists for every `i`. Perform a breadth‑first search starting from
+ *   `start`; the first time `end` is dequeued gives the shortest multiplication sequence.
+ *
+ * Complexity:
+ *   Time:  O(mod · |arr|) in the worst case, where `mod = 100000`.
+ *   Space: O(mod), for the distance array and queue. 
+ */
 import java.util.*;
 
 class MinimumMultiplications {

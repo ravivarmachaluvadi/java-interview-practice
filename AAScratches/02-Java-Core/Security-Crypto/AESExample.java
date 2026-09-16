@@ -1,3 +1,21 @@
+/**
+ * Demonstrates AES encryption and decryption using a 128‑bit key.
+ *
+ * The program encrypts the string "Hello AES!" with AES in ECB mode
+ * (default for Cipher.getInstance("AES")) and then decrypts it back,
+ * printing both the Base64‑encoded ciphertext and the recovered plaintext.
+ *
+ * Approach:
+ * 1. Create a SecretKeySpec from a 16‑byte key string.
+ * 2. Initialize a Cipher for ENCRYPT_MODE, encrypt the plaintext bytes,
+ *    and encode the result with Base64.
+ * 3. Reinitialize the same Cipher for DECRYPT_MODE, decode the Base64
+ *    ciphertext, decrypt it, and convert back to a String.
+ *
+ * Time Complexity: O(n) where n is the length of the input text (each byte
+ *                  processed once by the cipher).
+ * Space Complexity: O(n) for storing the encrypted bytes and the Base64
+ *                   representation. */
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;

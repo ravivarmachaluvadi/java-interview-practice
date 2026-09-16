@@ -1,3 +1,18 @@
+/**
+ * Demonstrates the use of a {@link java.util.concurrent.CountDownLatch} to coordinate
+ * two worker threads that add elements to a {@link java.util.concurrent.PriorityBlockingQueue}.
+ * The first thread inserts 5 immediately, while the second sleeps for 1.5 seconds before inserting 10.
+ * After both insertions have completed (or after a timeout), the main thread prints all queue elements in
+ * descending order followed by "Hello world!".
+ *
+ * Approach:
+ * - Create a priority queue with reverse ordering to store integers.
+ * - Use a CountDownLatch initialized to 2 so the main thread waits for both workers.
+ * - Each worker adds its element and decrements the latch; one worker sleeps first.
+ * - Main thread awaits latch release (with timeout) then iterates over the queue.
+ *
+ * Time Complexity: O(n log n) for inserting n elements into the priority queue.
+ * Space Complexity: O(n) to store the queued integers. */
 import java.util.Comparator;
 import java.util.concurrent.*;
 

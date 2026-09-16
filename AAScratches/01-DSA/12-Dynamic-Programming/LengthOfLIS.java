@@ -23,4 +23,12 @@ class LengthOfLIS {
         }
         return maxLength;
     }
+
+    public static void main(String[] args) {
+        LengthOfLIS solver = new LengthOfLIS();
+        int[] nums = {10, 9, 2, 5, 3, 7, 101, 18};
+        System.out.println("Input array: " + java.util.Arrays.toString(nums));
+        int result = solver.lengthOfLIS(nums);
+        System.out.println("Length of LIS: " + result);
+    }
 }

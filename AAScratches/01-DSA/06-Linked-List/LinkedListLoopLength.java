@@ -1,3 +1,13 @@
+/**
+ * Problem: Given a singly linked list that may contain a cycle, determine the number of nodes
+ * in the loop (cycle). If no loop exists, return 0.
+ *
+ * Approach: Use Floyd’s Tortoise and Hare algorithm to detect a meeting point inside the loop.
+ * Once detected, count the length by traversing from the meeting node until returning to it.
+ *
+ * Time Complexity: O(n) – each pointer moves at most once through the list.
+ * Space Complexity: O(1) – only a few pointers are used regardless of input size.
+ */
 class LinkedListLoopLength {
 
     static int findLength(Node slow, Node fast) {

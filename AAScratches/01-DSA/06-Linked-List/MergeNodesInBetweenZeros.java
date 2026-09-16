@@ -1,3 +1,16 @@
+/**
+ * Problem: Given a singly linked list that starts and ends with 0 and has no two consecutive zeros,
+ * replace each sublist of non‑zero values between zeros with a single node whose value is the sum
+ * of those values, returning the modified list without the leading zero.
+ *
+ * Approach: Iterate through the list starting after the first zero. For each segment until the next
+ * zero, accumulate the sum in a temporary variable. Assign this sum to the current node, then link
+ * it to the node following the zero and continue from there. This reuses existing nodes, avoiding
+ * extra allocations.
+ *
+ * Time Complexity: O(n), where n is the number of nodes, since each node is visited once.
+ * Space Complexity: O(1) auxiliary space; only a few pointers and an integer are used.
+ */
 class ListNode {
     int val;
     ListNode next;

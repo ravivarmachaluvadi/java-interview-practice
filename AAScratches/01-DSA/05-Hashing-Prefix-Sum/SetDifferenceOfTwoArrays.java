@@ -1,3 +1,19 @@
+/**
+ * Problem:
+ *   Given two integer arrays, return a sorted list of all elements that appear in
+ *   exactly one of the arrays (the symmetric difference).
+ *
+ * Approach:
+ *   • Insert each array's values into separate HashSets to deduplicate.
+ *   • For every element in set1 not present in set2, add it to the result.
+ *   • Repeat for elements in set2 not present in set1.
+ *   • Sort the resulting list before returning.
+ *
+ * Complexity:
+ *   Time:  O(n + m) for building sets and scanning,
+ *         plus O(k log k) for sorting the final list (k = size of result).
+ *   Space: O(n + m) for the two HashSets, plus O(k) for the output list.
+ */
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;

@@ -1,3 +1,19 @@
+/**
+ * Converts a given English sentence into Goat Latin.
+ *
+ * For each word:
+ *   • If it starts with a vowel, keep the word unchanged.
+ *   • Otherwise, move its first letter to the end.
+ *   Append "ma" and then add a number of 'a' characters equal to the
+ *   word's 1‑based position in the sentence.
+ *
+ * The words are joined by single spaces. Leading/trailing spaces
+ * are trimmed from the final result.
+ *
+ * Time Complexity: O(n) where n is the total length of the input string,
+ * because each character is processed a constant number of times.
+ * Space Complexity: O(n), for storing the resulting string and intermediate
+ * word transformations. */
 public class GoatLatin {
 
     public static String toGoatLatin ( String sentence ) {

@@ -1,3 +1,11 @@
+/**
+ * Determines whether a number formed by concatenating the given digits can be divisible by 3.
+ *
+ * The method sums all digits and checks if the sum is a multiple of three, exploiting the divisibility rule for 3.
+ *
+ * Time Complexity: O(n), where n is the number of digits (single pass to compute the sum).
+ * Space Complexity: O(1) – only a constant amount of extra space is used.
+ */
 class DivisibleByThree {
     public static boolean canFormDivisibleBy3(int[] digits) {
         int sum = 0;

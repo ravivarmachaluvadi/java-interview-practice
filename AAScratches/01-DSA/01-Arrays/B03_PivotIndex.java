@@ -1,3 +1,12 @@
+/**
+ * Problem: Find the pivot index in an integer array where the sum of elements on the left equals the sum on the right.
+ *
+ * Approach: First compute the total sum of all elements. Then iterate through the array, maintaining a running leftSum. At each index i,
+ * check if leftSum equals (totalSum - leftSum - nums[i]); if so, return i as the pivot. Update leftSum by adding nums[i] and continue.
+ *
+ * Time Complexity: O(n) – two linear passes over the array.
+ * Space Complexity: O(1) – only a few integer variables are used regardless of input size.
+ */
 class PivotIndex {
     public int pivotIndex(int[] nums) {
         int totalSum = 0;

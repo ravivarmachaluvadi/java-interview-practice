@@ -1,3 +1,16 @@
+/**
+ * Problem: Find all articulation points (cut vertices) in an undirected graph.
+ *
+ * Approach: Perform a depth‑first search while maintaining discovery times (tin)
+ * and low values for each vertex. A vertex is marked as an articulation point
+ * if it satisfies either of the two conditions:
+ *   1. It is the root of DFS with more than one child.
+ *   2. For any non-root vertex, there exists a child such that low[child] >= tin[parent].
+ *
+ * Complexity: Time O(V + E) and Space O(V + E), where V is the number of vertices
+ * and E is the number of edges in the graph. The adjacency list representation
+ * ensures linear traversal of all edges.
+ */
 import java.util.*;
 
 class ArticulationPointInGraph {

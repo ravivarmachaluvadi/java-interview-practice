@@ -1,3 +1,25 @@
+/**
+ * Implements a FIFO queue using two LIFO stacks.
+ *
+ * Problem solved:
+ *   Provides enqueue, dequeue, peek, isEmpty, and size operations for a queue
+ *   while only utilizing stack data structures.
+ *
+ * Approach:
+ *   Elements are pushed onto stack1 during enqueue. For dequeue or peek,
+ *   if stack2 is empty, all elements from stack1 are transferred to stack2,
+ *   reversing their order so the oldest element is on top of stack2.
+ *   Then pop/peek from stack2. This ensures FIFO behavior with amortized O(1)
+ *   operations.
+ *
+ * Time Complexity:
+ *   enqueue: O(1) average
+ *   dequeue, peek: O(1) amortized (O(n) worst-case when transferring)
+ *   isEmpty, size: O(1)
+ *
+ * Space Complexity:
+ *   O(n), where n is the number of elements in the queue.
+ */
 import java.util.Stack;
 
 class QueueUsingStacks {

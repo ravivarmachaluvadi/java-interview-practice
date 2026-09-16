@@ -1,3 +1,15 @@
+/**
+ * Problem: Given an array of task IDs, determine the minimum number of rounds required to complete all tasks.
+ * Each round must consist of 2 or 3 identical tasks; a single task cannot form a round.
+ *
+ * Approach:
+ * Count occurrences of each task using a hash map. For each count:
+ * - If count == 1 → impossible, return -1.
+ * - Otherwise compute rounds as ceil(count / 3), adjusting for remainders by replacing one group of 3 with two groups of 2 when needed.
+ *
+ * Time Complexity: O(n) – single pass to build the map and another over distinct tasks.
+ * Space Complexity: O(k) – where k is the number of unique task IDs (hash map storage).
+ */
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;

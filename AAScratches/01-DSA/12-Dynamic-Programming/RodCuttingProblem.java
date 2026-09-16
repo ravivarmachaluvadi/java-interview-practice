@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a rod of length N and an array price[] where price[i] is the selling price of a piece of length i+1,
+ * find the maximum revenue obtainable by cutting the rod into integer-length pieces.
+ *
+ * Approach: Recursively explore two choices at each step:
+ * 1) Skip the current length (move to next index).
+ * 2) Cut a piece of the current length if it fits, add its price and continue with remaining length,
+ *    allowing repeated use of the same length. Track the best profit found.
+ *
+ * Time Complexity: O(2^N) in the worst case due to exhaustive recursion over all cut combinations.
+ * Space Complexity: O(N) for the recursion stack depth (worst-case linear in rod length).
+ */
 class RodCuttingProblem {
     int maxProfit = -1;
 

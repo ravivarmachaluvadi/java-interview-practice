@@ -1,3 +1,15 @@
+/**
+ * Implements a Tic‑Tac‑Toe game on an n×n board.
+ *
+ * Problem: After each move, determine if the player has won by completing
+ * a full row, column, main diagonal, or anti‑diagonal.
+ *
+ * Approach: Store moves in a 2D array. On every move, update the cell and
+ * check only the affected row, column, and possibly diagonals for a win.
+ *
+ * Time Complexity: O(n) per move (checking up to n cells).
+ * Space Complexity: O(n²) for the board storage.
+ */
 class TicTacToe {
 
     private int[][] board;

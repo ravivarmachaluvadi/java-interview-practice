@@ -1,3 +1,14 @@
+/**
+ * Detects the starting node of a loop in a singly linked list.
+ *
+ * The algorithm uses Floyd’s cycle‑finding technique: two pointers move
+ * through the list at different speeds; when they meet, a loop exists.
+ * A second phase resets one pointer to the head and moves both one step
+ * at a time until they collide again – that node is the loop entry point.
+ *
+ * Time Complexity: O(n) – each node is visited at most a constant number of times.
+ * Space Complexity: O(1) – only two pointers are used, regardless of list size.
+ */
 class LinkedListLoopDetection {
     public static Node firstNode(Node head) {
         Node slow = head;

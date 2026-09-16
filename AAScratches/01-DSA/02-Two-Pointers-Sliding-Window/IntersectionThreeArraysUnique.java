@@ -1,3 +1,15 @@
+/**
+ * Problem: Given three sorted integer arrays, return a list of all values that appear in
+ * every array, with each value appearing only once in the result.
+ *
+ * Approach: Use three pointers to traverse the arrays simultaneously. When the current
+ * elements are equal, add the value to the result and advance all pointers past any
+ * duplicates. If they differ, advance the pointer(s) pointing to the smallest element,
+ * skipping over duplicates as well. This ensures each array is scanned only once.
+ *
+ * Time Complexity: O(n + m + p), where n, m, p are the lengths of A, B, and C respectively.
+ * Space Complexity: O(k), where k is the number of unique common elements (output size).
+ */
 import java.util.*;
 class IntersectionThreeArraysUnique {
     public static List<Integer> intersectUnique(int[] A, int[] B, int[] C) {

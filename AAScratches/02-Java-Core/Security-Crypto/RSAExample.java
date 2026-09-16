@@ -1,3 +1,22 @@
+/**
+ * Demonstrates RSA asymmetric encryption and decryption.
+ *
+ * The program generates a 2048‑bit RSA key pair, encrypts a short
+ * plaintext string with the public key, then decrypts it back to
+ * plain text using the private key. It prints the original,
+ * encrypted (Base64), and decrypted strings.
+ *
+ * Approach:
+ * 1. Generate RSA KeyPair (public/private).
+ * 2. Encrypt plaintext bytes with Cipher.ENCRYPT_MODE using the public key.
+ * 3. Encode ciphertext in Base64 for display.
+ * 4. Decode Base64, decrypt with Cipher.DECRYPT_MODE using the private key,
+ *    and convert back to a string.
+ *
+ * Time Complexity: O(n) where n is the length of the plaintext (RSA
+ * operates on fixed-size blocks; overall cost dominated by key generation).
+ * Space Complexity: O(1) additional space beyond input/output buffers.
+ */
 import java.security.*;
 import javax.crypto.Cipher;
 import java.util.Base64;

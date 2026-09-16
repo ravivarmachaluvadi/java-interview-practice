@@ -1,3 +1,12 @@
+/**
+ * Problem: Provide a way to iterate over a collection of songs in a playlist without exposing the underlying list structure.
+ *
+ * Approach: Implement the Iterator design pattern. The PlayList class holds a List<Song> and returns a custom PlayListIterator that
+ * maintains its own position index. The iterator implements hasNext() and next() to traverse the list sequentially.
+ *
+ * Time Complexity: O(n) for iterating over all songs, where n is the number of songs in the playlist.
+ * Space Complexity: O(1) additional space beyond the stored list; the iterator uses a single integer index.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

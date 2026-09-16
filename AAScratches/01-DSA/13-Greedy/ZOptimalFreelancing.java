@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ * Given a set of tasks each with a deadline and a profit,
+ * schedule at most one task per time unit to maximize total profit.
+ *
+ * Approach:
+ * 1. Sort tasks by decreasing profit.
+ * 2. For each task, place it in the latest available slot
+ *    before or on its deadline (if any).
+ * 3. Sum profits of scheduled tasks.
+ *
+ * Time Complexity: O(n log n + n·D) where D is max deadline,
+ *   dominated by sorting and slot search.
+ * Space Complexity: O(D) for the boolean array of slots.
+ */
 import java.util.Arrays;
 import java.util.Comparator;
 

@@ -1,3 +1,17 @@
+/**
+ * Problem: Given a binary tree, insert a new row of nodes with value `v` at depth `d`.
+ * The new nodes become the children of all nodes currently at depth `d-1`,
+ * pushing existing subtrees down one level.
+ *
+ * Approach: Perform a DFS traversal keeping track of the current depth. When
+ * reaching depth `d-1`, replace each node's left and right child with a new
+ * node containing `v` and attach the original children as its own left or right
+ * subtree respectively. Handle the special case when `d == 1` by creating a
+ * new root.
+ *
+ * Time Complexity: O(n) – every node is visited once.
+ * Space Complexity: O(h) – recursion stack depth, where h is tree height (worst‑case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

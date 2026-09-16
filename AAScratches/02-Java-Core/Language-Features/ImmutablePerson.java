@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ * Demonstrates thread-safe updates to an immutable object (ImmutablePerson) using
+ * AtomicReference and compareAndSet, ensuring each concurrent task adds a new address
+ * without corrupting shared state.
+ *
+ * Approach:
+ * 1. Wrap the current ImmutablePerson in an AtomicReference.
+ * 2. Each worker thread creates a new instance with an added address.
+ * 3. Use compareAndSet to atomically replace the reference; retry on failure.
+ *
+ * Complexity:
+ * Time: O(n * m) where n is number of threads and m is average list size per update
+ * Space: O(m) for each new ImmutablePerson copy (list duplication).
+ */
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

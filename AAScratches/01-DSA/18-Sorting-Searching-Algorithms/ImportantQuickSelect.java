@@ -1,3 +1,16 @@
+/**
+ * Finds the k-th smallest element in an array using QuickSelect.
+ *
+ * The algorithm repeatedly partitions the array around a pivot (chosen as the last
+ * element of the current subarray). After each partition, it recurses into the
+ * side that must contain the desired order statistic until the pivot lands at
+ * index k. The array is partially sorted such that elements left of the pivot
+ * are smaller and those right are larger.
+ *
+ * Time Complexity: O(n) on average, O(n²) worst‑case (when pivots are poor).
+ * Space Complexity: O(1) auxiliary space – in‑place partitioning with recursion
+ * stack depth up to O(log n) on average, O(n) worst‑case.
+ */
 class ImportantQuickSelect {
     public static void main(String[] args) {
         int[] arr = {7, 1, 4, 2, 8, 5, 0, 9, 3};

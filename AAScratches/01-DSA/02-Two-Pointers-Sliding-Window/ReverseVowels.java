@@ -1,3 +1,16 @@
+/**
+ * Problem: Reverse the order of all vowels in a given string while keeping
+ * non‑vowel characters unchanged.
+ *
+ * Approach: Use two pointers, one starting at the beginning and one at the end
+ * of the character array. Move each pointer toward the center until it points
+ * to a vowel, then swap those vowels and continue until the pointers cross.
+ *
+ * Time Complexity: O(n), where n is the length of the string (each character
+ * examined at most twice).
+ * Space Complexity: O(1) additional space beyond the output string (in‑place
+ * manipulation on a char array).
+ */
 class ReverseVowels {
     public static void main(String[] args) {
         String string = "hello world";  // Example input string

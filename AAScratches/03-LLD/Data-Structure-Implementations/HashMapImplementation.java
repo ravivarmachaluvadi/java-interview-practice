@@ -1,3 +1,22 @@
+/**
+ * Implements a simple generic hash map using separate chaining.
+ *
+ * Problem: Store key-value pairs with efficient lookup, insertion and update
+ * operations while handling collisions via linked lists (buckets).
+ *
+ * Approach:
+ * - Use an ArrayList of buckets; each bucket is a List of Entry objects.
+ * - Compute bucket index by hashing the key and taking modulus of bucket count.
+ * - On put: if key exists, overwrite value; otherwise add new entry to bucket.
+ * - On get: search bucket for matching key and return its value or null.
+ *
+ * Time Complexity:
+ *   Average O(1) for put/get when load factor is low.
+ *   Worst-case O(n) if all keys collide into one bucket.
+ *
+ * Space Complexity:
+ *   O(n + b) where n = number of entries, b = number of buckets (fixed at 10).
+ */
 import java.util.*;
 
 class MyHashMap<K, V> {

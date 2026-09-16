@@ -1,3 +1,14 @@
+/**
+ * Problem: Convert a fraction (numerator / denominator) into its decimal string representation,
+ * inserting parentheses around the repeating part if the decimal is recurring.
+ *
+ * Approach: Perform long division manually, tracking each remainder and its position in the result
+ * using a HashMap. When a remainder repeats, insert '(' at the first occurrence and ')' at the end.
+ *
+ * Time Complexity: O(k) where k is the number of digits produced until termination or repetition,
+ * bounded by the denominator's size.
+ * Space Complexity: O(k) for the output string plus O(min(denominator, k)) for the remainder map.
+ */
 import java.util.HashMap;
 import java.util.Map;
 

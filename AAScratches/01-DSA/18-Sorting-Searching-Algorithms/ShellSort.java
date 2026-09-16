@@ -1,3 +1,16 @@
+/**
+ * Problem: Sort an integer array in ascending order using the Shell sort algorithm.
+ *
+ * Approach: Use a decreasing gap sequence (starting at N/2 and halving each iteration). For each gap, perform
+ * a gapped insertion sort: shift elements that are 'gap' positions apart until the current element fits into its
+ * correct position within the subarray defined by the gap.
+ *
+ * Time Complexity:
+ *   Best case: O(n log n) with optimal gaps (though this implementation uses N/2, N/4,...).
+ *   Average/Worst case: O(n^(3/2)) for typical gap sequences; worst-case can be O(n^2) if gaps are poor.
+ *
+ * Space Complexity: O(1) auxiliary space – sorting is performed in-place.
+ */
 import java.util.Arrays;
 
 class ShellSort {

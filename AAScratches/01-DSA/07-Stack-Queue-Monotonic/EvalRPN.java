@@ -33,4 +33,12 @@ class EvalRPN {
         }
         return stack.pop();
     }
+
+    public static void main(String[] args) {
+        String[] tokens = {"2","1","+","3","*"};
+        EvalRPN evaluator = new EvalRPN();
+        int result = evaluator.evalRPN(tokens);
+        System.out.println("Input: " + java.util.Arrays.toString(tokens));
+        System.out.println("Output: " + result);
+    }
 }

@@ -1,3 +1,18 @@
+/**
+ * Problem: Track the most popular content ID by incrementing and decrementing counts,
+ * returning any ID with the highest count or -1 if none exist.
+ *
+ * Approach: Maintain two maps:
+ *   1) popularityMap (contentId → count) for quick updates.
+ *   2) countMap (count → set of contentIds) as a TreeMap to retrieve the maximum count in O(log n).
+ * On each increment/decrement, move the ID between sets and clean up empty entries.
+ *
+ * Time Complexity:
+ *   increasePopularity / decreasePopularity: O(log k) where k is number of distinct counts
+ *   mostPopular: O(1) (TreeMap.lastKey() + set lookup)
+ *
+ * Space Complexity: O(n) for storing all content IDs and their counts, plus auxiliary sets.
+ */
 import java.util.*;
 
 interface MostPopular {

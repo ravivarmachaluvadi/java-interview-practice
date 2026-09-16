@@ -1,3 +1,15 @@
+/**
+ * Generates the first five rows of Pascal's Triangle using a mathematical
+ * binomial coefficient approach.
+ *
+ * For each row i (1‑based), it starts with 1 and iteratively computes the next
+ * element by multiplying the current value by (i - col) and dividing by col,
+ * which yields C(i-1, col). The resulting list of rows is printed to stdout.
+ *
+ * Time Complexity: O(n²) where n is the number of rows (here 5), due to nested
+ * loops for row generation. Space Complexity: O(n²) for storing all rows in a
+ * list of lists. 
+ */
 import java.util.ArrayList;
 import java.util.List;
 

@@ -1,3 +1,18 @@
+/**
+ * Calculates the mean and median of an integer array.
+ *
+ * The program first computes the arithmetic mean by summing all elements
+ * and dividing by the length. For the median, it sorts the array in place,
+ * then selects the middle element for odd lengths or averages the two
+ * central elements for even lengths.
+ *
+ * Time Complexity:
+ *   - Mean: O(n)
+ *   - Median (including sorting): O(n log n)
+ *
+ * Space Complexity:
+ *   - In-place sorting uses O(1) additional space (Java's Arrays.sort on primitives).
+ */
 import java.util.Arrays;
 
 class MeanMedianCalculator {

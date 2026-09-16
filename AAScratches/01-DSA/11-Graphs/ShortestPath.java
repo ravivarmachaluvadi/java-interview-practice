@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ * Given an undirected weighted graph with n nodes and m edges, find the shortest
+ * path from node 1 to node n. Return a list where the first element is the total
+ * distance and the remaining elements are the vertices along that path.
+ *
+ * Approach:
+ * Build adjacency lists for all vertices. Run Dijkstra’s algorithm using a
+ * priority queue to compute minimum distances and track parents for path
+ * reconstruction. If node n is unreachable, return [-1].
+ *
+ * Complexity:
+ * Time: O((n + m) log n) – each edge relaxes once and heap operations are log n.
+ * Space: O(n + m) – adjacency lists, distance array, parent array, priority queue.
+ */
 import java.util.*;
 
 class ShortestPath {

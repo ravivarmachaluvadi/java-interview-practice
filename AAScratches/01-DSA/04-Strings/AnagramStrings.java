@@ -1,3 +1,13 @@
+/**
+ * Problem: Determine whether two input strings are anagrams of each other.
+ *
+ * Approach: Count the frequency of each lowercase letter in both strings using a 26‑element array.
+ * Increment counts for characters from the first string, decrement for the second,
+ * then verify all counts return to zero. If any count differs, the strings are not anagrams.
+ *
+ * Time Complexity: O(n), where n is the length of the strings (both must be equal).
+ * Space Complexity: O(1) – constant 26‑element array regardless of input size.
+ */
 import java.util.*;
 
 class AnagramStrings {

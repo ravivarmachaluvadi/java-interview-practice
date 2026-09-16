@@ -1,3 +1,13 @@
+/**
+ * Finds the smallest index difference between two specified words in an array.
+ *
+ * The algorithm scans the array once, keeping track of the most recent positions
+ * of each target word. Whenever both words have been seen, it updates the minimum
+ * distance using their current indices.
+ *
+ * Time Complexity: O(n), where n is the number of words in the array.
+ * Space Complexity: O(1) – only a few integer variables are used regardless of input size.
+ */
 class MinimumDistanceBetweenWordsV2 {
     public static int findMinDistance(String[] words, String word1, String word2) {
         int minDistance = Integer.MAX_VALUE;

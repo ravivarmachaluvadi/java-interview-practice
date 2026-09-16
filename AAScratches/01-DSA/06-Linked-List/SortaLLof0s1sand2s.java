@@ -1,3 +1,17 @@
+/**
+ * Problem: Sort a singly linked list that contains only the values 0, 1, and 2
+ * (the Dutch National Flag problem for linked lists).
+ *
+ * Approach: Create three dummy head nodes for zeroes, ones, and twos.
+ * Traverse the original list once, appending each node to its corresponding
+ * sublist. After traversal, link the three sublists together and terminate
+ * the final list with null. Return the merged list starting after the zero
+ * dummy head.
+ *
+ * Time Complexity: O(n) – one pass through the list.
+ * Space Complexity: O(1) – only a few pointers are used; no extra nodes
+ * beyond the three dummy heads.
+ */
 import java.util.*;
 
 class Solution {

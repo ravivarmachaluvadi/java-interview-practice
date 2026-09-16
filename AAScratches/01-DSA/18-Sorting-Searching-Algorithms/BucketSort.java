@@ -1,3 +1,14 @@
+/**
+ * Bucket Sort for floating point numbers in the range [0,1).
+ *
+ * The algorithm distributes each element into one of n buckets based on its value,
+ * sorts each bucket with Java's Arrays.sort (which uses Dual-Pivot Quicksort),
+ * and then concatenates the buckets back into the original array.
+ *
+ * Time Complexity: O(n + k log k) where k is the average number of elements per bucket
+ * (for uniform distribution this becomes O(n)). Worst case O(n²) if all elements fall in one bucket.
+ * Space Complexity: O(n²) due to preallocating n buckets each of size n; can be reduced with dynamic lists.
+ */
 import java.util.Arrays;
 
 class BucketSort {

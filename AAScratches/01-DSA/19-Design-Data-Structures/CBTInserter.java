@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ * Implement a data structure that supports inserting nodes into a complete binary tree while maintaining its completeness.
+ *
+ * Approach:
+ * Maintain a queue of candidate parent nodes (those missing at least one child). On insertion, peek the front node:
+ * - If left child is null, insert there and return parent value.
+ * - Else if right child is null, insert there, return parent value, and remove that node from the queue.
+ * After inserting, enqueue the new node as a potential future parent.
+ *
+ * Complexity:
+ * Time: O(1) amortized per insertion (each node processed at most once).
+ * Space: O(n) for storing the queue of nodes in the tree. 
+ */
 import java.util.LinkedList;
 import java.util.Queue;
 

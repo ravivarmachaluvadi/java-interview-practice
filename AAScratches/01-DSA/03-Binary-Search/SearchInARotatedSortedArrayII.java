@@ -1,3 +1,13 @@
+/**
+ * Problem: Determine whether a target value exists in a rotated sorted array that may contain duplicates.
+ *
+ * Approach: Perform a modified binary search. At each step, if the low, mid, and high values are equal,
+ * increment low and decrement high to skip duplicates. Otherwise, identify which half is properly sorted
+ * and decide whether to search left or right based on the target's range.
+ *
+ * Time Complexity: O(n) in worst case (when many duplicates cause linear scan), average O(log n).
+ * Space Complexity: O(1). 
+ */
 import java.util.ArrayList;
 
 class SearchInARotatedSortedArrayII {

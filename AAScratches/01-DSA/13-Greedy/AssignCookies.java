@@ -1,3 +1,15 @@
+/**
+ * Problem: Given arrays representing the greed factor of each child and the size of available cookies,
+ * determine the maximum number of children that can be satisfied by assigning at most one cookie per child
+ * such that a child's greed is less than or equal to the cookie's size.
+ *
+ * Approach: Sort both arrays. Use two pointers to iterate through cookies and greed values.
+ * For each cookie, if it satisfies the current child (greed <= cookieSize), assign it and move to next child.
+ * Continue until all children or cookies are processed.
+ *
+ * Time Complexity: O(n log n + m log m) due to sorting, where n = greed.length and m = cookieSize.length.
+ * Space Complexity: O(1) auxiliary space (in-place sort).
+ */
 import java.util.Arrays;
 
 class AssignCookies {

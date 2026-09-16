@@ -1,3 +1,20 @@
+/**
+ * Problem: Demonstrates thread‑safe increment of shared static and instance fields
+ * using a fixed thread pool.  Two million tasks are submitted, each task
+ * increments both the static field {@code val} and the instance field
+ * {@code nonStaticVal}.  Synchronization is performed on {@link StaticValChat.class}
+ * to ensure atomic updates.
+ *
+ * Approach: Create a cached ExecutorService with 10 threads. Submit two types of
+ * tasks in a loop: one that calls the static method {@code staticInc} and one
+ * that calls the instance method {@code nonStaticInc}. Both methods synchronize on
+ * the class object, incrementing the shared fields.
+ *
+ * Complexity:
+ *   Time   O(n) where n = 2 000 000 tasks (constant work per task).
+ *   Space  O(1) additional memory beyond the thread pool and task queue,
+ *          which is bounded by the fixed pool size of 10 threads.
+ */
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 

@@ -1,3 +1,14 @@
+/**
+ * Problem: Given an m x n integer matrix, set entire row and column to zero
+ * if an element is zero.
+ *
+ * Approach: First pass records rows and columns that contain a zero using two
+ * hash sets. Second pass iterates again, setting any cell whose row or column
+ * is marked to zero.
+ *
+ * Time Complexity: O(m*n) – two full traversals of the matrix.
+ * Space Complexity: O(m + n) – storage for at most all rows and columns in the sets.
+ */
 import java.util.HashSet;
 import java.util.Set;
 
@@ -22,6 +33,24 @@ class SetMatrixZeroes {
                     matrix[i][j] = 0;
                 }
             }
+        }
+    }
+
+    public static void main(String[] args) {
+        int[][] matrix = {
+            {1, 2, 3},
+            {4, 0, 6},
+            {7, 8, 9}
+        };
+        System.out.println("Input matrix:");
+        for (int[] row : matrix) {
+            System.out.println(java.util.Arrays.toString(row));
+        }
+        SetMatrixZeroes solver = new SetMatrixZeroes();
+        solver.setZeroes(matrix);
+        System.out.println("\nOutput matrix after setZeroes:");
+        for (int[] row : matrix) {
+            System.out.println(java.util.Arrays.toString(row));
         }
     }
 }

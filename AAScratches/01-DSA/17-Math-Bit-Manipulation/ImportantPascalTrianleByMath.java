@@ -1,3 +1,16 @@
+/**
+ * Generates the first five rows of Pascal's Triangle using a mathematical
+ * approach that computes each element from its predecessor.
+ *
+ * For a given row number n, the k-th element (0‑based) is calculated as:
+ *   value = previousValue * (n - k) / k
+ * starting with 1 for the first element. This avoids recomputing factorials.
+ *
+ * The program builds each row iteratively and prints all rows to standard output.
+ *
+ * Time Complexity: O(n²), where n is the number of rows (here 5). Each row i requires i operations.
+ * Space Complexity: O(n²) for storing the triangle; each element is an Integer in a list.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

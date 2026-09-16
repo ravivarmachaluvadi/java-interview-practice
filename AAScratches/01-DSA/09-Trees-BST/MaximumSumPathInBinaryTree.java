@@ -27,6 +27,25 @@ class MaximumSumPathInBinaryTree {
         // Return the maximum sum of paths from the current node
         return node.data + Math.max(leftSum, rightSum);
     }
+
+    public static void main(String[] args) {
+        // Build a small binary tree:
+        //        1
+        //       / \
+        //     -2   3
+        Node root = new Node(1);
+        root.left = new Node(-2);
+        root.right = new Node(3);
+
+        MaximumSumPathInBinaryTree solver = new MaximumSumPathInBinaryTree();
+
+        int result = solver.maxPathSum(root);
+
+        System.out.println("Input tree (root node value): " + root.data);
+        System.out.println("Left child: " + (root.left != null ? root.left.data : "null"));
+        System.out.println("Right child: " + (root.right != null ? root.right.data : "null"));
+        System.out.println("Maximum path sum output: " + result);
+    }
 }
 
 class Node {

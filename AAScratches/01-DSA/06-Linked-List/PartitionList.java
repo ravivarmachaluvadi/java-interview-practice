@@ -1,3 +1,17 @@
+/**
+ * Problem:
+ * Given the head of a singly linked list and an integer x, reorder the list so that all nodes with values less than x come before nodes with values greater than or equal to x.
+ * The relative order among nodes in each partition must remain unchanged.
+ *
+ * Approach:
+ * Create two dummy heads for "less" and "greater/equal" partitions. Traverse the original list once,
+ * appending each node to the appropriate partition based on its value. After traversal, terminate
+ * the greater partition with null and link the less partition to the head of the greater partition.
+ *
+ * Complexity:
+ * Time:  O(n) – single pass through n nodes.
+ * Space: O(1) – only a few pointers are used; no additional data structures proportional to input size.
+ */
 class ListNode {
     int val;
     ListNode next;

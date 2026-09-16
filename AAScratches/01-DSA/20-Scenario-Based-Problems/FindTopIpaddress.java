@@ -1,3 +1,14 @@
+/**
+ * Problem: Given an array of log entries, each starting with an IP address,
+ * find the IP that appears most frequently.
+ *
+ * Approach: Iterate over all logs, extract the first token (IP) and count
+ * occurrences using a HashMap. Then scan the map to identify the key with
+ * the highest count.
+ *
+ * Time Complexity: O(n), where n is the number of log entries.
+ * Space Complexity: O(k), where k is the number of distinct IP addresses.
+ */
 import java.util.HashMap;
 import java.util.Map;
 

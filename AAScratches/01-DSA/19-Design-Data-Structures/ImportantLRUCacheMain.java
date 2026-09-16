@@ -1,3 +1,17 @@
+/**
+ * Implements an LRU (Least Recently Used) cache with O(1) get and put operations.
+ *
+ * Problem: Store up to a fixed number of key-value pairs, evicting the least
+ * recently accessed entry when capacity is exceeded. Retrieval returns -1 if
+ * the key is absent.
+ *
+ * Approach: Combine a HashMap for fast key lookup with a doubly linked list
+ * that tracks usage order. On get or put, move the node to the head (most
+ * recent). When inserting beyond capacity, remove the tail (least recent).
+ *
+ * Time Complexity: O(1) per get and put.
+ * Space Complexity: O(capacity) for the map and linked list nodes.
+ */
 import java.util.HashMap;
 import java.util.Map;
 

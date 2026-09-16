@@ -1,3 +1,14 @@
+/**
+ * Problem: Given an array of non‑negative integers where each element represents the maximum jump length from that position,
+ * determine the minimum number of jumps required to reach the last index.
+ *
+ * Approach: Greedy traversal keeping track of the farthest reachable index within the current jump range.
+ * When the current index reaches the end of this range, increment the jump count and extend the range
+ * to the farthest reachable index found so far. Stop once the range covers or exceeds the last index.
+ *
+ * Time Complexity: O(n) – each element is processed once.
+ * Space Complexity: O(1) – only a few integer variables are used regardless of input size.
+ */
 
 class CanJumpTwo {
 

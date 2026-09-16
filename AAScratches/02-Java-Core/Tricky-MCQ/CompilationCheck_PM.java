@@ -1,3 +1,17 @@
+/**
+ * Formats an arbitrary object into a human‑readable string.
+ *
+ * The method distinguishes between Integer, Long, String, and null,
+ * producing type‑specific prefixes; all other objects are rendered
+ * via their {@code toString()} representation.
+ *
+ * Approach: A Java 17 switch expression with pattern matching is used
+ * to dispatch on the runtime type of the argument. Each case formats
+ * the value accordingly or falls back to {@code obj.toString()}.
+ *
+ * Time Complexity: O(1) – constant‑time type checking and formatting.
+ * Space Complexity: O(1) – only a few temporary strings are created per call.
+ */
 public class PM {
     public static void main(String[] args) {
         System.out.println(format(new Object()));

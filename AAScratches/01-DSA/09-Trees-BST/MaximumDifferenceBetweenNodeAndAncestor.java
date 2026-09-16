@@ -1,3 +1,15 @@
+/**
+ * Problem:
+ * Given a binary tree, find the maximum absolute difference between any node and its ancestor.
+ *
+ * Approach:
+ * Perform a depth‑first traversal while carrying along the current path's minimum and maximum values.
+ * At each node update the global maximum difference using these extremes, then recurse on children with updated min/max.
+ *
+ * Complexity:
+ * Time: O(n) – each node visited once.
+ * Space: O(h) – recursion stack where h is tree height (worst‑case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

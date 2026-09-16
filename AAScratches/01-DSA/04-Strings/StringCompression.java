@@ -1,3 +1,11 @@
+/**
+ * Problem: In-place compression of a character array by replacing consecutive duplicate characters with the character followed by its count.
+ *
+ * Approach: Two pointers iterate over the array; the read pointer scans runs of identical characters, while the write pointer records the compressed form directly into the same array. Counts are converted to strings and written digit by digit.
+ *
+ * Time Complexity: O(n), where n is the length of the input array (each element is processed once).
+ * Space Complexity: O(1) auxiliary space (in-place modification; only a few integer variables are used).
+ */
 class StringCompression {
     public static int compress(char[] chars) {
         int left = 0; // Write index

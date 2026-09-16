@@ -1,3 +1,15 @@
+/**
+ * Determines the strength of a password based on length and character composition.
+ *
+ * The algorithm checks for presence of lowercase letters, uppercase letters,
+ * digits, and special characters (!@#$%^&*()). A password is classified as:
+ * - "Strong" if it has at least 8 characters and all four categories.
+ * - "Moderate" if it has at least 6 characters with lowercase, uppercase, and a special character.
+ * - Otherwise, the password is considered "Weak".
+ *
+ * Time Complexity: O(n) where n is the length of the password (single pass).
+ * Space Complexity: O(1) – only constant auxiliary variables are used.
+ */
 class PasswordStrengthChecker {
     public static void main(String[] args) {
         String password1 = "gfg!@12";

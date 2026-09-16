@@ -1,3 +1,14 @@
+/**
+ * Problem: Given an array containing n distinct numbers taken from the range [0, n],
+ * one number is missing. Return that missing number.
+ *
+ * Approach: Compute the expected sum of 0..n using the arithmetic series formula,
+ * subtract the actual sum of the array elements to obtain the missing value.
+ * (An alternative XOR based solution is also provided.)
+ *
+ * Time Complexity: O(n) – single pass over the array.
+ * Space Complexity: O(1) – constant auxiliary space.
+ */
 import java.util.*;
 
 class MissingNumber {

@@ -1,3 +1,13 @@
+/**
+ * Multiplies two non‑negative integer numbers represented as decimal strings and returns the product as a string.
+ *
+ * The algorithm simulates manual multiplication: for each digit of num1 (from least significant to most),
+ * multiply it by every digit of num2, add the partial products into an array that stores each position
+ * of the final result, handling carries on the fly. After processing all digits, leading zeros are skipped.
+ *
+ * Time Complexity: O(m × n), where m and n are the lengths of the input strings.
+ * Space Complexity: O(m + n) for the integer array that holds intermediate results.
+ */
 class MultiplyStrings {
     public static String multiply(String num1, String num2) {
         int m = num1.length(), n = num2.length();

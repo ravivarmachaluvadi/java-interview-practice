@@ -74,4 +74,16 @@ class LengthOfLongestFibonacciSubsequence {
         }
         return longest == 0 ? 0 : 2 + longest;
     }
+
+    public static void main(String[] args) {
+        LengthOfLongestFibonacciSubsequence solver = new LengthOfLongestFibonacciSubsequence();
+        int[] arr = {1, 3, 7, 11, 12, 14, 18};
+        System.out.println("Input array: " + java.util.Arrays.toString(arr));
+        int greedyResult = solver.lenLongestFibSubseqGreedy(arr);
+        int binarySearchResult = solver.lenLongestFibSubseqBinarySearch(arr);
+        int dpResult = solver.lenLongestFibSubseqDP(arr);
+        System.out.println("Greedy result: " + greedyResult);
+        System.out.println("Binary Search result: " + binarySearchResult);
+        System.out.println("DP result: " + dpResult);
+    }
 }

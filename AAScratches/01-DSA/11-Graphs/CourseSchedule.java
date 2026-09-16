@@ -52,4 +52,21 @@ class CourseSchedule {
         // If all courses were processed, return true, otherwise false
         return processedCourses == numCourses;
     }
+
+    public static void main(String[] args) {
+        CourseSchedule scheduler = new CourseSchedule();
+        int numCourses = 4;
+        int[][] prerequisites = {{1,0},{2,0},{3,1},{3,2}};
+        System.out.println("Input:");
+        System.out.println("numCourses = " + numCourses);
+        System.out.print("prerequisites = [");
+        for (int i = 0; i < prerequisites.length; i++) {
+            System.out.print("[" + prerequisites[i][0] + "," + prerequisites[i][1] + "]");
+            if (i < prerequisites.length - 1) System.out.print(", ");
+        }
+        System.out.println("]");
+        boolean result = scheduler.canFinish(numCourses, prerequisites);
+        System.out.println("\nOutput:");
+        System.out.println("Can finish all courses? " + result);
+    }
 }

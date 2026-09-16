@@ -1,3 +1,15 @@
+/**
+ * Finds the longest common subsequence (LCS) between two strings and counts
+ * how many times that maximum length occurs.
+ *
+ * The algorithm performs a depth‑first search over all possible subsequences,
+ * keeping track of the current subsequence in an ArrayList. When both indices
+ * reach the end, it updates the global best list if the current one is longer
+ * and records the highest count seen for that length.
+ *
+ * Time Complexity: O(2^(m+n)) – exponential due to exploring all combinations.
+ * Space Complexity: O(m + n) – recursion stack plus storage of a subsequence.
+ */
 import java.util.ArrayList;
 import java.util.List;
 

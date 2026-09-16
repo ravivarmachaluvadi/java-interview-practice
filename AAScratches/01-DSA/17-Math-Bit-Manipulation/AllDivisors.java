@@ -1,3 +1,12 @@
+/**
+ * Problem: Given an integer n, return a list of all its positive divisors.
+ *
+ * Approach: Iterate from 1 to sqrt(n). For each i that divides n,
+ * add i and, if distinct, the complementary divisor n/i to the result list.
+ *
+ * Time Complexity: O(√n) – only up to the square root of n is examined.
+ * Space Complexity: O(k) where k is the number of divisors (output size).
+ */
 import java.util.ArrayList;
 
 class AllDivisors {

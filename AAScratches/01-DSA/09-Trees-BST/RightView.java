@@ -1,3 +1,22 @@
+/**
+ * Problem:
+ *   Given a binary tree, return the list of node values that are visible when
+ *   the tree is viewed from its right side (right view). The same file also
+ *   provides iterative methods to obtain both right and left views.
+ *
+ * Approach:
+ *   1. Recursive: traverse right child first; record the first node encountered
+ *      at each depth level.
+ *   2. Iterative BFS: process nodes level by level, adding either the last
+ *      (right view) or first (left view) node of each level to the result list.
+ *
+ * Complexity:
+ *   Time: O(n) – every node is visited once in both recursive and iterative
+ *          implementations.
+ *   Space: O(h) for recursion stack (h = tree height); O(w) for BFS queue,
+ *          where w is maximum width of the tree. The result list uses O(h)
+ *          space to store one value per level.
+ */
 import java.util.*;
 
 class TreeNode {

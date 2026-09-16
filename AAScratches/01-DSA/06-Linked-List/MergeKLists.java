@@ -22,6 +22,41 @@ class MergeKLists {
         }
         return dummy.next;
     }
+
+    public static void main(String[] args) {
+        // build example linked lists
+        ListNode l1 = new ListNode(1, new ListNode(4, new ListNode(5)));
+        ListNode l2 = new ListNode(1, new ListNode(3, new ListNode(4)));
+        ListNode l3 = new ListNode(2, new ListNode(6));
+        ListNode[] lists = new ListNode[]{l1, l2, l3};
+
+        // print input
+        System.out.println("Input lists:");
+        for (int i = 0; i < lists.length; i++) {
+            System.out.print("List " + (i + 1) + ": ");
+            ListNode cur = lists[i];
+            while (cur != null) {
+                System.out.print(cur.val);
+                if (cur.next != null) System.out.print(" -> ");
+                cur = cur.next;
+            }
+            System.out.println();
+        }
+
+        // merge
+        MergeKLists solver = new MergeKLists();
+        ListNode mergedHead = solver.mergeKLists(lists);
+
+        // print output
+        System.out.print("\nMerged list: ");
+        ListNode cur = mergedHead;
+        while (cur != null) {
+            System.out.print(cur.val);
+            if (cur.next != null) System.out.print(" -> ");
+            cur = cur.next;
+        }
+        System.out.println();
+    }
 }
 
 

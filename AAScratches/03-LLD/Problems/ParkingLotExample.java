@@ -1,3 +1,26 @@
+/**
+ * Implements a simple parking lot system that assigns vehicles to appropriate spots,
+ * generates tickets, and calculates fees upon exit.
+ *
+ * The system supports multiple vehicle types (CAR, BIKE, TRUCK) mapped to spot sizes
+ * (SMALL, MEDIUM, LARGE). Each floor holds a list of spots; the lot searches floors in order
+ * for an available spot matching the vehicle's required size. When parked, a ticket with
+ * a unique ID and entry timestamp is created. On exit, the ticket records the exit time,
+ * computes the fee (minimum ₹20 or ₹10 per hour), and frees the spot.
+ *
+ * Approach:
+ * - Map VehicleType to ParkingSpotType via a switch expression.
+ * - Iterate floors to find first available matching spot using streams.
+ * - Use UUID for unique ticket IDs; LocalDateTime and Duration for timing.
+ * - Synchronize parkVehicle/exitVehicle to ensure thread safety in a singleton lot.
+ *
+ * Time Complexity:
+ * O(F + S) per parking operation, where F = number of floors and S = spots per floor
+ * (worst‑case scans all spots). Exit is O(1).
+ *
+ * Space Complexity:
+ * O(N) for storing the list of floors and their spots; each ticket uses constant space.
+ */
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;

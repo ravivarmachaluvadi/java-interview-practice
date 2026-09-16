@@ -1,3 +1,13 @@
+/**
+ * Reorders a singly linked list so that nodes are arranged in the pattern:
+ * L0 → Ln → L1 → Ln-1 → L2 → Ln-2 … .
+ *
+ * The algorithm finds the middle of the list, reverses the second half,
+ * then merges the two halves node by node while safely disconnecting old links.
+ *
+ * Time Complexity: O(n) – single pass to find middle, one reverse, and one merge.
+ * Space Complexity: O(1) – only a few pointers are used; no extra data structures.
+ */
 class ReorderList {
 
     public static void main(String[] args) {

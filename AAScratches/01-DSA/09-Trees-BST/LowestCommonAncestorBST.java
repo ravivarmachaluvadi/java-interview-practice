@@ -1,3 +1,14 @@
+/**
+ * Finds the Lowest Common Ancestor (LCA) of two nodes in a Binary Search Tree.
+ *
+ * The algorithm exploits BST properties: if both target values are less than
+ * the current node, the LCA lies in the left subtree; if both are greater,
+ * it lies in the right subtree; otherwise the current node is the LCA.
+ *
+ * Iterative and recursive implementations are provided. Both run in O(h)
+ * time where h is the tree height (O(log n) for balanced trees). The
+ * space complexity is O(1) iteratively and O(h) recursively due to call stack.
+ */
 class TreeNode {
     int val;
     TreeNode left, right;

@@ -31,6 +31,32 @@ class MaxLevelSum {
         }
         return maxLevel;
     }
+
+    public static void main(String[] args) {
+        // Build a small binary tree:
+        //        1
+        //       / \
+        //      7   0
+        //     / \
+        //    7  -8
+        TreeNode root = new TreeNode();
+        root.val = 1;
+        root.left = new TreeNode();
+        root.right = new TreeNode();
+        root.left.val = 7;
+        root.right.val = 0;
+        root.left.left = new TreeNode();
+        root.left.right = new TreeNode();
+        root.left.left.val = 7;
+        root.left.right.val = -8;
+
+        MaxLevelSum solver = new MaxLevelSum();
+
+        int result = solver.maxLevelSum(root);
+
+        System.out.println("Input tree: [1,7,0,7,-8]");
+        System.out.println("Output (max level sum index): " + result);
+    }
 }
 
 class TreeNode {

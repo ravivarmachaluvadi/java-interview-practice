@@ -1,3 +1,14 @@
+/**
+ * Problem: Given two integer lists representing the preorder and inorder traversals
+ * of a binary tree with unique values, reconstruct the original binary tree.
+ *
+ * Approach: Build a map from node value to its index in the inorder list for O(1) lookups.
+ * Recursively select the current root from the preorder slice, split the inorder slice into
+ * left and right subtrees using the root's index, then recurse on corresponding preorder slices.
+ *
+ * Time Complexity: O(n), where n is the number of nodes (each node processed once).
+ * Space Complexity: O(n) for the hashmap plus recursion stack depth up to O(n) in worst case.
+ */
 import java.util.*;
 
 class ConstructBinaryTreeFromINPre {

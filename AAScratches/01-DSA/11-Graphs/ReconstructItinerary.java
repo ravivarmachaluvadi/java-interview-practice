@@ -1,3 +1,24 @@
+/**
+ * Reconstructs an itinerary from a list of airline tickets.
+ *
+ * Problem: Given a collection of directed edges (tickets) where each ticket is
+ * represented as [from, to], find the unique Eulerian path that uses all tickets
+ * exactly once and starts at "JFK". When multiple destinations are possible,
+ * choose the lexicographically smallest one first.
+ *
+ * Approach: Build an adjacency list mapping each departure airport to a min-heap
+ * (PriorityQueue) of arrival airports. Perform a depth‑first search from "JFK",
+ * always selecting the smallest available destination. After exploring all
+ * outgoing edges, prepend the current airport to the result list. This yields
+ * the itinerary in correct order.
+ *
+ * Time Complexity: O(E log D), where E is the number of tickets and D is the
+ * maximum outdegree (due to heap operations). In practice this simplifies to
+ * O(E log E).
+ *
+ * Space Complexity: O(V + E) for the graph, plus O(V) for recursion stack and
+ * result list, where V is the number of distinct airports.
+ */
 import java.util.*;
 
 public class ReconstructItinerary {

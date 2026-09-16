@@ -1,3 +1,13 @@
+/**
+ * Problem: Given an array of integers, identify all unique pairs (a, b) such that a^b equals b^a.
+ *
+ * Approach: Iterate over all unordered index pairs using two nested loops. For each pair compute Math.pow(a,b)
+ * and Math.pow(b,a); if they match, store the sorted pair as a string in a HashSet to avoid duplicates.
+ * Finally print all found pairs or indicate none were found.
+ *
+ * Time Complexity: O(n²) – every pair of elements is examined once.
+ * Space Complexity: O(k) where k is the number of unique valid pairs stored in the HashSet (worst‑case O(n²)).
+ */
 import java.util.HashSet;
 
 class ExponentPairs {

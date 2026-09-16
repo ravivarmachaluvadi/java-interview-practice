@@ -1,3 +1,15 @@
+/**
+ * Detects whether a directed graph contains a cycle.
+ *
+ * The algorithm performs a depth‑first search from each unvisited vertex,
+ * maintaining two visitation arrays: one for all visited nodes and another
+ * for the current recursion stack (path). If during DFS we encounter a node
+ * that is already on the current path, a back edge exists and the graph has
+ * a cycle.
+ *
+ * Time Complexity: O(V + E) – each vertex and edge is processed once.
+ * Space Complexity: O(V) – recursion stack plus visitation arrays.
+ */
 import java.util.*;
 
 class CycleCheckInDirectedGraph {

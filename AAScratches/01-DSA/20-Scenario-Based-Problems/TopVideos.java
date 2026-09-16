@@ -1,3 +1,15 @@
+/**
+ * Problem: Given a list of video watch events represented as (videoName, watchRate) pairs,
+ * compute the top 10 videos with the highest total watch rates.
+ *
+ * Approach:
+ * 1. Aggregate watch rates per video using a HashMap.
+ * 2. Convert map entries to a list and sort in descending order by accumulated rate.
+ * 3. Extract the first up to ten video names from the sorted list.
+ *
+ * Time Complexity: O(n log n) – dominated by sorting of unique videos (n = number of events).
+ * Space Complexity: O(m) – where m is the number of distinct videos, for the HashMap and sorted list.
+ */
 import java.util.*;
 
 

@@ -24,6 +24,39 @@ class BinaryTreeMaxPathSum {
         maxSum = Math.max(maxSum, currentMax);
         return node.val + Math.max(leftSum, rightSum);
     }
+
+    public static void main(String[] args) {
+        // Build a sample binary tree:
+        //        -10
+        //        /  \
+        //       9   20
+        //           / \
+        //          15  7
+        TreeNode root = new TreeNode();
+        root.val = -10;
+        root.left = new TreeNode();
+        root.left.val = 9;
+        root.right = new TreeNode();
+        root.right.val = 20;
+        root.right.left = new TreeNode();
+        root.right.left.val = 15;
+        root.right.right = new TreeNode();
+        root.right.right.val = 7;
+
+        BinaryTreeMaxPathSum solver = new BinaryTreeMaxPathSum();
+        int result = solver.maxPathSum(root);
+
+        System.out.println("Input tree (pre-order):");
+        printPreOrder(root);
+        System.out.println("\nMaximum path sum: " + result);
+    }
+
+    private static void printPreOrder(TreeNode node) {
+        if (node == null) return;
+        System.out.print(node.val + " ");
+        printPreOrder(node.left);
+        printPreOrder(node.right);
+    }
 }
 
 class TreeNode {

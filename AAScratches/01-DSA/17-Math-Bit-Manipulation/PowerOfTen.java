@@ -1,3 +1,13 @@
+/**
+ * Determines whether an integer is a positive power of ten.
+ *
+ * The method checks that the number is greater than zero and repeatedly
+ * divides it by 10 while verifying each remainder is zero. If the loop
+ * reaches one, the original number was exactly 10^k for some k ≥ 0.
+ *
+ * Time Complexity: O(log₁₀ n) – proportional to the number of digits.
+ * Space Complexity: O(1) – only a few integer variables are used.
+ */
 
 class PowerOfTen {
     public static boolean isPowerOfTen(int n) {

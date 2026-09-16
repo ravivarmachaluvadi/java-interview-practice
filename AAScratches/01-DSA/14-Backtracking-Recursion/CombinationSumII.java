@@ -1,3 +1,18 @@
+/**
+ * Problem: Given an integer array candidates that may contain duplicates and a target sum,
+ * find all unique combinations where the candidate numbers sum to target.
+ * Each number in candidates can be used at most once in each combination.
+ *
+ * Approach: Sort the array to enable early pruning and duplicate skipping.
+ * Use backtracking to explore subsets, adding a number only if it does not exceed
+ * the remaining target. Skip equal elements at the same recursion depth to avoid
+ * duplicate combinations. When the remaining sum reaches zero, record the current
+ * combination.
+ *
+ * Time Complexity: O(2^n) in worst case (each element either included or excluded),
+ * with additional overhead for sorting O(n log n). Duplicate checks keep it practical.
+ * Space Complexity: O(n) recursion stack plus result storage; auxiliary space is O(n).
+ */
 import java.util.*;
 
 public class CombinationSumII {

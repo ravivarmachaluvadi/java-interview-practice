@@ -1,3 +1,14 @@
+/**
+ * Problem: Convert a Binary Search Tree (BST) into a sorted doubly linked list (DLL)
+ * in place, using each node's left and right pointers as prev and next links.
+ *
+ * Approach: Perform an in-order traversal of the BST. While traversing,
+ * link each visited node to its predecessor (prev). The first visited node
+ * becomes the head of the DLL. Update 'prev' after linking to maintain the chain.
+ *
+ * Time Complexity: O(n) – each node is visited once during recursion.
+ * Space Complexity: O(h) – recursion stack depth equals tree height (worst‑case O(n)).
+ */
 import org.w3c.dom.Node;
 
 class TreeNode {

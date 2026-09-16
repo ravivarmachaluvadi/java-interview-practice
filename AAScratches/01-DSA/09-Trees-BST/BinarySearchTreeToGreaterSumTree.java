@@ -1,3 +1,14 @@
+/**
+ * Problem: Convert a Binary Search Tree (BST) into a Greater Sum Tree where each node's value
+ * becomes the sum of all values greater than or equal to it in the original BST.
+ *
+ * Approach: Perform a reverse in-order traversal (right → root → left), maintaining a running
+ * cumulative sum. Update each node's value with this sum as we visit it, ensuring that nodes
+ * are processed from largest to smallest.
+ *
+ * Time Complexity: O(n) – each node is visited once.
+ * Space Complexity: O(h) – recursion stack depth equals the tree height (worst-case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

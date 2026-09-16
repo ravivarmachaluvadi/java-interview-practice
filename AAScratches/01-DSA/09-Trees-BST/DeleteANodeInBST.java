@@ -1,3 +1,17 @@
+/**
+ * Problem: Delete a node with a given key from a Binary Search Tree (BST) while maintaining BST properties.
+ *
+ * Approach:
+ * 1. Find the node to delete by traversing the tree.
+ * 2. Use a helper `connector` that handles three cases:
+ *    - No left child: replace node with right subtree.
+ *    - No right child: replace node with left subtree.
+ *    - Two children: attach the left subtree to the leftmost node of the right subtree and return the right subtree as new root.
+ * 3. Update parent pointers accordingly during traversal.
+ *
+ * Time Complexity: O(h) where h is tree height (O(log n) for balanced BST, O(n) worst case).
+ * Space Complexity: O(1) auxiliary space; recursion depth not used.
+ */
 
 class TreeNode {
     int data;

@@ -1,3 +1,21 @@
+/**
+ * Problem:
+ *   Compute the minimum number of single-character edits (insertions,
+ *   deletions, or substitutions) required to transform one string into another.
+ *
+ * Approach:
+ *   Use dynamic programming with a 2D table dp[i][j] representing the edit
+ *   distance between the first i characters of word1 and the first j characters
+ *   of word2. Initialize base cases for empty prefixes, then fill the table
+ *   by considering match, replace, delete, or insert operations.
+ *
+ * Time Complexity:
+ *   O(m · n), where m = word1.length() and n = word2.length().
+ *
+ * Space Complexity:
+ *   O(m · n) due to the 2D DP array. (Can be reduced to O(min(m,n)) with
+ *   a rolling array.)
+ */
 class EditDistance {
     public static int minDistance(String word1, String word2) {
         int m = word1.length();

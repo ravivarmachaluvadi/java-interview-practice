@@ -1,3 +1,19 @@
+/**
+ * Problem: Convert a string representation of a binary tree into an actual TreeNode structure.
+ *
+ * The input string follows the format:
+ *   value(left_subtree)(right_subtree)
+ * where left and right subtrees are optional and recursively defined.
+ *
+ * Approach:
+ * 1. Parse the integer at the current index, handling negative signs.
+ * 2. Recursively build the left subtree if a '(' follows.
+ * 3. Recursively build the right subtree if another '(' follows after the left subtree.
+ * The recursion uses an int array as a mutable index pointer.
+ *
+ * Time Complexity: O(n) – each character is processed once.
+ * Space Complexity: O(h) – recursion depth equals tree height (worst-case O(n)).
+ */
 class TreeNode {
     int val;
     TreeNode left;

@@ -1,3 +1,15 @@
+/**
+ * Problem: Given arrival and departure times of trains at a station,
+ * determine the minimum number of platforms needed so that no train has to wait.
+ *
+ * Approach: Sort both arrival and departure arrays. Use two pointers to
+ * simulate time progression: if an arrival is earlier or equal to the next
+ * departure, increment platform count; otherwise decrement it. Track the
+ * maximum platforms used at any moment.
+ *
+ * Time Complexity: O(n log n) due to sorting of the two arrays.
+ * Space Complexity: O(1) auxiliary space (in-place sort and constant variables).
+ */
 import java.util.*;
 
 class MinimumPlatforms {

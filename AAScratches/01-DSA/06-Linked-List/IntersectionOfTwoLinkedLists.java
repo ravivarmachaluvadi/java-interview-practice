@@ -1,3 +1,16 @@
+/**
+ * Problem:
+ *   Given two singly linked lists, find the node at which they intersect.
+ *
+ * Approach:
+ *   1. Compute lengths of both lists.
+ *   2. Advance the head of the longer list by the length difference.
+ *   3. Move both pointers together until they meet; that node is the intersection.
+ *
+ * Complexity:
+ *   Time: O(n + m) – one pass to compute lengths, one pass to find intersection.
+ *   Space: O(1) – only a few pointer variables are used.
+ */
 class ListNode {
     int val;
     ListNode next;

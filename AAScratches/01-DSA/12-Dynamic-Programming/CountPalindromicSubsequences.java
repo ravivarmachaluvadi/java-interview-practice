@@ -39,4 +39,12 @@ class CountPalindromicSubsequences {
         int answer = (include % MOD) + (exclude % MOD);//add both results
         return memo[index][first][second][length] = answer % MOD;
     }
+
+    public static void main(String[] args) {
+        CountPalindromicSubsequences solver = new CountPalindromicSubsequences();
+        String input = "12321";
+        int result = solver.countPalindromes(input);
+        System.out.println("Input string: " + input);
+        System.out.println("Number of palindromic subsequences of length 5: " + result);
+    }
 }

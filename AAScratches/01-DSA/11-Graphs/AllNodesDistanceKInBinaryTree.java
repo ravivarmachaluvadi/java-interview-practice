@@ -1,3 +1,16 @@
+/**
+ * Problem: Given a binary tree, a target node, and an integer k,
+ * find all nodes that are exactly distance k from the target.
+ *
+ * Approach:
+ * 1. Perform BFS to record each node's parent in a map.
+ * 2. Starting from the target, run another BFS treating left, right, and parent
+ *    as neighbors while avoiding revisits; stop when the desired depth is reached.
+ * 3. Collect all nodes at that level into the result list.
+ *
+ * Time Complexity: O(n) – each node is visited a constant number of times.
+ * Space Complexity: O(n) – for the parent map, visited set, and BFS queue.
+ */
 import java.util.*;
 
 class TreeNode {

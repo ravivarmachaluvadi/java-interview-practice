@@ -1,3 +1,18 @@
+/**
+ * Problem:
+ *   Given a Binary Search Tree (BST) and an integer key, find the floor
+ *   (greatest value ≤ key) and ceil (smallest value ≥ key) in the tree.
+ *
+ * Approach:
+ *   Traverse the BST twice: first to locate the floor by moving right when
+ *   node values are less than the key; second to locate the ceil by moving
+ *   left when node values exceed the key. Each traversal stops as soon as
+ *   an exact match is found or a leaf is reached.
+ *
+ * Complexity:
+ *   Time:  O(h) for each traversal, total O(h), where h is the tree height.
+ *   Space: O(1) auxiliary space (ignoring recursion stack).
+ */
 import java.util.*;
 
 class TreeNode {

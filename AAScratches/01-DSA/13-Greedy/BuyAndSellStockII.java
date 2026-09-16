@@ -25,4 +25,12 @@ class BuyAndSellStockII {
         }
         return maxProfit; // Return the maximum profit
     }
+
+    public static void main(String[] args) {
+        int[] prices = {7, 1, 5, 3, 6, 4};
+        BuyAndSellStockII solver = new BuyAndSellStockII();
+        int profit = solver.maxProfit(prices);
+        System.out.println("Input prices: " + java.util.Arrays.toString(prices));
+        System.out.println("Maximum profit: " + profit);
+    }
 }
