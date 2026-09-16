@@ -1,8 +1,0 @@
-.venv/
-__pycache__/
-*.pyc
-data/database.xlsx
-data/backups/
-config/service_account.json
-config/sheets_config.json
-.pytest_cache/
