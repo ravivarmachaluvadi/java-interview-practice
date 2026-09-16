@@ -1,0 +1,82 @@
+/**
+ * If Matrix[i][j]=-1, it means there is no edge from i to j.
+ * <p>
+ * { {0, 2, -1, -1},
+ * <p>
+ * {1, 0, 3, -1},
+ * <p>
+ * {-1, -1, 0, -1},
+ * <p>
+ * {3, 5, 4, 0} }
+ */
+class Solution {
+    public void shortest_distance(int[][] matrix) {
+        int n = matrix.length;
+        // initial setting
+//        Build a distance matrix dist[V][V], where:
+//        dist[i][j] = weight of edge (i → j) if it exists.
+//        dist[i][i] = 0 (distance from a node to itself is zero).
+//        dist[i][j] = ∞ (large number) if no direct edge exists.
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (matrix[i][j] == -1) {
+                    matrix[i][j] = (int) (1e9);
+                }
+                if (i == j) matrix[i][j] = 0;
+            }
+        }
+
+        for (int k = 0; k < n; k++) {
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    matrix[i][j] = Math.min(matrix[i][j],
+                            matrix[i][k] + matrix[k][j]);
+                }
+            }
+        }
+
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (matrix[i][j] == (int) (1e9)) {
+                    matrix[i][j] = -1;
+                }
+            }
+        }
+    }
+}
+
+class FloydWarshallAlgorithm {
+    public static void main(String[] args) {
+        int V = 4;
+        int[][] matrix = new int[V][V];
+
+        for (int i = 0; i < V; i++) {
+            for (int j = 0; j < V; j++) {
+                matrix[i][j] = -1;
+            }
+        }
+
+        matrix[0][1] = 2;
+        matrix[1][0] = 1;
+        matrix[1][2] = 3;
+        matrix[3][0] = 3;
+        matrix[3][1] = 5;
+        matrix[3][2] = 4;
+
+        Solution obj = new Solution();
+        obj.shortest_distance(matrix);
+
+        for (int i = 0; i < V; i++) {
+            for (int j = 0; j < V; j++) {
+                System.out.print(matrix[i][j] + " ");
+            }
+            System.out.println("");
+        }
+    }
+}
+/**
+ * 0 2 5 -1
+ * 1 0 3 -1
+ * -1 -1 0 -1
+ * 3 5 4 0
+ */

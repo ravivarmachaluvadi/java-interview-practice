@@ -1,0 +1,6 @@
+# Track Java sources only. Everything else here (Python envs, .pyc, .so, .DS_Store,
+# api_keys.text) is noise or sensitive and must stay out of version control.
+*
+!*/
+!*.java
+!.gitignore
