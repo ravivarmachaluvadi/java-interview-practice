@@ -92,6 +92,12 @@ Copy the folders into IntelliJ's scratches directory
 (`%APPDATA%\JetBrains\<IDE>\scratches`). Scratch files are compiled individually,
 so the duplicate class names stop mattering and you get the green run gutter.
 
+## Local LLM
+
+A model runs on this laptop for reviewing practice solutions at zero cloud cost.
+Setup, the measured tuning findings, and an honest account of what it is and is not
+good at: **[LOCAL-LLM.md](LOCAL-LLM.md)**.
+
 ## Verification
 
 Every file is compiled and executed with JDK 25 on each change.
