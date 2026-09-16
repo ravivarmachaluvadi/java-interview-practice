@@ -1,10 +1,10 @@
 /**
  * Problem: Rotate an integer array left by one position.
- *
+ * <p>
  * Approach: Store the first element, shift all subsequent elements left by one,
  * and place the stored value at the end of the array. This is done in-place
  * using a single temporary variable.
- *
+ * <p>
  * Time Complexity: O(n), where n is the length of the array.
  * Space Complexity: O(1) auxiliary space.
  */
