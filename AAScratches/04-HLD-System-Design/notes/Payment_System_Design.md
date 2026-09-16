@@ -1,0 +1,221 @@
+# Payment System Design
+
+Explanatory notes on the building blocks of a payment system — compliance, ledgers, payment gateways versus PSPs, card networks, and UPI — converted from a Q&A transcript.
+
+## 1. Compliance for payment systems: AML/CFT, KYC and PCI-DSS
+
+AML/CFT compliance, KYC, and PCI-DSS are crucial for payment systems.
+
+- **AML (Anti-Money Laundering)** and **CFT (Counter Financing of Terrorism)** compliance are essential for payment systems to prevent illegal activities.
+- **KYC (Know Your Customer)** processes help verify the identity of users, ensuring that the payment system is not used for fraudulent purposes.
+- **PCI-DSS (Payment Card Industry Data Security Standard)** compliance ensures that payment systems handle cardholder data securely, protecting against data breaches and fraud.
+
+## 2. Names to remember: PSPs and payment gateways
+
+- Tipalti (listed in the original notes as a bare name with no further detail).
+- Stripe, BrainTree, PayPal, Square are popular payment gateways or PSPs.
+- PSP -> Payment Service Provider
+
+## 3. What is a ledger?
+
+- A ledger is simply a record of transactions.
+- In accounting: it's a book where debits and credits are written.
+- Every entry = who paid, who received, when, and how much.
+- It guarantees traceability and prevents "double spending" (you can't spend money you don't have).
+
+## 4. Payment Gateway vs Payment Service Provider (PSP)
+
+Payment Service Providers (PSPs) and Payment Gateways are related but play different roles in online and offline payments.
+
+### Payment Gateway
+
+Think of it as a digital POS terminal that captures and securely transmits payment data between the customer, the merchant, and the banks.
+
+**Main role:** Acts as a technical bridge between the merchant's checkout page and the acquiring bank/payment processor.
+
+**Responsibilities:**
+
+- Encrypts and transfers the customer's payment data securely.
+- Authorizes/declines transactions in real time.
+- Works like the "card swipe machine" but for the internet.
+- Does NOT handle settlement of funds. It only passes information.
+
+**Examples of Payment Gateways:**
+
+- Stripe (its gateway part)
+- PayPal (its gateway part)
+- Authorize.Net
+- Razorpay Gateway
+- PayU Gateway
+
+### Payment Service Provider (PSP)
+
+A PSP is broader — it bundles the gateway + connections to multiple acquiring banks, card networks, wallets, and sometimes offers merchant accounts.
+
+**Main role:** Provides end-to-end infrastructure to accept online payments from multiple methods (cards, UPI, wallets, BNPL, etc.).
+
+**Responsibilities:**
+
+- Offers merchants a single integration to multiple payment methods.
+- Provides risk/fraud management.
+- Handles settlement (collects payments from customers and transfers them to the merchant's account).
+- Offers reporting, reconciliation, sometimes compliance (PCI DSS, KYC).
+
+**Examples of PSPs:**
+
+- Stripe
+- Adyen
+- Razorpay (India)
+- PayU
+- Worldpay
+- PhonePe (as PSP for UPI)
+
+### Key difference in roles
+
+| Feature | Payment Gateway | PSP |
+| ------- | --------------- | --- |
+| Scope | Just a tech layer for secure transaction transfer | Full-stack payment solution |
+| Merchant Account | Usually needs the merchant to have their own account with a bank | Often provides an aggregated merchant account |
+| Settlement | No settlement – only forwards authorization | Manages settlement into the merchant's account |
+| Payment Methods | Primarily card-focused | Cards, UPI, wallets, BNPL, net banking, etc. |
+| Example | Authorize.Net | Stripe, Razorpay, PayU |
+
+### Analogy
+
+- Payment Gateway = "Highway" (secure road that moves payment data between parties).
+- PSP = "Logistics Company" (owns trucks, manages routes, collects goods, delivers them, and handles everything end-to-end).
+
+**In short:**
+
+- Payment Gateway = technology enabler for payments.
+- PSP = business + technology + settlement provider (all-in-one).
+
+## 5. Why do Visa/Mastercard exist when we already have banks?
+
+Original question: "Then what do Mastercard/Visa etc. do, and why? We have banks — are they not enough?"
+
+This is where card networks like Visa and Mastercard come in. Let's put them in context of banks, PSPs, and gateways.
+
+### Why Visa/Mastercard exist
+
+- Even though we have banks, banks can't directly talk to every other bank in the world in real time for card payments.
+- Imagine you have an SBI (India) debit card and you want to buy something from a US website where the seller uses Chase Bank (USA).
+- SBI and Chase don't have a direct integration to process millions of card transactions worldwide.
+- That's where Visa/Mastercard networks step in — they are global "switching" networks that connect issuer banks (your card's bank) with acquirer banks (the merchant's bank).
+
+### Roles of Visa/Mastercard (card networks)
+
+- Provide the rules, infrastructure, and rails for card payments.
+- Route the transaction between the merchant's acquiring bank and the customer's issuing bank.
+- Define standards (EMV chips, 3D Secure, tokenization, chargeback rules).
+- Handle authorization messages (approve/decline) within milliseconds.
+- Act as a trusted middle layer so banks don't need direct one-to-one connections with every other bank worldwide.
+
+### The payment ecosystem
+
+Here's how it works step by step when you pay with a Visa/Mastercard card:
+
+1. Customer enters card details on the merchant's checkout page.
+2. Payment Gateway encrypts and sends data to the PSP/Acquirer.
+3. Acquirer (merchant's bank) sends the request via the Visa/Mastercard network.
+4. Card Network routes it to the Issuer (your bank).
+5. Issuer Bank checks:
+   - Sufficient funds?
+   - Fraud/security checks?
+   - Card validity?
+   - Then approves or declines.
+6. Response goes back → Issuer → Network → Acquirer → Gateway → Merchant.
+7. Settlement: Later, money moves from Issuer → through Network → Acquirer → Merchant.
+
+```mermaid
+flowchart TD
+    A[Customer enters<br>card details] --> B[Payment Gateway<br>encrypts and sends]
+    B --> C[Acquirer<br>merchant's bank]
+    C --> D[Card Network<br>Visa / Mastercard]
+    D --> E[Issuer Bank<br>customer's bank]
+    E --> F{Funds? Fraud?<br>Card valid?}
+    F -->|Approve or decline| G[Response back:<br>Issuer to Network to<br>Acquirer to Gateway<br>to Merchant]
+    G --> H[Settlement later:<br>Issuer to Network to<br>Acquirer to Merchant]
+```
+
+### Analogy
+
+- Bank (Issuer/Acquirer) = Players (customer's and merchant's teams).
+- Payment Gateway = The microphone/headset they use to send messages.
+- PSP = The coach/manager arranging the whole play and collecting fees.
+- Visa/Mastercard = The referee + stadium infrastructure ensuring both teams follow the same rules and can actually play.
+
+### Examples
+
+- Card Networks: Visa, Mastercard, American Express (Amex also acts as issuer + network), RuPay (India), Discover.
+- Issuer Bank: SBI, HDFC, Chase, Citi (the bank that gave you the card).
+- Acquirer Bank: Axis Bank, ICICI, Barclays, etc. (the merchant's bank).
+- PSP: Stripe, Razorpay, Adyen.
+- Gateway: Authorize.Net, PayU Gateway.
+
+### So banks alone are not enough because
+
+- They don't have a universal protocol to talk across countries.
+- They'd need to connect with thousands of other banks individually.
+- They can't enforce global security/standards.
+
+That's why Visa/Mastercard networks exist: they provide the rails + rules that make card payments work globally.
+
+## 6. How UPI fits into the ecosystem (compared with Visa/Mastercard)
+
+UPI (India) removes the need for Visa/Mastercard in many cases. Here is how it compares with the card network model.
+
+### How UPI is different from Visa/Mastercard
+
+- Visa/Mastercard = private global card networks → connect banks for card-based payments.
+- UPI (Unified Payments Interface) = public payments network in India run by NPCI (National Payments Corporation of India), owned by RBI + Indian banks → directly connects bank accounts, no cards needed.
+
+### UPI flow (simplified)
+
+When you pay using UPI (say PhonePe, GPay, Paytm, BHIM):
+
+1. Customer enters UPI ID / QR / phone number.
+2. PSP App (PhonePe, GPay, Paytm) sends the request to NPCI (UPI switch).
+3. NPCI routes the request to the payer's bank (issuer bank).
+4. Issuer bank checks balance, authenticates with UPI PIN, then approves/declines.
+5. NPCI informs the payee's bank (acquirer bank).
+6. Settlement happens directly between issuer bank ↔ acquirer bank (via RBI/settlement systems).
+
+```mermaid
+flowchart TD
+    A[Customer enters<br>UPI ID / QR / phone] --> B[PSP app<br>PhonePe, GPay, Paytm]
+    B --> C[NPCI<br>UPI switch]
+    C --> D[Payer's bank<br>issuer bank]
+    D --> E{Balance check +<br>UPI PIN auth}
+    E -->|Approve or decline| F[NPCI informs<br>payee's bank<br>acquirer bank]
+    F --> G[Settlement:<br>issuer to acquirer<br>via RBI systems]
+```
+
+### Key differences
+
+| Feature | Visa/Mastercard (Card Networks) | UPI (NPCI) |
+| ------- | ------------------------------- | ---------- |
+| Ownership | Private global corporations | NPCI (non-profit, RBI + banks) |
+| Base | Works on cards (debit/credit) | Works on bank accounts directly |
+| Charges | Interchange fees (0.3–3%) | Near-zero MDR (merchant fees) |
+| Settlement | Goes via network rules | RBI settlement system |
+| Authentication | Card + CVV + OTP/3DS | Mobile app + UPI PIN |
+| Reach | Global | India-focused (being exported to other countries) |
+| Example | Buy on Amazon with HDFC Visa card | Pay on Zomato using PhonePe UPI |
+
+### Analogy
+
+- Visa/Mastercard = "International airline alliances" (e.g., Star Alliance) → let airlines (banks) interconnect globally.
+- UPI = "National railway system" → one common public infrastructure where all trains (banks) run on shared tracks.
+
+### Where PSPs fit with UPI
+
+- PhonePe, Google Pay, Paytm = PSPs on UPI.
+- They don't hold your money, they just provide the interface.
+- The actual debit/credit happens directly between banks via NPCI.
+- So unlike the card world where PSPs need Visa/Mastercard → in the UPI world, PSPs talk to NPCI directly.
+
+### Bottom line
+
+- Visa/Mastercard: private global card networks, necessary because banks alone can't talk to each other globally.
+- UPI: India's government-backed open payment network, directly linking banks and reducing dependency on card networks.
