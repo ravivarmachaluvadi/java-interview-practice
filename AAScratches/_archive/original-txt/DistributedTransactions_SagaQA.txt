@@ -1,0 +1,156 @@
+1️⃣ When would you NOT use Saga for distributed transactions? What alternative patterns would you consider?
+    ⭐ Expected Answer:
+    Don't use Saga when:
+        Operations need strong atomicity (classic ACID) → Saga is eventually consistent.
+        A rollback step is too complex or impossible.
+        System cannot tolerate intermediate inconsistent states.
+        Compensation may cause cascading failures.
+    Alternatives:
+        2PC (Two-Phase Commit) if the scale is small and coordinator is acceptable.
+        Transactional Outbox + Change Data Capture for reliable async updates.
+        Orchestrated Saga if choreography chaos exists.
+        Idempotent writes + retries for simpler flows.
+
+2️⃣ How do you identify when to use Choreography vs Orchestration in a Saga? Give real-world signals.
+    ⭐ Expected Answer:
+        Use Choreography when:
+        Few services (<5) are involved.
+        Workflow is simple.
+        No single place needs to understand full workflow.
+        Business flow evolves frequently → decentralization preferred.
+    Signals choreography is failing:
+        "Distributed spaghetti" → too many event listeners.
+        Hard to understand the business process.
+        Debugging requires tracing multiple services.
+        Change in business flow touches many services.
+    Switch to Orchestration when:
+        One central "brain" is needed.
+        Many conditional, branching flows.
+        Need visibility/audit of entire business process.
+        Need isolation of business logic from services.
+
+3️⃣ Explain the problem the Transactional Outbox Pattern solves and how it avoids race conditions.
+    ⭐ Expected Answer:
+        Problem:
+            Service writes DB row AND publishes event → risk of dual write inconsistency.
+        Solution:
+            Write event into the same DB transaction as business record.
+            A separate process (CDC/Debezium/polling publisher) emits events.
+        Avoids race condition:
+            Both business state & event are committed atomically.
+            No scenario where event is published but DB update fails (and vice versa).
+
+4️⃣ How do you design idempotency for microservices? Provide patterns.
+    ⭐ Expected Answer:
+    Patterns:
+        Idempotency Key stored with request.
+        Request deduplication table with status.
+        Upsert (insert or update) semantics for writes.
+        Versioning (optimistic concurrency).
+        State machine transitions that ignore invalid transitions.
+        Retry tokens embedded in message brokers.
+    Candidate should emphasize:
+    "Idempotency is not about re-running the same code — it's about making the
+    end state unchanged regardless of repetitions."
+
+5️⃣ What problem does Strangler Fig Pattern solve, and where can it fail?
+    ⭐ Expected Answer:
+    Solves:
+        Migrating monolith → microservices incrementally.
+        Routing layer diverts traffic to new service gradually.
+    Failure Scenarios:
+        Hard-to-split domains with deep coupling.
+        Hidden shared database constraints.
+        If domain boundaries are unclear.
+        If the router layer becomes a bottleneck or single point of failure.
+    Candidate should mention reverse proxy like:
+        API Gateway
+        Envoy
+        NGINX
+        Service Mesh
+
+6️⃣ Explain the Bulkhead Pattern and how it differs from Circuit Breaker.
+    ⭐ Expected Answer:
+        Bulkhead = isolate resources (threads, memory pools, connections) so one failure doesn't drown everything.
+        Circuit Breaker = stop calling a failing system after threshold to prevent cascading failures.
+    Key difference:
+        Bulkhead prevents resource starvation.
+        Circuit breaker prevents continuous failing calls.
+        A strong answer will say:
+        "Bulkhead protects capacity, Circuit Breaker protects latency and error rates."
+
+7️⃣ When would you not use API Gateway Pattern? What are better alternatives?
+    ⭐ Expected Answer:
+    Avoid API Gateway if:
+        System requires ultra-low latency microseconds.
+        Team is small → gateway adds complexity.
+        Services do not share cross-cutting concerns.
+        Real-time streaming workloads (Kafka, gRPC).
+    Alternatives:
+        Service Mesh for service-to-service communication.
+        Direct client-to-service (BFF) for mobile/web.
+        Edge proxy + CDN for static/REST workloads.
+
+8️⃣ What design patterns help in reducing chatty communication between microservices?
+    ⭐ Expected Answer:
+        API Composition Pattern
+        Aggregator Pattern
+        CQRS + read views
+        GraphQL façade layer
+        Data replication through CDC
+        Caching + read optimization services
+    Bonus point:
+    “Excessive chatty communication means wrong domain boundaries.”
+
+9️⃣ Explain the Sidecar Pattern and when it's harmful.
+    ⭐ Expected Answer:
+    Sidecar runs helper process beside main service for:
+        Logging
+        Service mesh proxies (Envoy)
+        Security agents
+        Config updaters
+    Harmful when:
+        Too many sidecars → “sidecar explosion”.
+        Resource overhead becomes huge.
+        Hard to debug failures between container boundaries.
+        Increased startup times.
+
+🔟 Tricky: Can Circuit Breaker + Retry Pattern cause a global outage? Show how.
+    ⭐ Expected Answer:
+    Yes — classic retry storm scenario.
+    Flow:
+        Downstream service slows.
+        Calls fail → breaker opens.
+        Clients retry aggressively.
+        Retries cause even more load.
+        Breaker resets → traffic spike → downstream dies completely.
+    Fix using patterns:
+        Retry with exponential backoff + jitter.
+        Per-client token bucket rate limiting.
+        Bulkheads to restrict concurrent callers.
+        Partition breakers for independence.
+
+1️⃣1️⃣ Which microservice patterns help maintain read consistency without distributed transactions?
+    ⭐ Expected Answer:
+        Event Sourcing
+        CQRS
+        Materialized views
+        Read replicas
+        Transactional Outbox + CDC
+        Consumer-retry queues
+        Exactly-once processing (idempotency)
+    Great candidate mentions:
+    "Use asynchronous consistency where possible; choose consistency level based on business SLA."
+
+1️⃣2️⃣ How do you detect wrong domain boundaries in your microservice system?
+    ⭐ Expected Answer:
+    Signals:
+        Too many synchronous calls → temporal coupling.
+        Constant changes across multiple services.
+        Teams are stepping on each other frequently.
+        Many distributed transactions (Saga explosion).
+        Reads require stitching from 5+ services.
+    Pattern Fixes:
+    Event storming to realign domains.
+    Consolidate services (merge them).
+    Apply Domain Aggregator or API Composition.

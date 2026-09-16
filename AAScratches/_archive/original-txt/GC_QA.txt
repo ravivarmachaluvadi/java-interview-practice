@@ -1,0 +1,147 @@
+Q7. How do you tune GC performance?
+    Expected Answer:
+    Tune heap sizes (-Xms, -Xmx).
+    Adjust new generation size (-XX:NewRatio, -XX:NewSize, -XX:SurvivorRatio).
+    Select GC collector (-XX:+UseG1GC, -XX:+UseZGC, etc.).
+    Define GC pause time goals (-XX:MaxGCPauseMillis).
+    Analyze GC logs (-Xlog:gc* in Java 9+).
+    Use monitoring tools like VisualVM, JConsole, GCViewer, Grafana, JMC.
+
+Q1. What is Garbage Collection in Java?
+    Expected Answer:
+    Garbage Collection (GC) is the process by which the JVM automatically identifies
+    and removes objects that are no longer reachable to free up heap memory.
+    It helps prevent memory leaks and reduces manual memory management overhead.
+
+    Follow-up:
+
+    What happens if GC cannot reclaim enough memory?
+    ➤ JVM throws OutOfMemoryError.
+
+Q2. What are the memory areas managed by the JVM?
+    Expected Answer:
+    Heap – for object storage (Young Gen + Old Gen).
+    Metaspace (since Java 8) – for class metadata.
+    Stack – for method calls and local variables (per thread).
+    PC Register & Native Method Stack – for execution tracking and native calls.
+
+
+Q3. Explain the generational structure of the JVM heap.
+
+    Expected Answer:
+    Heap is divided into:
+    Young Generation: Eden + 2 Survivor spaces (S0, S1)
+    Old Generation: long-lived objects
+    Metaspace: class metadata
+    Objects are first allocated in Eden; surviving objects move to Survivor
+    and then eventually to Old Gen if they persist across collections.
+
+Q4. What are minor and major GCs?
+
+    Expected Answer:
+    Minor GC: Cleans up the Young Gen; happens more frequently and quickly.
+    Major (Full) GC: Cleans the entire heap (Young + Old);
+    more expensive and can cause longer stop-the-world pauses.
+
+Q5. What are the different types of garbage collectors available in the JVM?
+    Expected Answer (Java 17+):
+    Serial GC: Single-threaded, suitable for small heaps (client apps).
+    Parallel GC (Throughput Collector): Multi-threaded, high throughput, default till Java 8.
+    CMS (Concurrent Mark Sweep): Low latency, deprecated in Java 14.
+    G1 (Garbage First): Default since Java 9, balances latency and throughput.
+    ZGC: Ultra-low pause collector for very large heaps.
+    Shenandoah: Low-pause collector like ZGC, from Red Hat.
+
+Q6. How does G1 GC work internally?
+    Expected Answer:
+    G1 divides heap into regions (rather than contiguous spaces).
+    Performs mixed collections: collects both young and old regions incrementally.
+    Uses pause time goals (-XX:MaxGCPauseMillis).
+    Performs concurrent marking to identify live objects.
+    Compacts memory concurrently, reducing fragmentation and pauses.
+
+Q8. How do you analyze a memory leak in a production JVM?
+    Expected Answer:
+    Detect high GC frequency / OutOfMemoryError.
+    Capture heap dump (jmap -dump:live,format=b,file=heap.bin <pid>).
+    Analyze in Eclipse MAT or VisualVM.
+    Identify objects with high retention or GC roots references.
+    Fix code (e.g., static references, unclosed resources, caches not cleared).
+
+Q9. Explain the GC phases of G1 or CMS.
+    Expected Answer (G1):
+    Initial Mark: Stop-the-world, mark roots.
+    Concurrent Mark: Background marking of reachable objects.
+    Remark: Stop-the-world final marking.
+    Cleanup: Identify regions to reclaim, optional compaction.
+
+Q10. What are stop-the-world (STW) events?
+    Expected Answer:
+    When JVM pauses all application threads to allow GC to perform
+    certain operations like marking, reference processing, or compaction.
+    Even concurrent collectors have short STW phases.
+
+Q11. What causes frequent GC or long GC pauses?
+    Expected Answer:
+    Excessive object creation / short-lived objects.
+    Inadequate heap size.
+    Memory leaks.
+    Fragmented old gen.
+    Large objects (directly promoted).
+    Improper GC tuning or wrong collector choice.
+
+Q12. How would you choose a GC algorithm for your system?
+    Expected Answer:
+    Depends on priorities:
+    Throughput priority: Parallel GC.
+    Low latency: G1 or ZGC.
+    Huge heap (>100GB): ZGC or Shenandoah.
+    Legacy or simple app: Serial GC.
+
+Q13. Suppose CPU is high and you see frequent GCs. What would you do?
+
+    Expected Answer:
+    Check GC logs → frequency, pause time, reason.
+    Verify heap usage trend.
+    Increase heap or tune allocation ratio.
+    Check for object churn (profiling with YourKit, JVisualVM).
+    Possibly switch GC algorithm if mismatch.
+
+Q14. How would you monitor GC behavior in production?
+
+    Expected Answer:
+    Enable GC logging (-Xlog:gc*).
+    Track metrics via JMX, Prometheus, or Grafana.
+    Observe gc_pause_time, gc_count, and heap_usage_after_gc.
+    Configure alerts for long GC pauses or OOMs.
+
+What happens if you set multiple GC algorithms in flags?
+    -XX:+UseParallelGC -XX:+UseG1GC
+
+    ✅ Expected: JVM will use the last one in the command line (rightmost flag wins).
+    Only one GC algorithm can be active at once.
+
+GC Behavior & Troubleshooting Questions
+6. What does -XX:+PrintGCDetails or -Xlog:gc* do? How do you interpret it?
+    ✅ Expected: Understand phases (Young GC, Mixed GC, Full GC),
+    time spent, memory before/after, GC cause.
+
+
+9. What is -XX:+UseStringDeduplication and when should you use it?
+    ✅ Expected: Works with G1GC — deduplicates identical
+    String instances in the heap to save memory at cost of some CPU.
+
+What is the purpose of -XX:+UseCompressedOops and when might you disable it?
+    ✅ Expected:
+    Uses 32-bit object pointers in 64-bit JVM → saves heap space.
+    Disable for large heaps (>32GB) or debugging memory layouts.
+
+If you want to analyze GC overhead, what metrics do you monitor?
+    ✅ Expected:
+    GC pause times
+    Frequency
+    Allocation rate
+    Old gen occupancy
+    Promotion rate
+    Time in GC (% of total CPU)
+

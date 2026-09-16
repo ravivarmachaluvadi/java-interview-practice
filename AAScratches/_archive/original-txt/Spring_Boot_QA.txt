@@ -1,0 +1,38 @@
+1️⃣ src/main/resources/application.yml (properties>yaml)
+server:
+  port: 8080
+
+2️⃣ External /config/application.yml
+server:
+  port: 9090
+
+3️⃣ Profile file application-dev.yml
+server:
+  port: 8181
+
+4️⃣ System property
+-Dserver.port=9191
+
+5️⃣ Environment variable
+export SERVER_PORT=9292
+
+6️⃣ Command-line argument
+java -jar myapp.jar --server.port=9393
+
+7️⃣ Spring Cloud Config (remote)
+server.port=9494
+
+Summary (highest wins)
+    Config Server (if used)
+    ↑
+    Command-line args
+    ↑
+    Environment variables
+    ↑
+    System properties (-D)
+    ↑
+    Profile-specific files (application-dev.yml)
+    ↑
+    External config files (same dir/config/)
+    ↑
+    application.yml / application.properties (inside JAR)

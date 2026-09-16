@@ -1,0 +1,9 @@
+explain and tricky interview questions to ask  for 10
+years experienced dev on switch expression and with answers ?
+
+| Aspect     | PriorityQueue       | TreeSet         |
+| ---------- | ------------------- | --------------- |
+| Duplicates | Allowed             | Not allowed     |
+| Ordering   | Based on comparator | Sorted & unique |
+| Iteration  | Not ordered         | Ordered         |
+| Backed by  | Heap                | Red-black tree  |

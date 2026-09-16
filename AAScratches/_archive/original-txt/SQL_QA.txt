@@ -1,0 +1,374 @@
+give me answers to expect for sql interview question
+difference between clustered and non-clustered index ?
+Short & Clear Answer (Ideal for Quick Response)
+
+A clustered index determines the physical order of data in a table —
+there can be only one clustered index per table because the data rows
+are stored in that order.
+A non-clustered index, on the other hand, creates a separate structure
+that stores key values and pointers (row locators) to the actual data —
+you can have multiple non-clustered indexes per table.
+
+| Feature              | **Clustered Index**                                                                                    | **Non-Clustered Index**                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| **Data storage**     | Data is physically stored in the same order as the index (B-tree leaf nodes contain actual data rows). | Index is stored separately from the data. Leaf nodes contain pointers (row locators) to the actual data rows. |
+| **Number per table** | Only **one** (because data can be sorted only one way).                                                | Can have **many** per table (e.g., up to 999 in SQL Server).                                                  |
+| **Performance**      | Faster for **range queries** and **sorting operations** (e.g., `ORDER BY`, `BETWEEN`).                 | Better for **lookup queries** or **frequent filtering** on non-key columns.                                   |
+| **Storage**          | No separate structure; data itself is the index.                                                       | Requires **additional storage** space.                                                                        |
+| **Example Use Case** | Clustered index on `PRIMARY KEY` or `ID` column (frequently used for joins and sorting).               | Non-clustered index on `email` or `name` for faster filtering or search.                                      |
+
+-- Clustered Index (usually on Primary Key)
+CREATE CLUSTERED INDEX idx_orders_id ON Orders(order_id);
+
+-- Non-Clustered Index (on another column)
+CREATE NONCLUSTERED INDEX idx_orders_customer ON Orders(customer_id);
+
+
+can we create clustered index on non-primary columns? if so pros and cons ?
+
+Excellent question — and yes 👏, you can create a clustered index on non-primary key
+columns in most relational databases (like SQL Server, PostgreSQL, and MySQL with InnoDB).
+But — it’s a design decision that comes with trade-offs.
+
+
+By default:
+    The primary key column is used for the clustered index.
+    But you can override this and create a clustered index on
+    a different column (or composite columns).
+
+-- Suppose we have this table
+CREATE TABLE Orders (
+    order_id INT PRIMARY KEY,
+    customer_id INT,
+    order_date DATE,
+    amount DECIMAL(10,2)
+);
+
+-- By default, the clustered index will be on order_id (the primary key).
+
+-- But you can drop it and create one on order_date:
+DROP INDEX IF EXISTS PK_Orders;  -- remove the default clustered index
+
+CREATE CLUSTERED INDEX idx_orders_order_date ON Orders(order_date);
+
+
+| Benefit                                 | Explanation                                                                                                               |
+| ----------------------------------------| ------------------------------------------------------------------------------------------------------------------------- |
+| Faster range queries                    | Great if your queries often use `WHERE order_date BETWEEN ...` or need to fetch recent data quickly.                      |
+| Better performance for sequential reads | Ideal for reports, analytics, or “time-series” data patterns (like logs or transactions sorted by timestamp).             |
+| Reduced I/O                             | Queries that read data in the same order as the clustering key (e.g. `ORDER BY order_date`) can avoid sorting operations. |
+
+| Drawback                                                        | Explanation                                                                                                    |
+| ----------------------------------------------------------------| ---------------------------------------------------------------------------------------------------------------|
+| Only one clustered index allowed                                | You lose the benefit of clustering by the primary key (e.g., joins or lookups by `order_id` become slower).    |
+| All non-clustered indexes include the clustering key internally | That means larger index size and potentially higher storage + slower updates.                                  |
+| More maintenance during inserts/updates                         | Inserting rows out of order (e.g., random dates) can cause page splits and fragmentation, slowing performance. |
+| Not ideal for frequently updated columns                        | If the clustering column (like `order_date`) changes often, the DB must move rows physically — very expensive. |
+
+
+| Situation                                                       | Recommended Clustered Index                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| Table mainly accessed by **primary key lookups**                | Keep clustered index on the **primary key**                   |
+| Table mainly accessed by **range queries (dates, time-series)** | Cluster on **that range column** (e.g., `created_at`)         |
+| Table mostly append-only (insert at end)                        | Cluster on **increasing column** (like `id` or `timestamp`)   |
+| Table used in frequent **joins** on a certain foreign key       | Cluster on that **foreign key** (if it benefits most queries) |
+
+
+Write a query to Print Student Name, Grade and Marks for each student.
+Grade will be defined from grade table based on the range of mark.
+Sort the data Based on Grade, if multiple students have same Grade,
+then Order them Based on Mark.
+
+
+Student               grades
+cols                  cols
+---------             ---------
+id                    grade
+name                  min_mark
+marks                 max_mark
+
+
+SELECT
+    s.name,
+    g.grade,
+    s.marks
+FROM
+    student s
+JOIN
+    grades g
+ON
+    s.marks BETWEEN g.min_mark AND g.max_mark
+ORDER BY
+    g.grade,
+    s.marks;
+
+
+
+Table: departments
+Column	    Type	        Description
+id	        INT (PK)	    Unique department ID
+name	    VARCHAR(50)	    Department name
+location	VARCHAR(50)	    City where the department is located
+
+Table: employees
+Column	Type	Description
+id	INT (PK)	Unique employee ID
+name	VARCHAR(50)	Employee name
+dept_id	INT (FK)	Department employee belongs to
+salary	DECIMAL(10,2)	Monthly salary
+join_date	DATE	Date of joining
+manager_id	INT	Employee ID of manager (self reference)
+
+How do you ensure database queries are efficient in large-scale applications?
+Write optimized SQL: I always fetch only the required columns and rows — using
+projections instead of SELECT *, and applying proper WHERE, LIMIT,
+and pagination clauses. I also avoid unnecessary
+joins and subqueries where possible.
+
+Use proper indexing: I ensure frequently filtered, joined, or sorted columns
+are indexed appropriately, balancing read vs. write performance.
+I also monitor for unused or redundant indexes.
+
+Analyze execution plans: I regularly use tools like EXPLAIN
+(in PostgreSQL/MySQL) to understand query execution paths
+and identify full table scans or costly joins.
+
+Optimize schema design: I use normalization to remove redundancy,
+but denormalize where it helps reduce
+complex joins for read-heavy workloads.
+
+Caching: I cache frequent queries using Redis or
+application-level caches
+to reduce repetitive database hits.
+
+Connection pooling and batching: I use efficient connection pools
+(like HikariCP in Spring Boot) and batch operations to minimize
+round-trips to the DB.
+
+Monitoring and profiling: I set up query performance metrics (e.g.,
+slow query logs, APM tools like New Relic or Datadog) and continuously
+review slow queries and optimize them.
+
+Sharding and partitioning (for very large datasets): I partition large
+tables or use sharding strategies to keep data access efficient.
+
+1. Find Employees Without a Department
+    SELECT e.name
+    FROM employees e
+    LEFT JOIN departments d ON e.dept_id = d.id
+    WHERE d.id IS NULL;
+
+2. Second Highest Salary
+    SELECT DISTINCT salary
+    FROM employees
+    ORDER BY salary DESC
+    OFFSET 1 ROW FETCH NEXT 1 ROW ONLY;
+
+3. Duplicate Records
+    SELECT name, COUNT(*)
+    FROM employees
+    GROUP BY name
+    HAVING COUNT(*) > 1;
+
+4. Highest Paid Employee in Each Department
+    SELECT e.*
+    FROM employees e
+    JOIN (
+      SELECT dept_id, MAX(salary) AS max_sal
+      FROM employees
+      GROUP BY dept_id
+    ) m ON e.dept_id = m.dept_id AND e.salary = m.max_sal;
+
+6. Delete Duplicate Records
+    DELETE FROM employees e
+    WHERE e.id NOT IN (
+      SELECT MIN(id)
+      FROM employees
+      GROUP BY name, dept_id, salary
+    );
+
+7. Find Employees Who Joined in Last 3 Months
+    SELECT *
+    FROM employees
+    WHERE join_date >= CURRENT_DATE - INTERVAL '3 months';
+
+8. Nth Highest Salary Using Window Function
+    SELECT salary
+    FROM (
+      SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk
+      FROM employees
+    ) s
+    WHERE rnk = 3;
+
+9. Query Optimization
+    Use EXPLAIN / EXPLAIN ANALYZE to inspect query plan.
+    Ensure indexes exist on filtering/join columns.
+    Avoid SELECT *.
+    Use LIMIT, partitioning, or materialized views.
+    Optimize subqueries → joins.
+    Analyze statistics regularly.
+
+10. Joins vs Subqueries
+    Which is faster — JOIN or subquery?
+    Answer:
+    Usually JOIN is faster since it’s optimized internally.
+    Subqueries may lead to temporary tables or nested execution.
+
+11. Get 10 employees from 21–30 based on ID.
+    SELECT *
+    FROM employees
+    ORDER BY id
+    OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY;
+
+12.
+    SELECT *
+    FROM employees
+    ORDER BY id
+    LIMIT 10 OFFSET 20;
+
+Q3. What is a covering index?
+    ✅ Answer:
+    A covering index contains all columns required by a query, so the
+    DB doesn’t need to access the base table (no “key lookup”).
+    It improves performance for read-heavy queries but increases storage and update cost.
+
+    Example:
+    CREATE INDEX idx_orders_covering ON orders(customer_id, status, total_amount);
+
+Q15. How do you handle high write throughput tables?
+    ✅ Answer:
+    Use batch inserts instead of row-by-row.
+    Use partitioning or sharding.
+    Minimize index count (each index adds write overhead).
+    Consider asynchronous writes or queue-based ingestion.
+
+| Concept             | Description                                                             | Example                                                            |
+| ------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Composite Index** | Multiple key columns determine sort order and filtering.                | `CREATE INDEX idx ON orders(customer_id, status)`                  |
+| **Covering Index**  | Includes *all columns used by a query* (some as key, some as included). | `CREATE INDEX idx ON orders(status) INCLUDE (customer_id, amount)` |
+
+
+How Indexes Work?
+
+1️⃣ Single-Column Index
+    Definition: An index on one column.
+    When you create an index on a column, the database
+    creates a sorted structure that allows fast lookups.
+    For example, if you have:
+    CREATE INDEX idx_users_email ON users(email);
+    SQL engine will internally maintain a structure that maps each email value to its corresponding row location.
+    So when you run:
+    SELECT * FROM users WHERE email = 'abc@gmail.com';
+
+    The database doesn’t scan the whole table — it jumps directly to that record via the index.
+
+2️⃣ Composite (Multi-Column) Index
+    Definition: An index on multiple columns together.
+    Example:
+    CREATE INDEX idx_orders_customer_date ON orders(customer_id, order_date);
+    Use Case:
+    When queries use multiple columns in the WHERE clause:
+    SELECT * FROM orders WHERE customer_id = 101 AND order_date > '2025-01-01';
+    Important Rule (Prefix Rule):
+
+    The index is used only if the query filters by the first column or prefix columns.
+    ✅ Works for (customer_id)
+    ✅ Works for (customer_id, order_date)
+    ❌ Won’t work for (order_date) alone
+
+3️⃣ Unique Index
+    Definition: Ensures all values in the indexed column(s) are unique.
+    Example:
+    CREATE UNIQUE INDEX idx_users_email ON users(email);
+    Use Case:
+    Often used for natural keys like email, username, SSN.
+    Ensures no duplicate values (same as UNIQUE constraint).
+
+5️⃣ Clustered Index
+    Definition: Determines the physical order of rows in the table.
+    Each table can have only one clustered index.
+    In MySQL (InnoDB), the primary key is the clustered index by default.
+    Example:
+    CREATE CLUSTERED INDEX idx_emp_id ON employees(emp_id);
+    Use Case:
+    Best for columns used in range queries:
+    SELECT * FROM employees WHERE emp_id BETWEEN 100 AND 200;
+    Faster because data is physically ordered.
+
+6️⃣ Non-Clustered Index
+    Definition: A separate structure that points to the physical location of data.
+    Example:
+    CREATE INDEX idx_employee_name ON employees(name);
+    Use Case:
+    Ideal for searching by non-primary key columns.
+    You can have multiple non-clustered indexes on a table.
+    Difference from Clustered:
+    Clustered: rearranges the table itself.
+    Non-clustered: creates a separate lookup structure.
+
+7️⃣ Full-Text Index
+    Definition: Special type of index for text search (phrases, words, relevance).
+    Example:
+    CREATE FULLTEXT INDEX idx_articles_content ON articles(content);
+    Use Case:
+    For searching inside long text fields:
+    SELECT * FROM articles WHERE MATCH(content) AGAINST ('database optimization');
+    Supported by: MySQL, PostgreSQL (GIN / tsvector), SQL Server, etc.
+
+8️⃣ Hash Index
+    Definition: Uses a hash table for lookups — extremely fast for equality searches.
+    Example (PostgreSQL):
+    CREATE INDEX idx_users_id_hash ON users USING HASH(id);
+    Use Case:
+    For = searches, not for range queries.
+    Example:
+    SELECT * FROM users WHERE id = 100;
+    ❌ Not useful for >, <, or BETWEEN.
+
+9️⃣ Bitmap Index (mainly in Oracle, PostgreSQL)
+    Definition: Uses bitmaps for each distinct value, very efficient for low-cardinality columns.
+    Example:
+    CREATE BITMAP INDEX idx_employee_gender ON employees(gender);
+    Use Case:
+    Columns with few distinct values (e.g., gender, status, active_flag).
+    Useful in analytical queries (data warehouses).
+
+🔟 Partial Index / Filtered Index
+    Definition: Index only a subset of rows that meet a condition.
+    Example (PostgreSQL):
+    CREATE INDEX idx_active_users ON users(email) WHERE active = true;
+    Use Case:
+    When you often query by a condition like:
+    SELECT * FROM users WHERE active = true;
+    Saves space and maintenance overhead.
+
+| Operation                | Effect                                                                |
+| ------------------------ | --------------------------------------------------------------------- |
+| **SELECT**               | 🚀 Much faster                                                        |
+| **INSERT/UPDATE/DELETE** | 🐢 Slightly slower (index needs to be updated)                        |
+| **Storage**              | 📦 More disk space used                                               |
+| **Maintenance**          | 🔄 Indexes must be rebuilt if data distribution changes significantly |
+
+do we need to create clustered index explicitly ? is automatic ?
+    3️⃣ PostgreSQL
+    Automatic: No.
+    PostgreSQL does not automatically cluster the table by the primary key.
+    A primary key automatically creates a unique B-tree index,
+    but not clustered (physical order of rows is not changed).
+    Manual clustering:
+    You can cluster manually:
+    CREATE INDEX idx_users_created_at ON users(created_at);
+    CLUSTER users USING idx_users_created_at;
+
+    ➜ This command physically reorders the table according to that index.
+    ⚠️ Important:
+    The table does not stay clustered automatically — if you insert new rows later, they’re appended.
+    You can periodically re-run CLUSTER if you want to maintain physical order.
+
+| Database           | Clustered Index Auto-Created? | When / How                    | Can Create Manually?                  |
+| ------------------ | ----------------------------- | ----------------------------- | ------------------------------------- |
+| **MySQL (InnoDB)** | ✅ Yes                         | On PRIMARY KEY                | ⚠️ Not directly — only by changing PK |
+| **SQL Server**     | ✅ Yes                         | On PRIMARY KEY (by default)   | ✅ Yes — specify explicitly            |
+| **PostgreSQL**     | ❌ No                          | Only manually using `CLUSTER` | ✅ Yes (manual operation)              |
+| **Oracle**         | ❌ (Different model)           | Uses IOTs instead             | ✅ Yes via IOT                         |
+

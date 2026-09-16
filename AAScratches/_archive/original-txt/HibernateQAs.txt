@@ -1,0 +1,79 @@
+Q.  what is hibernate entity lifecycle ?
+| State          | Description                                                                                                           | Managed by Hibernate?         | Database row exists?  |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------- | --------------------- |
+| **Transient**  | Newly created object, **not associated** with a Hibernate `Session` and **not yet saved** in DB.                      | ❌ No                          | ❌ No                  |
+| **Persistent** | Associated with an active Hibernate `Session` — Hibernate tracks changes and synchronizes with DB during `flush()`.   | ✅ Yes                         | ✅ Yes                 |
+| **Detached**   | Was persistent earlier, but now the `Session` is closed or the entity is evicted. Hibernate no longer tracks changes. | ❌ No                          | ✅ Yes                 |
+| **Removed**    | Marked for deletion from DB, will be deleted when `flush()` or transaction commit occurs.                             | ✅ Yes (until delete executed) | 🚫 Soon to be removed |
+
+| Method                  | Transitions                              | Description                                          |
+| ----------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| `save()` / `persist()`  | Transient → Persistent                   | Makes a new object managed and schedules `INSERT`.   |
+| `update()` / `merge()`  | Detached → Persistent                    | Reattaches a detached entity or merges its state.    |
+| `delete()` / `remove()` | Persistent → Removed                     | Marks entity for deletion.                           |
+| `evict()`               | Persistent → Detached                    | Removes entity from session cache (no DB operation). |
+| `refresh()`             | Persistent → Persistent                  | Reloads entity state from DB.                        |
+| `clear()` / `close()`   | Persistent → Detached (for all entities) | Ends persistence context or session.                 |
+
+
+Q1: What is the N+1 select problem and how do you solve it?
+A:  When fetching a list of entities with a lazy collection —
+    each child causes an extra query.
+    Solution:
+    Use @EntityGraph
+    Use JOIN FETCH in JPQL
+    Configure batch fetching:
+
+Q. 1. What are the different types of caching available in Hibernate?
+   Answer:
+   Hibernate supports multiple cache levels:
+   First-level cache: Built-in and mandatory per Session. Caches entities within the same session scope.
+   Second-level cache: Optional, session factory–level cache. Caches entities and collections across sessions.
+   Query cache: Optional, caches query result sets (identifiers), depends on the second-level cache.
+   Natural ID cache: Used for caching lookups by natural identifiers (like email or username).
+
+Q. 2. How does Hibernate’s first-level cache work internally?
+   Answer:
+   Managed by the PersistenceContext inside a Hibernate Session.
+   When you call session.get() or session.find(), Hibernate first checks this cache.
+   On flush, dirty entities are synchronized with the database.
+   When the session is closed or cleared, the first-level cache is destroyed.
+   Follow-up:
+   You can explicitly clear it using session.clear() or evict a single entity using session.evict(entity).
+
+Q. What’s the difference between session.clear(), session.evict(), and session.refresh()?
+    Answer:
+    evict(entity): Removes a single entity from the first-level cache.
+    clear(): Removes all entities from the first-level cache.
+    refresh(entity): Reloads the entity from the DB, overwriting any cached or dirty state.
+
+Q.  4. What is a Second-Level Cache and how is it configured?
+    Answer:
+    It’s a shared cache across sessions managed by the SessionFactory.
+    Requires an external cache provider like Ehcache, Infinispan, Redis, or Caffeine.
+    Enable it via configuration:
+    hibernate.cache.use_second_level_cache=true
+    hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.EhCacheRegionFactory
+    hibernate.cache.use_query_cache=true
+    Annotate entity:
+    @Cacheable
+    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+
+Q.  5. What are the different CacheConcurrencyStrategy options in Hibernate?
+
+| Strategy               | Description                             | Use Case                           |
+| ---------------------- | --------------------------------------- | ---------------------------------- |
+| `READ_ONLY`            | For immutable data                      | Reference data                     |
+| `NONSTRICT_READ_WRITE` | No guarantee of strong consistency      | Low update frequency               |
+| `READ_WRITE`           | Uses soft locks to maintain consistency | Medium update frequency            |
+| `TRANSACTIONAL`        | Uses JTA and XA transactions            | Distributed caching with full ACID |
+
+5. Suppose two concurrent transactions update the same cached entity — what could go wrong?
+    Answer:
+    Depends on concurrency strategy:
+    With READ_WRITE, Hibernate uses a soft-lock: the first transaction
+    locks the cache entry until commit; others must wait.
+    With NONSTRICT_READ_WRITE, updates are not locked → possible dirty reads.
+    With READ_ONLY, update attempts cause an exception.
+    Real-world fix:
+    Pick strategy based on update frequency and consistency need — not blindly.

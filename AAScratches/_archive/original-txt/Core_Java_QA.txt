@@ -1,0 +1,47 @@
+🧠 What is a Class Loader?
+    A ClassLoader is a part of the Java Virtual Machine (JVM) that loads .class files
+    into memory when they are first referenced in code.
+    You don’t have to load all classes manually — Java does it automatically and lazily (on demand).
+
+Class Loader Hierarchy (Parent Delegation Model)
+Java uses a hierarchical delegation model to ensure security and avoid class conflicts.
+    | ClassLoader                      | Responsibility            | Loads From                                         |
+    | ---------------------------------| ------------------------- | -------------------------------------------------- |
+    | Bootstrap ClassLoader            | Core JVM classes          | `$JAVA_HOME/jre/lib` (e.g., `rt.jar`, `java.base`) |
+    | Extension (Platform) ClassLoader | Extension libraries       | `$JAVA_HOME/jre/lib/ext`                           |
+    | System (Application) ClassLoader | Application-level classes | `classpath` (e.g., `target/classes`, `libs/*.jar`) |
+    | Custom ClassLoader               | User-defined logic        | You implement it (e.g., load from DB, network)     |
+
+in how many we can create object in java ?
+
+✅ 1. Using the new keyword (most common)
+    MyClass obj = new MyClass();
+
+✅ 2. Using Class.forName() and newInstance() (Reflection)
+    MyClass obj = (MyClass) Class.forName("MyClass").newInstance();
+    ⚠️ newInstance() is deprecated since Java 9.
+    Recommended alternative:
+    MyClass obj = MyClass.class.getDeclaredConstructor().newInstance();
+
+✅ 3. Using Constructor class from Reflection
+    Constructor<MyClass> constructor = MyClass.class.getConstructor();
+    MyClass obj = constructor.newInstance();
+
+✅ 4. Using clone() method
+    Class must implement Cloneable and override clone().
+    MyClass obj2 = (MyClass) obj1.clone();
+
+✅ 5. Using Deserialization
+    Object is created without calling a constructor.
+    ObjectInputStream ois = new ObjectInputStream(new FileInputStream("file.ser"));
+    MyClass obj = (MyClass) ois.readObject();
+
+✅ 6. Using Factory Methods
+    For example:
+    Number n = Integer.valueOf(10);
+    MyClass obj = MyClass.create();
+
+✅ 7. Using Object Streams / Copying libraries
+    Frameworks like Jackson, Gson, Kryo create objects internally.
+    Example with Gson:
+    MyClass obj = new Gson().fromJson(json, MyClass.class);

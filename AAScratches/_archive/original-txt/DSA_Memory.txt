@@ -1,0 +1,1271 @@
+Brute Force -> (Sorting) Better -> Best -> Better than Best
+
+A.super.m1(); m1 is default method of A interface
+
+DSA and Problem-Solving Memory
+Keywords and Keypoints
+
+
+(Thinking from easy to hard, simple to complex, small to large)
+Like Constraints will be getting added making
+it more complex so new logic will be added
+
+
+DFS and BFS
+
+Constraints -> Narrow down the scope, define limits
+Constraints -> Narrow down the scope, define limits
+Constraints -> Narrow down the scope, define limits
+
+Rephrase the problem and constraints as many times as needed to understand it fully.
+Like multiple sentence version representations of same problem.
+
+
+Problem-Solving with Algorithms and Data Structures
+
+It is so simple. What is logic nothing but ifs and else's and loops
+that is all what is logic and using right data structures and
+algorithmic approaches with the help of grasp of the problem.
+
+
+Read through the problem carefully and multiple times
+and rephrase the problem with rules involved.
+
+Focus on constraints and edge cases
+Implement logic that follows constraints.
+
+Constraints and the rules which controls the logic to me implemented.
+Constraints VS Logic ( Apply intuition and common sense)
+
+Logic VS Constraints
+(the ability to understand something intrinsic instinctively and
+intuitively without the need for conscious reasoning)
+
+Break down the problem into smaller, manageable parts.
+    1 Dimension
+        0 elements
+        1 elements
+        2 elements
+        3 elements
+        4 elements  repeat the process until the problem is solved.
+    2 Dimension (grid or matrix)
+    solve only column(left most or right most)
+    solve only row(first or last)
+    solve single row to multi row thinking
+    use solved row results to solve new row addition with usage of solved or prev dp row
+    [dp[i][j]=grid[i][j]+max(dp[i-1][j],dp[i][j-1])]
+        1 x 1
+        2 x 2
+        3 x 3
+        4 x 4
+
+Introduction to Dynamic Programming
+
+1. Correctness of brute force and efficiency of greedy algorithms
+
+-33)
+    public static void cyclicSort(int[] nums) {
+        int i = 0;
+        while (i < nums.length) {
+            int correctIndex = nums[i] - 1;
+            if (nums[i] != nums[correctIndex]) {
+                swap(nums, i, correctIndex);
+            } else {
+                i++;
+            }
+        }
+    }
+
+-32)
+    int m = arr1.length;
+    int n = arr2.length;
+
+    int length = m + n;
+    // Calculate the initial gap
+    int gap = (length / 2) + (length % 2);
+
+    while (gap > 0) {
+        int left = 0;
+        int right = left + gap;
+        while (right < length) {
+            // Case 1: arr1 and arr2 comparison
+            if (left < m && right >= m) {
+                swapIfGreater(left, right - m, arr1, arr2);
+            }
+            // Case 2: arr2 and arr2 comparison
+            else if (left >= m) {
+                swapIfGreater(left - m, right - m, arr2, arr2);
+            }
+            // Case 3: arr1 and arr1 comparison
+            else {
+                swapIfGreater(left, right, arr1, arr1);
+            }
+            left++;
+            right++;
+        }
+        if (gap == 1)
+            break; // When gap is 1, we can stop further halving
+
+        // Reduce gap for the next iteration
+        gap = (gap / 2) + (gap % 2); // (gap+1)/2;
+    }
+
+
+-31)
+    PriorityQueue<Map.Entry<Integer, Integer>> minHeap = new PriorityQueue<>(
+                    (a, b) -> a.getValue() - b.getValue() // Sort by frequency (map values)
+            );
+
+-30)
+    private static int quickSelect(int low, int high, int k, int[] arr) {
+        int partitionIndex = partition(low, high, arr);
+        if (partitionIndex == k) return arr[k];
+        else if (partitionIndex < k)
+            return quickSelect(partitionIndex + 1, high, k, arr);
+
+        return quickSelect(low, partitionIndex - 1, k, arr);
+    }
+
+    private static int partition(int low, int high, int[] arr) {
+        int pivotValue = arr[high];
+        int partitionIndex = low;
+        for (int j = partitionIndex; j < high; j++) {
+            if (arr[j] < pivotValue) {
+                int lessThanPivot = arr[j];
+                arr[j] = arr[partitionIndex];
+                arr[partitionIndex] = lessThanPivot;
+                // values left side of partitionIndex
+                // are smaller than pivotValue
+                partitionIndex++;
+            }
+        }
+        int temp = arr[partitionIndex];
+        arr[partitionIndex] = arr[high];
+        arr[high] = temp;
+        return partitionIndex;
+    }
+
+-29)
+    ImportantLongestSubStringWithoutRepeatingCharacter
+    public static void main(String[] args) {
+            String string = "abcddcba";
+            Map<Character, Integer> map = new HashMap<>();
+            int maxLength = 0;
+            for (int left = 0, right = 0; right < string.length(); right++) {
+                char c = string.charAt(right);
+                if (map.containsKey(c))
+                    left = Math.max(map.get(c) + 1, left);
+
+                if (maxLength < right - left + 1)
+                    maxLength = right - left + 1;
+                // Remember update or insert latest
+                // index for current character in map
+                map.put(c, right);
+            }
+            System.out.println(maxLength);
+        }
+
+-28)
+    private static double findMedianSortedArrays(int[] arr1, int[] arr2) {
+
+        int m = arr1.length;
+        int n = arr2.length;
+        int totalLength = m + n;
+        int halfLength = (m + n + 1) / 2;
+        int low = 0, high = m;
+
+        while (low <= high) {
+            int mid1 = (low + high) / 2;
+            int mid2 = halfLength - mid1; // REMEMBER
+
+            // Use appropriate values for left and right partitions
+            int l1 = (mid1 > 0) ? arr1[mid1 - 1] : Integer.MIN_VALUE;
+            int l2 = (mid2 > 0) ? arr2[mid2 - 1] : Integer.MIN_VALUE;
+            int r1 = (mid1 < m) ? arr1[mid1] : Integer.MAX_VALUE;
+            int r2 = (mid2 < n) ? arr2[mid2] : Integer.MAX_VALUE;
+
+            if (l1 <= r2 && l2 <= r1) {
+                if (totalLength % 2 == 1)
+                    return Math.max(l1, l2);
+                return (Math.max(l1, l2) + Math.min(r1, r2)) / 2.0;
+            }
+            if (l1 > r2) high = mid1 - 1;
+            else low = mid1 + 1;
+        }
+        return 0.0;
+    }
+
+
+-27)
+    int candidate = nums[0];
+    int count = 0;
+    // Boyer-Moore Voting Algorithm
+    for (int num : nums) {
+        if (count == 0) candidate = num;
+        count += (num == candidate) ? 1 : -1;
+    }
+    return candidate;
+
+
+-26)
+    low=0,mid=0,hign=n-1
+    case 0
+        swap(nums, low, mid);
+        low++,mid++
+    case 1: // If the element is 1
+        mid++;
+        break;
+    case 2: // If the element is 2
+        swap(nums, mid, high);
+        high--;
+
+-25)
+    class HeightOfBinaryTree {
+        public int maxDepth(TreeNode root) {
+            if (root == null) return 0;
+            return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));
+        }
+    }
+
+-24)
+    // Function to calculate b^p using binary exponentiation
+    public static long binaryExponentiation(long b, long p) {
+        long result = 1;
+        long base = b;
+        while (p > 0) {
+            // If p is odd, multiply the current base to the result
+            if ((p & 1) == 1) {
+                result *= base;
+            }
+            // Square the base and halve the exponent
+            base *= base;
+            p >>= 1;  // equivalent to p = p / 2
+        }
+        return result;
+    }
+
+-23)
+    Delete Nth node from end
+    for (int i = 0; i < N; i++) fastp = fastp.next;
+    if (fastp == null) return head.next;
+    while (fastp.next != null) {
+        fastp = fastp.next;
+        slowp = slowp.next;
+    }
+
+-22)
+    int[] leftRow = new int[n];
+    int[] upperDiagonal = new int[2 * n - 1];
+    int[] lowerDiagonal = new int[2 * n - 1];
+    board[row][col] = 'Q';
+    leftRow[row] = 1;
+    lowerDiagonal[row + col] = 1;
+    upperDiagonal[length - 1 + col - row] = 1;
+
+-21)
+    public int findKthPositive(int[] arr, int k) {
+            int missingCount = 0;
+            int expectedNum = 1;
+            int index = 0;
+            while (missingCount < k) {
+                if (index < arr.length && arr[index] == expectedNum)
+                    index++;
+                else
+                    missingCount++;
+
+                if (missingCount == k)
+                    return expectedNum;
+                expectedNum++;
+            }
+            return -1;
+        }
+
+45)
+    maxCyclicSum of window size k
+    private static int maxScore(int[] cards, int k) {
+            int n = cards.length;
+            int sum = 0;
+            // summing last k elements
+            for (int i = n - k; i < n; i++) {
+                sum += cards[i];
+            }
+            Integer max = sum;
+            // as i =1 is initial setting doing compensation as n-1-k+i
+            for (int i = 1; i <= k; i++) {
+                sum += cards[i-1] - cards[n-1-k+i];
+                max = Math.max(max, sum);
+                Math.max(max, sum);
+            }
+            return max;
+        }
+
+27)
+    int[][] intervals
+    List<int[]> result = new ArrayList<>();
+    return result.toArray(new int[result.size()][]);
+    // list to int array
+    List<Integer> list = Arrays.asList(7, 8, 9);
+    int[] array = list.stream()
+          .mapToInt(Integer::intValue)
+          .toArray();
+
+4)
+    KthElementOf2SortedArrays
+    m is size of A array and n is size of array B
+    assume a1=3,a2=5 and k= 7 then m1=1 , m2= 7> n so OOB Exception
+    int low = Math.max(0, k - n), high = Math.min(k, m);
+
+-5)
+    Creating only key,value pair object pf Map.Entry
+    Here SimpleEntry is static inner class inside AbstractMap
+    new AbstractMap.SimpleEntry<>(first.getKey(), first.getValue() - 1)
+
+-20)
+    SlidingWindowMaximum
+    public int[] maxSlidingWindow(int[] nums, int k) {
+            if (nums == null || k <= 0) return new int[0];
+            int n = nums.length;
+            int[] result = new int[n - k + 1];
+            Deque<Integer> deque = new LinkedList<>();
+            for (int i = 0; i < n; i++) {
+                if (!deque.isEmpty() && deque.peekFirst() < i - k + 1)
+                    deque.pollFirst();
+                while (!deque.isEmpty() && nums[deque.peekLast()] < nums[i])
+                    deque.pollLast();
+                deque.offer(i);
+                if (i >= k - 1)
+                    result[i - k + 1] = nums[deque.peek()];
+            }
+            return result;
+        }
+
+-11)
+    Another variation of window size k
+    n is size of array
+    k is size of window
+    Window.i=A[i:i+k−1] for i∈[0,n−k]
+    So:
+    Window 1 → indices 0...k-1
+    Window 2 → indices 1...k
+    .....
+    Last window → indices n-k...n-1
+
+-19)
+    minHeap -> when poll executed min val will be removed and returned
+    maxHeap -> when poll executed max val will be removed and returned
+    for sorted array -> left half of values in maxHeap and right half
+    can be stored in minHeap
+
+-18) Correct usage of wait and notify
+     inside if(condition matched){
+     // manipulation of shared data
+     notifyAll or notify
+     }
+     else {
+     you got lock and condition not matched
+     please continue waiting
+     obj.wait();
+     // if any logic is here will be executed
+     }
+     for printing even and odd numbers while loop with maxVal condition
+     is needed else won't work and same case for Producer and Consumer
+
+-17)
+     a-b == 0 -> means maintain insertion order
+     a.compareTo(b) < 0 → a comes before b
+     a.compareTo(b) > 0 → a comes after b
+     Collections.sort(names, (a, b) -> b.compareTo(a)); // descending
+     public int compareTo(Edge b) {
+         return this.weight - b.weight;
+     }
+
+-16)
+    Recursion
+    left(not-pick), right(pick)
+    min or max -> Math.max(left,right)
+    count of all ways left+right
+
+-15)
+    To Find Next Permutation Lexicographical order
+    find adjacent pair from right to left such that arr[i]>arr[i+1]
+    swap a[i] with first larger value from right and then reverse
+    from i+1 to end
+
+-14)
+    Heap Sort
+    int largest = i;       // Initialize largest as root
+    int left = 2 * i + 1;  // left = 2*i + 1
+    int right = 2 * i + 2; // right = 2*i + 2
+
+
+-13)
+    /**
+     * Input: nums = [1,2,3], k = 3
+     * <p>
+     * Output: 2
+     */
+    class ImportantCountSubarraySumEqualsK {
+        public static int subarraySum(int[] nums, int k) {
+            int count = 0;
+            Map<Integer, Integer> preSumCountMap = new HashMap<>();
+            int preSum = 0;
+            for (int i = 0; i < nums.length; i++) {
+                preSum += nums[i];
+                if (preSum == k) count++;
+                int remSum = preSum - k;
+                if (preSumCountMap.containsKey(preSum - k)) {
+                    // remember we update count with count from map of remSum
+                    // not in map
+                    count += preSumCountMap.get(remSum);
+                }
+                // update count of preSum in map not remSum
+                preSumCountMap.put(preSum, preSumCountMap.getOrDefault(preSum, 0) + 1);
+            }
+            return count;
+        }
+        public static void main(String[] args) {
+            System.out.println(subarraySum(new int[]{1, 2, 3}, 3));
+        }
+    }
+
+
+-12)
+    inside sometimes it's while not if it will be a common mistake
+    generally we use for-i loop means we are exploiting i value
+
+-10)
+    sout((int) Math.log10(12345)); // 4
+    sout((int) Math.log10(10000)); // 4
+    Math.ceil(Math.log(123))
+    Math.floor(Math.log(123))
+    str.subString(startIdx,endIdx)// endIdx is exclusive
+
+-9)
+    if else-if
+    if if
+    for loop with  i
+    while loop
+    swap
+    find mid in binary search
+    find min value or index
+    find max value or index
+    binary tree check left , check right
+
+-8)
+    low,    left,   start
+    high,   right,  end
+    high = arr.length-1;
+
+-7)
+    Edge cases like start and end, length , null etc
+
+-6)
+    Identify Process
+    After identification preform action
+
+-4)
+    Complete Binary Tree
+        1. All levels except possibly the last are completely filled.
+        2. The last level is filled from left to right without gaps
+
+-3)
+    System.out.println(1e9==1000_000_000) // true
+
+-2)
+    check places of i, j as i , j
+    as they swap of them is very common mistake in coding
+
+-1)
+    comparing a(o1),b(o2)  as a-b for ascending order
+    comparing a(o1),b(o2)  as b-a for descending order
+
+0)
+    A = 65 , a = 97
+    A + 32 = a
+
+1)
+    StartIndex = EndIndex - MaxLength+1;
+    EndIndex
+
+2)
+   if Binary Tree problem , think of three nodes
+   and write logic now repeat same logic for left
+   child or left tree and right child or right tree
+
+3)
+    PreFix Sum
+    25 = 25
+    25+10 = 35
+    35-10 = 25
+
+5)
+    byte b = (byte) 10000;
+    //2^8= 256
+    //b = (byte) (10000 % 256); 16
+
+6)
+    // Perform Transpose
+    for (int i = 0; i < n; i++) {
+        // remember -> int j = i + 1
+        for (int j = i + 1; j < n; j++)
+    now swap mat[i][j] with mat[j][i]
+    // 90 Degree -> Transpose Matrix and reverse each row
+    // 180 Degree -> reverse each column and reverse each row(inverse also works)
+    // 270 Degree -> Transpose Matrix and reverse each column
+
+7)
+    Recursion With pick and non-pick -> count possible ways , min , max etc
+    CountSubsequenceWithTargetSum
+
+8)
+    LCM -> Least Common Multiple of  two numbers n1, n2
+    (n1*n2)/GCD
+    private static int gcd(int a, int b) {
+            return b == 0 ? a : gcd(b, a % b);
+        }
+    private int GCD(int n1, int n2) {
+            while (n1 > 0 && n2 > 0) {
+                if (n1 > n2)
+                   n1 = n1 % n2;
+                else
+                   n2 = n2 % n1;
+            }
+            if (n1 == 0) return n2;
+            return n1;
+        }
+
+9)
+    post order -> left right root
+        (process left subtree , process right subtree derive result from both results)
+    pre order -> root left right
+        (process possibility with current node and traverse for left, right)
+    in order-> left root right
+        [in bst it gives sorted array]
+        (in order traversal always gives the nodes in sorted (ascending) order because of the BST)
+        here left is prev node , root is current node for BST to DLL
+
+10)
+    Floor of x = the greatest value in BST ≤ x.
+    Ceil of x = the smallest value in BST ≥ x.
+
+11)
+    int mid = low + (high - low) / 2;
+
+12)
+    FirstAndLastOccurrence (like floor and ceil)
+    use High index and move towards left to find first occurrence
+    use Low index and move towards right to find last occurrence
+
+13)
+    Integer i=1000;
+    int j=1000;
+    Integer k=1000;
+    i==j // true
+    i==k // false
+
+14)
+    XOR Properties
+    a ^ 0 = a (XOR == ^)
+    a ^ a = 0
+    (a ^ b) ^ b = a
+    a ^ 111...111 = ~a // ones compliment
+    XOR is reversible
+    c = a ^ b
+    a = c ^ b
+    b = c ^ a
+    1 ^ 0 ^ 1 ^ 1 = 1 (since three 1’s → odd)
+
+15)
+    Missing Number (n*(n+1))/2 , XOR
+
+16)
+    Example: arr = [1, 2, 3, 4, 5, 6, 7], k = 2
+
+    Left Rotate an Array by k Steps
+    Normalize k → do k = k % n (since rotating by n brings the array back).
+    Reverse the first k elements          reverse(arr, 0, k - 1);
+    Reverse the remaining n-k elements    reverse(arr, k, n);
+    Reverse the whole array               reverse(arr, 0, n);
+
+17)
+    Right Rotate an Array by k Steps
+    Normalize k → k = k % n.
+    Reverse the last k elements           reverse(arr, n - k + 1, n);
+    Reverse the first n-k elements        reverse(arr, 0, n - k);
+    Reverse the whole array               reverse(arr, 0, n);
+
+18)
+    IF ELSEIF LADDER
+    intersection of two or more arrays
+    union of two or more arrays
+    un-common of two or more arrays
+    (for uneven for all possible ways two sets and sorting ansList can help)
+
+18.1)
+    midValue and targetValue , in binary if midVal < target value means targetVal is on
+    the right of midVal so ignore left half so left= mid+1 means move left to right of mid
+    vice versa of right= mid-1
+    here left moving to right or right moving left using mid-pointer
+
+20)
+    Binary Watch
+    Integer.bitCount() == number of set bits(1 bits) in binary representation
+
+21)
+    Cyclic sort solution
+    // If a number is not in its correct place, swap it with the number at its correct position.
+    // [1, 2, 3, 5, 2]
+    // i is currentIndex
+    int correctIdx = nums[i] - 1;
+    nums[i]=2,nums[correctIdx]=2
+    if (nums[i] != nums[correctIdx]) {
+    swap(nums, i, correctIdx);
+
+    for (int j = 0; j < nums.length; j++) {
+                if (nums[j] != j + 1) {
+                    duplicated = nums[j];
+                    missing = j + 1;
+                }
+            }
+
+22)
+    noOfRows = n , row variable may start from 0 or n
+    if start from n to 0
+        then
+        row = current row
+        row+1 below row
+        row-1 above row
+    same kind for column
+        may be left column
+        may be right column
+
+23)
+    while ((start = s.indexOf(word, start)) != -1)
+
+24)
+    int rows = matrix.length;
+    int cols = matrix[ 0 ].length;
+    int left = 0;
+    int right = rows * cols - 1;
+    int mid = left + ( right - left ) / 2;
+    // no of cols = record or row size
+    int midValue = matrix[ mid / cols ][ mid % cols ];
+
+25)
+    if (leftHeight == rightHeight) {
+        // If the heights are equal, it is a perfect binary tree
+        return (1 << leftHeight) - 1; // 2^height - 1
+    } else {
+        // Otherwise, recursively count nodes in left and right subtrees
+        return 1 + countNodes(root.left) + countNodes(root.right);
+    }
+
+26)
+    int[][] points -> [[1,2],[3,4],[5,6],[7,8]]
+    sort by ends of intervals
+    Arrays.sort(points, (o1, o2) -> o1[1] - o2[1]);
+    Arrays.sort(points, Comparator.comparingInt(a -> a[1]));
+
+28)
+    Longest Common Subsequence
+    dp[i][j] = 1 + dp[i-1][j-1]
+    dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+
+29)
+    edit distance(horse,ros)
+    dp[i][j] = dp[i-1][j-1]
+    dp[i][j] = 1 + min(
+        dp[i-1][j],    // delete from X
+        dp[i][j-1],    // insert into X
+        dp[i-1][j-1]   // replace
+    )
+
+30) Unique Paths
+    dp[i][j] = dp[i-1][j] + dp[i][j-1]
+
+31)
+    prevPrev=a
+    prev=b
+    current=c
+
+32)
+    //here prev is pointer before mid of linked list
+    // generally used for sorting rest no need for prev one
+            ListNode prev = null;
+            ListNode slow = head;
+            ListNode fast = head;
+    while (fast != null && fast.next != null){
+            prev = slow;
+            slow = slow.next;
+            fast = fast.next.next;
+            }
+    to find mid of linkedList
+    private static ListNode reverseList(ListNode head) {
+            ListNode prev = null;
+            while (head != null) {
+                ListNode nextNode = head.next;
+                head.next = prev;
+                prev = head;
+                head = nextNode;
+            }
+            return prev;
+        }
+
+33)
+    String joined = String.join(" ", List.of("abc", "def"));
+
+34)
+    canPlaceFlowers
+    //              [0 , 0 , 0]
+    if (flowerbed[i] == 0 &&
+        (i == 0 || flowerbed[i - 1] == 0) &&
+        (i == flowerbed.length - 1 || flowerbed[i + 1] == 0)) {
+        flowerbed[i] = 1; // Place a flower here
+        count++;
+
+35)
+    void quickSort(int[] array, int low, int high) {
+    if (low < high) {
+        int partitionIndex = partition(array, low, high);
+        quickSort(array, low, partitionIndex - 1);
+        quickSort(array, partitionIndex + 1, high);
+    }
+    partition -> move selected pivot to right place all left are smaller
+    all right are sorted but necessarily in right place, pivot placed in
+    right place
+
+36) initial setting ans=1 and rowNum
+    decreasing numerator from rowNum-col to col
+    increasing denumerator from col to <rowNum
+    private static List<Integer> generateRow(int rowNumber) {
+        List<Integer> pascalRow = new ArrayList<>();
+        pascalRow.add(1);
+        int ans = 1;
+        for (int col = 1; col < rowNumber; col++) {
+            ans *= (rowNumber - col);
+            ans /= col;
+            pascalRow.add(ans);
+        }
+        return pascalRow;
+        }
+
+37)
+    long rem = preSum - target;
+
+38)
+    // Cyclic sort
+    For an array containing 1 to n, the correct index of a number x is x - 1.
+    // currVal to correctIdx means coorectIdx= currVal-1
+    // value at correctIdx to currentIdx means to the currentVal idx
+    //nums[i] -> currVal
+    int correctIdx = nums[i] - 1;
+    if (nums[correctIdx] != nums[i]) {
+        int temp = nums[correctIdx];
+        nums[correctIdx] = nums[i];
+        nums[i] = temp;
+    }
+
+39)
+    ATOI
+    // by 10 as we have to multiply by 10 -intVal as we do +intVal
+    // (Integer.MAX_VALUE - intVal) / 10) remember
+
+40)
+    Maximum Swap
+    for (int i = 0; i < digits.length; i++) {
+    // key condition to swap d > digits[i] - '0'
+    for (int d = 9; d > digits[i] - '0'; d--)
+
+41)
+    Missing and repeating numbers
+    //Step 2: Find the differentiating bit number:
+            int number = (xr & -xr);
+
+42)
+    //max heap
+    maxHeap for left half sorted part
+    minHeap for right half sorted part
+    PriorityQueue<Integer> maxHeap = new PriorityQueue<>(Collections.reverseOrder());
+    PriorityQueue<Integer> minHeap = new PriorityQueue<>(); // min-heap
+
+43)
+    Stack<String> stack = new Stack<>();
+            stack.add("1");
+            stack.add("2");
+            stack.add("3");
+            stack.add("4");
+    // use for loop 1,2,3,4,
+    // use while loop with pop call 4,3,2,1
+
+44)
+    TextJustification
+    currentLineLength + word.length() + currentLine.size() > maxWidth
+
+46)
+    minutes needle covers 6 degrees in minute
+    hours needle covers 30 degrees in hour
+    hours needle covers 0.5 degrees in minute (30/60)
+    30 degrees per hour/60 minutes per hour= 0.5 degrees
+    hoursAngle-minutesAngle covered
+
+47)
+     Random
+     Random rand = new Random();
+     rand.nextInt(bound) // must be positive
+     Value between zero (inclusive) and bound (exclusive)
+     to generate random between range
+     rand.nextInt(1, 10) // 1 is inclusive and 10 is exclusive
+     // 1,7 -> rolling dice
+
+48)
+    Bounds
+    Lower Bound (LB) → the first position in the array where
+    the target (or a condition) could appear.
+    lower_bound → first index where arr[i] >= target
+
+    Upper Bound (UB) → the position just after the last occurrence of the
+    target (or where the condition fails).
+    upper_bound → first index where arr[i] > target
+
+49)
+    merge sort
+    private int[] mergeSort(int left, int right, int[] nums) {
+        if (left == right) {
+            // Base case, single element array either left or right
+            return new int[]{nums[right]};
+        }
+
+        int mid = (left + right) / 2;
+        int[] leftPart = mergeSort(left, mid, nums);
+        int[] rightPart = mergeSort(mid + 1, right, nums);
+
+        return merge(leftPart, rightPart);
+    }
+
+50)
+    List<String> strings = List.of("abc", "def");
+    String joined = String.join(",", strings);
+    System.out.println(joined);
+
+51)
+    map.computeIfAbsent(key, k -> new ArrayList<>()).add(str);
+
+52)
+    // remember j=i+1 , when we don't want to include elements
+    // that are on the right side of i not on the left side of i
+
+53)
+    Subset
+    /**
+     * Example 1:
+     * <p>
+     * Input: nums = [1,2,3]
+     * <p>
+     */
+    pick , notPick , conditional pick
+    pick all -> gives a subset
+    pick half -> gives a subset
+    pick none -> gives a subset
+    private static void subsets(int[] ints, int i, List<Integer> subset, List<List<Integer>> subsets) {
+        if (i == ints.length) {
+            subsets.add(new ArrayList<>(subset));
+            return;
+        }
+        subset.add(ints[i]);
+        subsets(ints, i + 1, subset, subsets);
+        subset.remove(subset.size() - 1);
+        subsets(ints, i + 1, subset, subsets);
+    }
+    Output: [[1, 2, 3], [1, 2], [1, 3], [1], [2, 3], [2], [3], []]
+    private static void subsets(int[] ints, int i, List<Integer> subset, List<List<Integer>> subsets) {
+            if (i == ints.length) {
+                subsets.add(new ArrayList<>(subset));
+                return;
+            }
+            subsets(ints, i + 1, subset, subsets);
+            subset.add(ints[i]);
+            subsets(ints, i + 1, subset, subsets);
+            subset.remove(subset.size() - 1);
+        }
+    Output: [[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]
+
+54)
+    binaryExponentiation
+    public static long binaryExponentiation(long b, long p) {
+            long result = 1;
+            long base = b;
+
+            while (p > 0) {
+                // If p is odd, multiply the current base to the result
+                if ((p & 1) == 1) {
+                    result *= base;
+                }
+                // Square the base and halve the exponent
+                base *= base;
+                p >>= 1;  // equivalent to p = p / 2
+            }
+            return result;
+        }
+
+55)
+    DeleteNthNodeFromEnd
+
+56)
+    meanMedian of arr
+    Arrays.sort(arr); n is length of arr
+    if (n % 2 == 1) {
+        return array[n / 2]; // Odd case
+    } else {
+        return (array[(n / 2) - 1] + array[n / 2]) / 2.0; // Even case
+    }
+    0 1 2 3 4 (5) 6 7 8 9 -> total 10 elements
+    10/2 =5 , left of 5 we have 5 elements and on right of 5 we have
+    4 elements
+
+57)
+    row incremented from for loop
+    col incremented from recursion call
+    N Queens
+    UPPER DIAGONAL (↖) -> top-left to bottom-right
+    INDEX=(COL−ROW)+(N−1)
+    Lower diagonal (↙ / bottom-left to top-right)
+    col+row
+    nt[] leftRow = new int[n];
+    int[] upperDiagonal = new int[2 * n - 1];
+    int[] lowerDiagonal = new int[2 * n - 1];
+
+58) visited -> just come across the vertex,
+    explored -> all adjacent node of the vertex also visited
+    BFS(level order traversal)
+    Use Queue
+    and vis[]
+    and
+    queue.add(0);
+    vis[0]=true
+    use for loop initialized from queue size to complete level
+
+59)
+    Rotten oranges
+    // 4 directions
+    int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    // Directions: right, down, left, up
+    //int[] directions = {0, 1, 0, -1, 0};
+
+    // remember fresh>0 also
+    while (!queue.isEmpty() && fresh > 0) {
+        int size = queue.size();
+        for (int i = 0; i < size; i++) {
+            int[] point = queue.poll();
+            for (int[] d : dirs) {
+                int x = point[0] + d[0];
+                int y = point[1] + d[1];
+                // out of bounds with or condition is more performant
+                // than all are in bounds with and condition
+                if (x < 0 || y < 0 || x >= rows || y >= cols || grid[x][y] != 1)
+                    continue;
+                grid[x][y] = 2;  // rot it
+                queue.offer(new int[]{x, y});
+                fresh--;  // one less fresh
+            }
+        }
+        minutes++;
+    }
+
+60)
+    my parent and my adjacent node shouldn't be same
+    detecting a cycle in an undirected graph(bi-directional graph)
+    In BFS: same reasoning, using queue with (node, parent).
+    u --> v , here u is parent of v
+    1->2
+    2->1
+    cycle in undirected Graph         parent!=vNode
+    1->2->1 (parent-> node->adjNode) (parent!=adjNode) return true
+    A path 1 → 2 → 1 is not considered a cycle
+    A real cycle would be something like 1 → 2 → 3 → 1
+
+    private boolean dfs(int node,
+                            int parent,
+                            boolean[] vis,
+                            ArrayList<ArrayList<Integer>> adj) {
+            vis[node] = true;
+            for (int adjacentNode : adj.get(node)) {
+                if (!vis[adjacentNode]) {
+                    if (dfs(adjacentNode, node, vis, adj)) return true;
+                }
+                else if (adjacentNode != parent) return true;
+            }
+            return false;
+        }
+
+61)
+    in directed graphs we will use same
+    logic along with pathVisited
+
+62)
+    biPartite
+    col =1
+    (constant(1) variable(col))
+    newCol=1-col --> 0
+    col=1-0
+
+
+63)
+    Topological-sort
+    Topological sorting only exists in Directed Acyclic Graph (DAG).
+    If the nodes of a graph are connected through directed edges and
+    the graph does not contain a cycle, it is called a directed
+    acyclic graph(DAG).
+    The topological sorting of a directed acyclic graph is nothing but
+    the linear ordering of vertices such that if there is an edge
+    between node u and v(u -> v),node u appears before v in that
+    ordering.
+
+64)
+    topo-sort using DFS
+    Perform DFS on the graph.
+    1->2->3->4->5 stack contains after dfs (5,4,3,2,1) 1 at top
+    When a node finishes (all its neighbors are visited),
+    push it onto a stack (or add it to the front of a list).
+    At the end, the stack/list will have the topological order.
+    Time Complexity: O(V + E) (DFS traversal).
+
+65)
+    Kahn’s Algorithm Steps
+    Compute in-degrees
+        For every node in the graph, count the number of incoming edges (in-degree).
+    Initialize a queue
+        Put all nodes with in-degree = 0 into a queue.
+    Process nodes in the queue
+        While the queue is not empty:
+            Pop a node from the queue.
+            Add it to the topological order result list.
+            For each neighbor (outgoing edge) of this node:
+            Reduce that neighbor’s in-degree by 1 (because one dependency is removed).
+            If the in-degree becomes 0, push it into the queue.
+    Check for cycle
+        After processing, if the result list contains all nodes → valid topological sort.
+        If not all nodes are included → graph has a cycle (no valid topo order).
+
+66)
+    Dijkstra’s algorithm finds the shortest path from a
+    source node to all other nodes in a weighted graph.
+    Dijkstra’s Algo (using PQ) [Shortest Path Algorithm]
+    Can't Handle negative weights
+    Initialize dist[] with ∞, and dist[src] = 0.
+    Push (0, src) into a min-heap (PriorityQueue in Java).
+        Format: (distance, node).
+    While PQ is not empty:
+        Pop the node u with the smallest distance
+        For each neighbor (v, weight) of u:
+            If dist[u] + weight < dist[v]:
+            → Update dist[v]
+            → Push (dist[v], v) into PQ.
+    Continue until PQ is empty
+    🔹 Complexity
+        PQ operations → O(log V)
+        Time Complexity: O((V + E) log V)
+        Space Complexity: O(V + E)
+
+67)
+    O(VE)
+    Bellman–Ford Algorithm (used for Single Source Shortest Path
+    and works with negative weights unlike Dijkstra).
+    Initialization
+        Create a dist[] array of size V.
+            dist[src] = 0 (distance to itself is 0)
+            dist[v] = ∞ (for all other vertices initially)
+    Relax all edges (V-1) times
+        For i = 1 to V-1
+            For all edges (u, v, w) with weight w:
+            If dist[u] + w < dist[v]
+            → update dist[v] = dist[u] + w
+    Check for Negative Weight Cycles
+        One more relaxation round for all edges:
+            For every edge (u, v) with weight w:
+            If dist[u] + w < dist[v], then a negative weight
+            cycle exists (since distances can still be reduced).
+
+68)
+    Floyd–Warshall Algorithm,
+    matrix[i][j] = (int) (1e9);-> (int) type casting needed
+    which is used to find the shortest paths between all pairs
+    of vertices in a weighted graph (can handle positive &
+    negative weights, but no negative cycles)
+    Build a distance matrix dist[V][V], where:
+        dist[i][j] = weight of edge (i → j) if it exists.
+        dist[i][i] = 0 (distance from a node to itself is zero).
+        dist[i][j] = ∞ (large number) if no direct edge exists.
+        dist[i][j]=min(dist[i][j],dist[i][k]+dist[k][j])
+    Run three loops:
+        Outer loop (k) → iterate over each vertex k as an intermediate.
+        Middle loop (i) → pick a source vertex.
+        Inner loop (j) → pick a destination vertex.
+    ✅ Time Complexity: O(V³)
+    ✅ Space Complexity: O(V²)
+
+69)
+    Path Compression.
+    DisjointSet
+    You initialize from 0 to v, so your DSU
+    supports indices [0..v] (v+1 elements).
+    int find(int x) {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);
+        }
+        return parent[x];
+    }
+    public int findUPar(int node) {
+        if (node == parent.get(node))
+            return node;
+        // find ultimate parent for my parent
+        int ulp = findUPar(parent.get(node));
+        parent.set(node, ulp);
+        return parent.get(node);
+    }
+
+70)
+    Disjoint Set Union (DSU) Uses
+    1. Cycle Detection in an Undirected Graph
+    2. Minimum Spanning Tree (MST) – Kruskal’s Algorithm
+    3. Connected Components
+    a property in minimum spanning tree is V is number of vertices
+    E is number of edges then
+        Emst(no of edges) = V-1
+
+71)
+    Kruskal’s Algorithm
+    Better for sparse graphs (fewer edges)
+    since sorting edges is cheaper.
+    O(E log E)
+    Sort all edges by weight
+        Pick the lightest edge first (greedy choice).
+        Sorting takes O(E log E).
+    Initialize DSU (Disjoint Set Union)
+    iterate all edges check ultimate parent of u and v
+    if not same union by size and add weight
+    return as minimum spanning tree sum
+
+72)
+    Prim’s Algorithm
+    More efficient for dense graphs (many edges)
+    since it works with adjacency list & PQ.
+    It's Djikstra's modified version
+
+73)
+    Accounts Merge
+    // Hashmap to store the pair: {mails, node}
+    Map<String, Integer> mapMailNode = new HashMap<>();
+    if (!mapMailNode.containsKey(mail))
+        mapMailNode.put(mail, i);
+    else {
+        ds.unionBySize(i, mapMailNode.get(mail));
+    }
+
+74)
+    Node with zero out degree is called terminal node
+    A node is called eventually safe if starting from it,
+    every possible path leads to a terminal node (a node with no outgoing edges).
+    EventualSafeNodesByDFS
+    doDfs with vis,pathVis,safe boolean arrays
+    if not part of cycle then update node as safe node
+    We track states:
+        0 → unvisited
+        1 → visiting (currently in recursion stack → cycle)
+        2 → safe (already proven safe)
+
+75)
+    You will be given edges using which you can create graph
+    of List<List<Integer>> adjList=new ArrayList<>();
+    List<List<int[]>> adjList = new ArrayList<>(n);
+
+76)
+    i,j to node representation
+    rowSize=n to node
+    Converting rowIndex= i , colIndex=j
+    int node= i*rowSize+j
+
+77)
+    Kosaraju’s Algorithm
+    Is a graph algorithm used to find Strongly Connected Components
+    (SCCs) in a directed graph.
+    In a directed graph, a SCC is a maximal subgraph where every vertex
+    is reachable from every other vertex in that subgraph.
+
+    Example: In a graph, if A → B and B → A, then {A, B} forms a SCC.
+    a. do stackDFS
+    b. do reverse graph
+    c. use stack and do visitDFS
+    while doing c count components
+
+78)
+    Tarjan’s Algorithm to find all bridges (BridgesInGraph)
+    BIDIRECTIONAL GRAPH
+    (critical connections/edges) in a graph
+    Discovery Time (disc[])
+        The time when a node is first visited during DFS.
+    Lowest Reachable Time (low[])
+        The earliest discovered vertex that a node can reach (including back edges).
+    Bridge Condition
+        An edge (u, v) is a bridge if:
+        low[v] > disc[u]
+    Meaning: if v (and its descendants) cannot reach back to u or its ancestors,
+    removing (u,v) disconnects the graph.
+    DFS
+        Recurse: dfs(v, u).
+        After return: update low[u] = min(low[u], low[v]).
+        Bridge check: if low[v] > disc[u], then (u, v) is a bridge.
+        Else (back edge case): update low[u] = min(low[u], disc[v])
+
+79)Articulation Point
+    low[node] = Math.min(low[node], low[it]);
+    if (low[it] >= tin[node] && parent != -1) {
+        mark[node] = true;
+    }
+    child++;
+
+80)
+    SubsetSumEqualsToTarget
+    private boolean func(int ind, int target, int[] arr) {
+        if (target == 0) return true;
+        if (ind == 0) return arr[0] == target;
+        //  we will add to list and remove from list
+        // if we want to capture answer/s
+        boolean notTaken = func(ind - 1, target, arr);
+        boolean taken = false;
+        int currVal = arr[ind];
+        if (currVal <= target)
+            taken = func(ind - 1, target - currVal, arr);
+        return notTaken || taken;
+    //return (int)(dp[ind][T] = (notTaken + taken) % MOD);
+    }
+
+81)
+    1)Define clear BASE CASE → prevents infinite recursion.
+    2)Reduce the problem → recursion must MOVE TOWARD BASE CASE.
+    3)Decide whether you need return values (like Fibonacci) or
+      accumulating results (like DFS/backtracking).
+    4)Think: "If I had the solution for a smaller input,
+      how do I build the answer for the current input?"
+
+82)
+    Partition DP
+    Base case with return
+                k->i to j try partition at every possible index
+                such that left and right partitions possible
+                (i,j,arr) -> initially i=0,j=n-1 (may change)
+        (i,k,arr)        (k+1,j)    -> try all partitions
+        return best possible 2 partitions
+    make sure at least either side of a single edge case partition possible
+
+83)
+    [1, 2, 3]
+    Sub-sets(order not matter)
+    []
+    [1], [2], [3]
+    [1,2], [1,3], [2,3]
+    [1,2,3]
+    Sub-sequences (order matter)
+    []
+    [1], [2], [3]
+    [1,2], [1,3], [2,3]
+    [1,2,3] ([3,2,1]) -> not a sub-sequence
