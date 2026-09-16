@@ -11,6 +11,7 @@
 !AAScratches/**/*.java
 !AAScratches/**/*.md
 !/.gitignore
+!/README.md
 
 # Unrelated work that happens to live in this folder - never publish these.
 /Learn-HLD/
