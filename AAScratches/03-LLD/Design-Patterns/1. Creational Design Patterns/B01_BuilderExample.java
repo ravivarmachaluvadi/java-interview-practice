@@ -104,10 +104,10 @@ class BuilderExample {
         User user = new User.Builder()
                 .withAddress("Bangalore")
                 .withAge(34)
-                .withLastName("Chaluvadi")
-                .withFirstName("Ravi Varma")
-                .withMail("ravivarmachaluvadi@gmail.com")
-                .withPhone("7780208242")
+                .withLastName("Doe")
+                .withFirstName("Jane")
+                .withMail("jane.doe@example.com")
+                .withPhone("5550100200")
                 .build();
 
         System.out.println(user);
