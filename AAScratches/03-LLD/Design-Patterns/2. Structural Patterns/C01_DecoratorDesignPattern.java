@@ -13,7 +13,22 @@
  * Time Complexity: O(n) where n is the number of decorators applied,
  * since each getDescription/getCost traverses the chain once.
  * Space Complexity: O(n) for the decorator objects created in the chain.
+ * 
  */
+
+class DecoratorDesignPattern {
+    public static void main(String[] args) {
+        Coffee coffee = new SimpleCoffee();
+        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
+
+        coffee = new MilkDecorator(coffee);
+        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
+
+        coffee = new SugarDecorator(coffee);
+        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
+    }
+}
+
 interface Coffee {
     String getDescription();
 
@@ -74,15 +89,3 @@ class SugarDecorator extends CoffeeDecorator {
     }
 }
 
-class DecoratorDesignPattern {
-    public static void main(String[] args) {
-        Coffee coffee = new SimpleCoffee();
-        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
-
-        coffee = new MilkDecorator(coffee);
-        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
-
-        coffee = new SugarDecorator(coffee);
-        System.out.println(coffee.getDescription() + " $" + coffee.getCost());
-    }
-}

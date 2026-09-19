@@ -1,4 +1,4 @@
-/**
+    /**
  * Problem: Implements a Disjoint Set Union (Union-Find) data structure with path compression and union by size.
  *
  * Approach: Each element starts as its own set. `findUPar` recursively finds the ultimate parent while compressing paths.

@@ -24,6 +24,10 @@ public class Tricky9 {
         System.out.println("string");// string output printed
     }
 
+    // void m1(StringBuilder s) {
+    //     System.out.println("string");// string output printed
+    // }
+
     void m1(Object s) {
         System.out.println("object");
     }

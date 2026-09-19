@@ -14,11 +14,13 @@
  * Space Complexity: O(L) for the recursion stack and path list, plus O(1) auxiliary space aside from the input grid.
  */
 import java.util.*;
+import java.util.*;
 
 class WordPathFinder {
 
-    static int[] dx = {0, 1}; // right, down
-    static int[] dy = {1, 0};
+    // Directions: right (0,1), down (1,0)
+    private static final int[] DX = {0, 1};
+    private static final int[] DY = {1, 0};
 
     public static void main(String[] args) {
         char[][] grid = {
@@ -26,7 +28,7 @@ class WordPathFinder {
                 {'S', 'F', 'C', 'S'},
                 {'A', 'D', 'E', 'E'}
         };
-        String word = "ABCCED";
+        String word = "ABCCE";
 
         List<int[]> path = findWord(grid, word);
 
@@ -35,14 +37,21 @@ class WordPathFinder {
             for (int[] p : path) {
                 System.out.print(Arrays.toString(p) + " ");
             }
+            System.out.println();
         } else {
             System.out.println("Word not found.");
         }
     }
 
     public static List<int[]> findWord(char[][] grid, String word) {
-        int n = grid.length, m = grid[0].length;
+        if (grid == null || grid.length == 0 || grid[0].length == 0 || word == null || word.isEmpty()) {
+            return null;
+        }
 
+        int n = grid.length;
+        int m = grid[0].length;
+
+        // Try starting from every cell
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < m; j++) {
                 List<int[]> path = new ArrayList<>();
@@ -55,20 +64,36 @@ class WordPathFinder {
     }
 
     private static boolean dfs(char[][] grid, String word, int idx, int x, int y, List<int[]> path) {
-        if (idx == word.length()) return true; // word found
-        if (x < 0 || y < 0 || x >= grid.length || y >= grid[0].length) return false;
-        if (grid[x][y] != word.charAt(idx)) return false;
-
-        path.add(new int[]{x, y});
-
-        // Explore right and down
-        for (int d = 0; d < 2; d++) {
-            int nx = x + dx[d];
-            int ny = y + dy[d];
-            if (dfs(grid, word, idx + 1, nx, ny, path)) return true;
+        // If we've matched all characters, we're done
+        if (idx == word.length()) {
+            return true;
         }
 
-        path.remove(path.size() - 1); // backtrack
+        // Bounds check
+        if (x < 0 || y < 0 || x >= grid.length || y >= grid[0].length) {
+            return false;
+        }
+
+        // Character mismatch
+        if (grid[x][y] != word.charAt(idx)) {
+            return false;
+        }
+
+        // Add current cell to path
+        path.add(new int[]{x, y});
+
+        // Try moving right
+        if (dfs(grid, word, idx + 1, x, y + 1, path)) {
+            return true;
+        }
+
+        // Try moving down
+        if (dfs(grid, word, idx + 1, x + 1, y, path)) {
+            return true;
+        }
+
+        // Backtrack
+        path.remove(path.size() - 1);
         return false;
     }
 }

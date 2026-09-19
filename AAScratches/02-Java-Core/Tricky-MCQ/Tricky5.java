@@ -16,6 +16,14 @@
  * Time: O(1) – constant-time operations for casting and method call.
  * Space: O(1) – no additional data structures are used.
  */
+
+public class Tricky5 {
+    public static void main(String[] args) {
+        Animal a = new Dog();
+//        a.makeSound();// Compilation Error
+        ((Dog) a).makeSound();// Compilation Error
+    }
+    
 class Animal {
 }
 
@@ -25,10 +33,5 @@ class Dog extends Animal {
     }
 }
 
-public class Tricky5 {
-    public static void main(String[] args) {
-        Animal a = new Dog();
-//        a.makeSound();// Compilation Error
-        ((Dog) a).makeSound();// Compilation Error
-    }
+
 }

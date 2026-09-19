@@ -1,16 +1,17 @@
 /**
- * Demonstrates various Java Stream operations:
- * - Counts occurrences of integers in an array.
- * - Filters strings by prefix and converts to arrays/lists.
- * - Flattens a list of lists into a single list.
- * - Groups employees by department and finds the highest salary per group.
+ * Problem: Everyday Java 8 Stream/Collector recipes, ending with "max salary per department"
+ *          done two ways (raw Optional vs collectingAndThen) plus groupingBy + filtering.
  *
- * Approach: Use stream pipelines with collectors such as groupingBy, counting,
- * filtering, flatMap, and maxBy. Convert between primitive arrays and boxed types
- * where necessary.
+ * Approaches:
+ *  - countOccurrences      : int[] -> boxed() -> groupingBy(identity, counting())
+ *  - filterToArrayAndList  : filter + toArray(String[]::new) and filter + toList + list.toArray(new String[0])
+ *  - flattenListOfLists    : flatMap(List::stream)
+ *  - maxSalaryWithOptional : groupingBy(dept, maxBy(...)) -> Map<String, Optional<Employee>>  (caller unwraps)
+ *  - maxSalaryUnwrapped    : groupingBy(dept, collectingAndThen(maxBy(...), opt -> salary)) -> Map<String, Double>
+ *  - highEarnersByDept     : groupingBy(dept, filtering(salary > 7000, toList())) keeps EMPTY groups;
+ *                            filter-then-groupingBy drops them - shown side by side.
  *
- * Time Complexity: O(n) for each independent stream operation (n = number of elements).
- * Space Complexity: O(k) for the resulting collections (k ≤ n), plus overhead for intermediate streams.
+ * Time: O(n) per pipeline. Space: O(k) for each result map/list.
  */
 import java.util.*;
 import java.util.function.Function;
@@ -18,86 +19,126 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 class Streams {
-    public static void main(String[] args) {
-        int[] arr = {1, 2, 3, 3, 3, 4, 5};
 
-        Map<Integer, Long> map = Arrays.stream(arr)
-                .boxed()// int arr <-> boxed
+    // int[] cannot be collected directly - boxed() turns IntStream into Stream<Integer>.
+    static Map<Integer, Long> countOccurrences(int[] arr) {
+        return Arrays.stream(arr)
+                .boxed()
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+    }
 
-        System.out.println(map);
+    // Two ways to end up with a String[]: toArray(generator) straight from the stream,
+    // or collect to a List and then list.toArray(new String[0]).
+    static String[] filterToArrayAndList(String[] words, String prefix) {
+        String[] direct = Arrays.stream(words)
+                .filter(s -> s.startsWith(prefix))
+                .toArray(String[]::new);
 
-        String[] arr1 = {"Abc", "Bac"};
-
-        String[] array = Arrays.stream(arr1).filter(s -> s.startsWith("A")).toArray(String[]::new);
-
-        System.out.println(Arrays.toString(array));
-
-        List<String> stringList = Stream.of(array).filter(string -> string.startsWith("A")).collect(Collectors.toList());
-        String[] array1 = stringList.toArray(new String[0]);
-
-
-        List<List<String>> listOfLists = Arrays.asList(
-                Arrays.asList("Alice", "Bob"),
-                Arrays.asList("Charlie", "David"),
-                Arrays.asList("Eve", "Frank")
-        );
-
-        // Using flatMap to flatten the list of lists
-        List<String> flatList = listOfLists.stream()
-                .flatMap(strings -> strings.stream())
+        List<String> viaList = Stream.of(words)
+                .filter(s -> s.startsWith(prefix))
                 .collect(Collectors.toList());
+        String[] fromList = viaList.toArray(new String[0]);   // new String[0] is the idiomatic size hint
 
-        System.out.println("Flattened List: " + flatList);
+        if (!Arrays.equals(direct, fromList)) throw new AssertionError("both routes must agree");
+        return direct;
+    }
 
-        List<Employee> emplList = Employee.getEmplList();
+    // flatMap: each inner list becomes a stream, and the streams are concatenated.
+    static List<String> flattenListOfLists(List<List<String>> listOfLists) {
+        return listOfLists.stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
 
-        Map<String, Optional<Employee>> maxSalaryByDept = emplList.stream()
+    // Approach 1: maxBy returns Optional<Employee> (a group could theoretically be empty),
+    // so the map value is Optional and the caller has to unwrap it.
+    static Map<String, Optional<Employee>> maxSalaryWithOptional(List<Employee> employees) {
+        return employees.stream()
                 .collect(Collectors.groupingBy(
                         Employee::getDepartment,
                         Collectors.maxBy(Comparator.comparingDouble(Employee::getSalary))
                 ));
+    }
 
-        maxSalaryByDept.forEach((dept, emp) ->
-                System.out.println("Department: " + dept + ", Max Salary: " + emp.get().getSalary()));
+    // Approach 2: collectingAndThen(downstream, finisher) runs the finisher on each group's
+    // result, so the Optional is unwrapped inside the collector and the map is Map<String, Double>.
+    static Map<String, Double> maxSalaryUnwrapped(List<Employee> employees) {
+        return employees.stream()
+                .collect(Collectors.groupingBy(
+                        Employee::getDepartment,
+                        Collectors.collectingAndThen(
+                                Collectors.maxBy(Comparator.comparingDouble(Employee::getSalary)),
+                                opt -> opt.map(Employee::getSalary).orElse(0.0)
+                        )
+                ));
+    }
 
+    // Collectors.filtering (Java 9+) filters INSIDE each group -> departments with no match
+    // still appear with an empty list.
+    static Map<String, List<Employee>> highEarnersByDeptKeepEmptyGroups(List<Employee> employees, double threshold) {
+        return employees.stream()
+                .collect(Collectors.groupingBy(
+                        Employee::getDepartment,
+                        Collectors.filtering(e -> e.getSalary() > threshold, Collectors.toList())
+                ));
+    }
+
+    // Stream.filter BEFORE groupingBy -> departments with no match are absent from the map.
+    static Map<String, List<Employee>> highEarnersByDeptDropEmptyGroups(List<Employee> employees, double threshold) {
+        return employees.stream()
+                .filter(e -> e.getSalary() > threshold)
+                .collect(Collectors.groupingBy(Employee::getDepartment));
+    }
+
+    public static void main(String[] args) {
+        System.out.println("countOccurrences      : " + countOccurrences(new int[]{1, 2, 3, 3, 3, 4, 5}));
+        System.out.println("filterToArrayAndList  : " + Arrays.toString(filterToArrayAndList(new String[]{"Abc", "Bac", "Axy"}, "A")));
+        System.out.println("flattenListOfLists    : " + flattenListOfLists(Arrays.asList(
+                Arrays.asList("Alice", "Bob"),
+                Arrays.asList("Charlie", "David"),
+                Arrays.asList("Eve", "Frank"))));
+
+        List<Employee> employees = Employee.sample();
+        System.out.println("employees             : " + employees);
+
+        Map<String, Optional<Employee>> withOptional = maxSalaryWithOptional(employees);
+        withOptional.forEach((dept, opt) ->
+                System.out.println("maxSalaryWithOptional : " + dept + " -> " + opt.map(Employee::getSalary).orElse(0.0)));
+
+        maxSalaryUnwrapped(employees).forEach((dept, salary) ->
+                System.out.println("maxSalaryUnwrapped    : " + dept + " -> " + salary));
+
+        System.out.println("highEarners keepEmpty : " + highEarnersByDeptKeepEmptyGroups(employees, 7000));
+        System.out.println("highEarners dropEmpty : " + highEarnersByDeptDropEmptyGroups(employees, 7000));
     }
 }
 
-
 class Employee {
-    private String name;
-    private String department;
-    private double salary;
+    private final String name;
+    private final String department;
+    private final double salary;
 
-    // Constructor, getters, and setters
-    public Employee(String name, String department, double salary) {
+    Employee(String name, String department, double salary) {
         this.name = name;
         this.department = department;
         this.salary = salary;
     }
 
-    public String getDepartment() {
-        return department;
-    }
+    String getDepartment() { return department; }
 
-    public double getSalary() {
-        return salary;
-    }
+    double getSalary() { return salary; }
 
     @Override
-    public String toString() {
-        return name + " (" + department + ") - " + salary;
-    }
+    public String toString() { return name + "(" + department + "," + salary + ")"; }
 
-    public static List<Employee> getEmplList() {
-        List<Employee> employees = Arrays.asList(
-                new Employee("Alice", "HR", 70000),
-                new Employee("Bob", "IT", 85000),
-                new Employee("Charlie", "IT", 95000),
-                new Employee("David", "HR", 75000),
-                new Employee("Eve", "Finance", 80000)
+    // Salaries chosen so the 7000 threshold splits them: only David passes, Bob is exactly 7000 (not >).
+    static List<Employee> sample() {
+        return Arrays.asList(
+                new Employee("Alice", "HR", 4000),
+                new Employee("Bob", "IT", 7000),
+                new Employee("Charlie", "HR", 4500),
+                new Employee("David", "IT", 8000),
+                new Employee("Eve", "Finance", 6500)
         );
-        return employees;
     }
 }

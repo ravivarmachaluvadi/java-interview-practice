@@ -1,13 +1,18 @@
+/**
+ * Run-length encoding of a string.
+ * Input : wwwwaaadexxxxxxywww
+ * Output: w4a3d1e1x6y1w3
+ * Time O(n), space O(n) for the result.
+ */
 class RunLengthEncodingW4A3 {
-    // Driver code
     public static void main(String[] args) {
         String str = "wwwwaaadexxxxxxywww";
-        System.out.println(encoding(str));
+        System.out.println(encoding(str)); // w4a3d1e1x6y1w3
     }
 
     private static String encoding(String str) {
+        if (str == null || str.isEmpty()) return ""; // null check must come before str.length()
         int length = str.length();
-        if (str == null || length == 0) return "";
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < length; i++) {
             int count = 1;

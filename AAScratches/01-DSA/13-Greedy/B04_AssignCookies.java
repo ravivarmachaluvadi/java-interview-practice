@@ -14,21 +14,21 @@ import java.util.Arrays;
 
 class AssignCookies {
     public static int findContentChildren(int[] greed, int[] cookieSize) {
-        int n = greed.length;
-        int m = cookieSize.length;
-        Arrays.sort(greed);
-        Arrays.sort(cookieSize);
-        int l = 0;
-        int r = 0;
+    Arrays.sort(greed);
+    Arrays.sort(cookieSize);
 
-        while (l < m && r < n) {
-            if (greed[r] <= cookieSize[l]) {
-                r++;
-            }
-            l++;
+    int child = 0;
+    int cookie = 0;
+
+    while (child < greed.length && cookie < cookieSize.length) {
+        if (greed[child] <= cookieSize[cookie]) {
+            child++;
         }
-        return r;
+        cookie++;
     }
+
+    return child;
+}l̥
 
     public static void main(String[] args) {
         int[] greed = {1, 5, 3, 3, 4};

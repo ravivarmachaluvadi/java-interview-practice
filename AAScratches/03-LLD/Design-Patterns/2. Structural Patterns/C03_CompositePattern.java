@@ -14,6 +14,39 @@ import java.util.List;
  * <p>
  * ✅ When adding new leaf or composite elements should not affect existing code
  */
+
+
+
+// ✅ Step 4: Demo
+class CompositePattern {
+    public static void main(String[] args) {
+        // Laptop combo
+        Product laptop = new Product(250_000.0d, "MacBook Pro");
+        Product headset = new Product(25000.0, "Airpods Pro");
+        Product mouse = new Product(10000.0, "Magic Mouse");
+        Product keyboard = new Product(10000.0, "Magic Keyboard");
+
+        ProductBundle workCombo = new ProductBundle("Work Combo");
+        workCombo.addItem(laptop);
+        workCombo.addItem(headset);
+        workCombo.addItem(mouse);
+        workCombo.addItem(keyboard);
+
+        // Phone Combo
+        Product phone = new Product(240000, "17Pro Max");
+        Product pouch = new Product(4500, "Silicon Pouch");
+        ProductBundle phoneCombo = new ProductBundle("Phone Combo");
+        phoneCombo.addItem(phone);
+        phoneCombo.addItem(pouch);
+
+        ProductBundle completeOrder = new ProductBundle("Complete Order");
+        completeOrder.addItem(workCombo);
+        completeOrder.addItem(phoneCombo);
+
+        completeOrder.showDetails();
+    }
+}
+
 // ✅ Step 1: Component Interface
 interface OrderItem {
     double getPrice();
@@ -73,35 +106,5 @@ class ProductBundle implements OrderItem {
             item.showDetails();
         }
         System.out.println("→ Total for " + name + ": ₹" + getPrice());
-    }
-}
-
-// ✅ Step 4: Demo
-class CompositePattern {
-    public static void main(String[] args) {
-        // Laptop combo
-        Product laptop = new Product(250_000.0d, "MacBook Pro");
-        Product headset = new Product(25000.0, "Airpods Pro");
-        Product mouse = new Product(10000.0, "Magic Mouse");
-        Product keyboard = new Product(10000.0, "Magic Keyboard");
-
-        ProductBundle workCombo = new ProductBundle("Work Combo");
-        workCombo.addItem(laptop);
-        workCombo.addItem(headset);
-        workCombo.addItem(mouse);
-        workCombo.addItem(keyboard);
-
-        // Phone Combo
-        Product phone = new Product(240000, "17Pro Max");
-        Product pouch = new Product(4500, "Silicon Pouch");
-        ProductBundle phoneCombo = new ProductBundle("Phone Combo");
-        phoneCombo.addItem(phone);
-        phoneCombo.addItem(pouch);
-
-        ProductBundle completeOrder = new ProductBundle("Complete Order");
-        completeOrder.addItem(workCombo);
-        completeOrder.addItem(phoneCombo);
-
-        completeOrder.showDetails();
     }
 }

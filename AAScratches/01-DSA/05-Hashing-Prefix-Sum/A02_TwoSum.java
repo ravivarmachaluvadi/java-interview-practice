@@ -1,61 +1,75 @@
+import java.util.Arrays;
 import java.util.HashMap;
 
-// Array, Hash Table
-// https://leetcode.com/problems/two-sum
+/**
+ * Problem: Two Sum (LeetCode 1) - return indices of the ONE pair that adds to target,
+ *          plus the sibling question "how MANY pairs add to target?" (same HashMap trick).
+ * Approaches:
+ *   - twoSumBruteForce : O(n^2) nested loop, no extra space. Fine for tiny arrays.
+ *   - twoSumHashMap    : O(n) single pass, HashMap value -> index, look up (target - x).
+ *   - countPairsWithSum: O(n) single pass, HashMap value -> frequency, count += freq(target - x).
+ */
 class TwoSum {
 
-    // for small arrays is best solution
-    public int[] twoSumI(int[] nums, int target) {
-        for (int i = 1; i < nums.length; i++) {
-            for (int j = i; j < nums.length; j++) {
-                if (target == nums[j] + nums[j - i]) {
-                    return new int[]{j, j - i};
+    // ---------- 1. Brute force: try every pair ----------
+    // Simple, O(n^2) time, O(1) space. For very small arrays this can beat the HashMap
+    // version because there is no hashing / boxing overhead.
+    public static int[] twoSumBruteForce(int[] nums, int target) {
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i + 1; j < nums.length; j++) {
+                if (nums[i] + nums[j] == target) {
+                    return new int[]{i, j};
                 }
             }
         }
-        return null;
+        return new int[0]; // no pair found (LeetCode guarantees exactly one, so unreachable there)
     }
 
-    public int[] twoSumII(int[] nums, int target) {
-        // you can create a hashmap too to see if required number exists without searching and get the index of it through value of the element in key - value pair
-        HashMap<Integer,Integer> map = new HashMap<>();
-        for(int i = 0 ; i<nums.length ; i++){
-            if(map.containsKey(target-nums[i])){
-                return new int[] {i,map.get(target-nums[i])};
+    // ---------- 2. HashMap: value -> index ----------
+    // One pass. Before storing nums[i], ask "have I already seen target - nums[i]?".
+    // Checking BEFORE putting guarantees we never pair an element with itself.
+    public static int[] twoSumHashMap(int[] nums, int target) {
+        HashMap<Integer, Integer> seen = new HashMap<>(); // value -> index
+        for (int i = 0; i < nums.length; i++) {
+            int complement = target - nums[i];
+            if (seen.containsKey(complement)) {
+                return new int[]{seen.get(complement), i};
             }
-            map.put(nums[i],i);
+            seen.put(nums[i], i);
         }
-        return new int[]{4,4};
+        return new int[0]; // no pair found
     }
-}
 
-class PairSum {
-    public static int countPairsWithSum(int[] arr, int sum) {
-        // HashMap to store the frequency of each element in the array
-        HashMap<Integer, Integer> map = new HashMap<>();
+    // ---------- 3. Count ALL pairs with the given sum: value -> frequency ----------
+    // Same idea, but the map stores how many times each value has appeared so far.
+    // For each x, every earlier occurrence of (target - x) forms one new pair with x,
+    // so count += freq(target - x). Then record x itself.
+    // Duplicates are handled naturally: {1,5,7,-1,5}, target 6 -> (1,5) (7,-1) (1,5) = 3.
+    // Time O(n), Space O(n).
+    public static int countPairsWithSum(int[] nums, int target) {
+        HashMap<Integer, Integer> freq = new HashMap<>(); // value -> occurrences seen so far
         int count = 0;
-
-        // Traverse through the array
-        for (int num : arr) {
-            // Calculate the complement
-            int remSum = sum - num;
-
-            // If the complement exists in the map, then there are pairs
-            if (map.containsKey(remSum)) {
-                count += map.get(remSum);
-            }
-
-            // Add or update the frequency of the current number in the map
-            map.put(num, map.getOrDefault(num, 0) + 1);
+        for (int num : nums) {
+            int complement = target - num;
+            count += freq.getOrDefault(complement, 0);
+            freq.put(num, freq.getOrDefault(num, 0) + 1); // record AFTER counting
         }
-
         return count;
     }
 
     public static void main(String[] args) {
-        int[] arr = {1, 5, 7, -1, 5};
-        int sum = 6;
-        int result = countPairsWithSum(arr, sum);
-        System.out.println("Number of pairs with sum " + sum + ": " + result);
+        int[] nums = {1, 5, 7, -1, 5};
+        int target = 6;
+        System.out.println("nums = " + Arrays.toString(nums) + ", target = " + target);
+        System.out.println("twoSumBruteForce  : " + Arrays.toString(twoSumBruteForce(nums, target)));
+        System.out.println("twoSumHashMap     : " + Arrays.toString(twoSumHashMap(nums, target)));
+        System.out.println("countPairsWithSum : " + countPairsWithSum(nums, target));
+
+        // LeetCode sample: [2,7,11,15], target 9 -> [0,1]
+        int[] lc = {2, 7, 11, 15};
+        System.out.println("\nnums = " + Arrays.toString(lc) + ", target = 9");
+        System.out.println("twoSumBruteForce  : " + Arrays.toString(twoSumBruteForce(lc, 9)));
+        System.out.println("twoSumHashMap     : " + Arrays.toString(twoSumHashMap(lc, 9)));
+        System.out.println("countPairsWithSum : " + countPairsWithSum(lc, 9));
     }
 }

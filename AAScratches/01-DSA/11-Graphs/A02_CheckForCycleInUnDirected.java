@@ -64,8 +64,8 @@ class CheckForCycleInUnDirected {
 
         for (int node = 0; node < V; node++)
             if (!vis[node])
-                if (checkForCycleBFS(adj, node, vis))
-//                if (dfs(node, -1, vis, adj))
+//                if (checkForCycleBFS(adj, node, vis))
+                if (dfs(node, -1, vis, adj))
                     return true;
 
         return false;

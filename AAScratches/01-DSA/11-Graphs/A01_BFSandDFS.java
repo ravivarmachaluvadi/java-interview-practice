@@ -4,8 +4,7 @@ class BFSandDFS {
 
     // zero (0) vertix and their adjacent nodes and
     // adjacent node's adjacent nodes and so on
-    public ArrayList<Integer> bfsOfGraph(int V,
-                                         ArrayList<ArrayList<Integer>> adj) {
+    public ArrayList<Integer> bfsOfGraph(int V, ArrayList<ArrayList<Integer>> adj) {
 
         ArrayList<Integer> bfs = new ArrayList<>();
         boolean[] vis = new boolean[V];
@@ -31,9 +30,7 @@ class BFSandDFS {
         return bfs;
     }
 
-    public static void dfs(int node, boolean[] vis,
-                           ArrayList<ArrayList<Integer>> adj,
-                           ArrayList<Integer> dfs) {
+    public static void dfs(int node, boolean[] vis, ArrayList<ArrayList<Integer>> adj, ArrayList<Integer> dfs) {
 
         //marking current node as visited
         //node == u

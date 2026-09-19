@@ -28,22 +28,21 @@ class RandomizedSet {
     // Removes a value. Returns true if removed
     // successfully, false if it doesn't exist.
     public boolean remove(int val) {
-        if (!map.containsKey(val)) {
-            return false;
-        }
-        int index = map.get(val);
-        // list.getLast
-        int lastElement = list.getLast();
-
-        // Swap the element to remove with the last element
-        list.set(index, lastElement);
-        map.put(lastElement, index);
-
-        // Remove last element
-        list.removeLast();
-        map.remove(val);
-        return true;
+    if (!map.containsKey(val)) {
+        return false;
     }
+    int index = map.get(val);
+    int lastElement = list.get(list.size() - 1);
+
+    // Swap the element to remove with the last element
+    list.set(index, lastElement);
+    map.put(lastElement, index);
+
+    // Remove last element
+    list.remove(list.size() - 1);
+    map.remove(val);
+    return true;
+}
 
     // Get a random element from the set
     public int getRandom() {

@@ -1,4 +1,6 @@
 /**
+ * IMPORTANT / MUST-KNOW: canonical top-down merge sort (absorbed A05_ImportantMergeSort).
+ *
  * Problem:
  * Sort an integer array in ascending order using the Merge Sort algorithm.
  *
@@ -20,9 +22,13 @@ class MergeSort {
     }
 
     private int[] mergeSort(int left, int right, int[] nums) {
-        if (left >= right) {
-            // Base case, single element array either left or right
-            return new int[]{nums[right]};
+        if (left > right) {
+            // Empty range (only happens when nums.length == 0) -> nothing to sort
+            return new int[0];
+        }
+        if (left == right) {
+            // Base case: single element is already sorted
+            return new int[]{nums[left]};
         }
 
         int mid = (left + right) / 2;

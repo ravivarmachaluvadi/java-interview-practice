@@ -8,6 +8,11 @@
  * complexity and use only constant extra space.
  */
 // https://leetcode.com/problems/single-number/
+// A   B  A XOR B
+// 0   0   0
+// 0   1   1
+// 1   0   1
+// 1   1   0
 class SingleNumber {
     public int singleNumber(int[] nums) {
         int xor = 0;
