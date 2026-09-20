@@ -10,15 +10,15 @@ runjava - compile and run a single practice file, whatever it is called inside.
 WHY THIS EXISTS
 `java Foo.java` (the JDK single-file launcher) looks for a class named after the
 FILE. These files are deliberately named `<TIER><NN>_<Name>.java` while the class
-inside keeps its original name, so the launcher cannot find it and reports
-"can't find class". Roughly 113 of 643 files hit that.
+inside keeps its problem name, so the launcher cannot find it and reports
+"can't find class" on almost all of them.
 
 This compiles to a temp directory and then runs whichever class actually declares
 main(), so the filename never matters. It also puts the file's own folder on the
 sourcepath, so helper classes in sibling files resolve.
 
-Uses the newest installed JDK, not JAVA_HOME - these files need Java 25
-(java.lang.IO.println, and `static void main` without `public`).
+Uses the newest installed JDK rather than JAVA_HOME, which often points at an
+older one. JDK 21 is enough: every standalone file compiles on it.
 """
 import os, re, subprocess, sys, tempfile, pathlib
 
@@ -30,7 +30,11 @@ for _s in (sys.stdout, sys.stderr):
 
 
 def find_jdk():
-    """Newest installed JDK wins; JAVA_HOME often points at an older one."""
+    """Newest installed JDK wins; JAVA_HOME often points at an older one.
+
+    JDK 21 or newer is required. Anything older will reject switch patterns,
+    records and text blocks that several files use.
+    """
     roots = [r"C:\Program Files\Eclipse Adoptium", r"C:\Program Files\Java",
              r"C:\Program Files\Microsoft", os.path.expanduser("~/.jdks")]
     found = []

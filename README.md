@@ -1,115 +1,110 @@
 # Java interview practice
 
-642 Java files covering DSA, Java core, low-level design, HLD and Spring — organised
-so that reading a folder top to bottom *is* the study order.
+578 standalone Java programs covering DSA, Java core, low-level design, HLD and Spring,
+organised so that reading a folder top to bottom **is** the study order.
 
 ## How to navigate
 
-Start with the `MUST-KNOW.md` in any topic folder. It gives you three things:
+Start with the README in any top-level folder. Each one lists every file in practice order
+with its problem, its difficulty and the one insight to remember, marks the must-know subset,
+and names the canonical problems still missing from that topic.
 
-| Section | What it is |
-|---|---|
-| **Must-know** | The subset you cannot walk into a senior interview without |
-| **Full practice order** | Every problem in dependency order, with the technique it teaches |
-| **Gaps** | Canonical problems *missing* from that folder, and why their absence costs you |
+| Folder | Files | Index |
+|---|---|---|
+| DSA | 490 | [AAScratches/01-DSA](AAScratches/01-DSA/README.md) |
+| Java Core | 45 | [AAScratches/02-Java-Core](AAScratches/02-Java-Core/README.md) |
+| Low-Level Design | 31 | [AAScratches/03-LLD](AAScratches/03-LLD/README.md) |
+| HLD and System Design | 4 | [AAScratches/04-HLD-System-Design](AAScratches/04-HLD-System-Design/README.md) |
+| Spring and Microservices | 8 | [AAScratches/05-Spring-Microservices](AAScratches/05-Spring-Microservices/README.md) |
+
+Written revision material lives in `06-SQL`, `07-Interview-QA-Memory` and `08-Reference`.
+
+## What a file looks like
+
+Every file opens with the same block comment, so you can tell in ten seconds whether you need
+to read the code: **PROBLEM**, **EXAMPLE**, **APPROACH**, **KEY INSIGHT**, **COMPLEXITY**,
+**INTERVIEW FOLLOW-UPS**, **RUN**. The title line carries the LeetCode number, the difficulty
+and `MUST-KNOW` where it applies (177 files).
+
+`main()` runs two to six cases, always including an edge case, and prints the actual result
+next to the expected one:
+
+```
+case 1 typical  : [24, 12, 8, 6]   expected [24, 12, 8, 6]
+case 2 one zero : [0, 0, 9, 0, 0]  expected [0, 0, 9, 0, 0]
+case 3 two elems: [3, 2]           expected [3, 2]
+```
+
+A file is healthy when both sides of every `expected` read the same. No test framework needed.
 
 ## Filename scheme
 
-Every file is `<TIER><NN>_<Name>.java`, so alphabetical order is practice order.
+`<TIER><NN>_<Name>.java`, so alphabetical order is practice order.
 
 | Tier | Meaning |
 |---|---|
-| **A** | Building block — the technique itself, or a primitive later problems assume |
-| **B** | Easy — standard warm-up |
-| **C** | Medium — the bulk of real interview questions |
-| **D** | Hard — needs a non-obvious insight |
+| **A** | Building block: the technique itself, or a primitive later files assume |
+| **B** | Easy: standard warm-up |
+| **C** | Medium: the bulk of real interview questions |
+| **D** | Hard: needs a non-obvious insight |
 
-Within a tier, `NN` orders by dependency: earlier problems teach what later ones assume.
-
-**Tier is difficulty, not importance.** Those are separate axes. Kadane's algorithm is
-foundational but the problem is medium, so it sits in `C` and is flagged must-know.
-
-## Layout
-
-| Folder | Contents |
-|---|---|
-| `01-DSA` | 550 problems across 20 topics, arrays through scenario-based |
-| `02-Java-Core` | Concurrency, IO, language features, security, tricky MCQs |
-| `03-LLD` | Design patterns and low-level design problems |
-| `04-HLD-System-Design` | System design code and notes |
-| `05-Spring-Microservices` | A Spring Boot orders service, plus Kafka and security notes |
-| `06-SQL`, `07-Interview-QA-Memory`, `08-Reference` | Written revision material |
+Within a tier, `NN` runs in dependency order. **Tier is difficulty, not importance**: Kadane's
+algorithm is foundational but the problem is medium, so it sits in `C` and is flagged
+must-know.
 
 ## Running code
 
-**Do NOT import this as an IntelliJ/Maven/Gradle project.** It will not work, and
-that is structural rather than a misconfiguration:
-
-- 628 of 643 files declare **no package**, so they all live in the default package.
-- Folder names like `01-Arrays` are **not valid Java identifiers** (leading digit,
-  hyphens), so they cannot be packages either.
-- **20 class names are declared in multiple files** - `TreeNode` in 48, `Node` in 21,
-  `Solution` in 18, `ListNode` in 17 - and many of those clashes are inside the *same*
-  folder. A project compiles a source root as one unit, so marking even one folder as
-  Sources Root produces dozens of duplicate-class errors.
-
-These were always IntelliJ **scratch files**, which the IDE compiles in isolation.
-That is the model to keep: 643 independent programs, not one project.
-
-### Use the runner
-
 ```bash
 tools/runjava AAScratches/01-DSA/01-Arrays/A01_ArraySortedOrNot.java
-tools/runjava A02_TwoSum.java          # resolves by name, no path needed
-tools/runjava --find TwoSum            # locate files
-tools/runjava --list-mains <file>      # which classes have a main()
+tools/runjava A01_ArraySortedOrNot.java   # resolves by name, no path needed
+tools/runjava --find TwoSum               # locate files by name fragment
+tools/runjava --list-mains <file>         # which classes declare main()
 ```
 
-It compiles to a temp directory, then runs whichever class actually declares
-`main()`. **588 of 643 files run this way.**
+It compiles to a temp directory and runs whichever class actually declares `main()`, which is
+why the filename never has to match the class name.
+
+**Requires JDK 21 or newer.** All 566 standalone files compile on JDK 21, except the two
+Tricky MCQ files that are meant not to compile.
 
 ### Why not `java Foo.java`
 
-The JDK single-file launcher looks for a class named after the **file**. Files here
-are `<TIER><NN>_<Name>.java` while the class inside keeps its original name, so the
-launcher reports `can't find class` on ~113 of them. `runjava` finds the real class
-instead, which is worth +95 files.
+The JDK single-file launcher looks for a class named after the **file**. Files here are
+`<TIER><NN>_<Name>.java` while the class inside keeps its problem name, so the launcher
+reports `can't find class` on almost all of them. `runjava` finds the real class instead.
 
-### Doing it by hand
+### Why this cannot be an IDE project
 
-```bash
-javac -d out -sourcepath <folder> <file>.java
-java -cp out <ClassName>        # the CLASS name, not the filename
-```
+**Do not import this as an IntelliJ, Maven or Gradle project.** That is structural, not a
+misconfiguration:
 
-**Requires JDK 25.** Several files use `java.lang.IO.println` and `static void main`
-without `public`, neither of which compiles on 21. If `JAVA_HOME` points at an older
-JDK, `runjava` ignores it and picks the newest installed.
+- 566 of 578 files declare **no package**, so they would all land in the default package.
+- Folder names like `01-Arrays` are **not valid Java identifiers**, so they cannot be packages.
+- **20 class names are declared in more than one file**: `TreeNode` in 45, `ListNode` and
+  `Node` in 17 each, `Solution` in 14. Many clashes are inside the *same* folder.
 
-### If you want the IDE experience back
-
-Copy the folders into IntelliJ's scratches directory
-(`%APPDATA%\JetBrains\<IDE>\scratches`). Scratch files are compiled individually,
-so the duplicate class names stop mattering and you get the green run gutter.
+A project compiles a source root as one unit, so marking any folder as a source root produces
+dozens of duplicate-class errors. These were always IntelliJ **scratch files**, which the IDE
+compiles in isolation. To get the green run gutter back, copy the folders into
+`%APPDATA%\JetBrains\<IDE>\scratches`.
 
 ## Local LLM
 
-A model runs on this laptop for reviewing practice solutions at zero cloud cost.
-Setup, the measured tuning findings, and an honest account of what it is and is not
-good at: **[LOCAL-LLM.md](LOCAL-LLM.md)**.
+A model runs on this laptop for reviewing practice solutions at zero cloud cost. Setup, the
+measured tuning findings, and an honest account of what it is and is not good at:
+**[LOCAL-LLM.md](LOCAL-LLM.md)**.
 
 ## Verification
 
-Every file is compiled and executed with JDK 25 on each change.
+Every file is compiled and executed on each change.
 
 | Result | Count |
 |---|---|
-| Compile clean | 621 / 642 |
-| `main()` runs clean | 592 |
-| Known failures | 21 |
+| Compiles and runs clean | 564 |
+| Printed values matching their stated expectation | 3,207 of 3,207 |
+| Non-compiling **on purpose** (the compile error is the lesson) | 2 |
+| Header only, needs external jars (Spring, Guava) | 12 |
 
-The 21 are accounted for, not unexplained: 10 need external jars (lombok, gson, guava,
-Spring) that a standalone `javac` has no classpath for, 2 are `Tricky-MCQ` files where
-being uncompilable *is* the lesson, and the rest are genuine pre-existing bugs left
-in place. A further 7 time out and 7 crash by design — concurrency demos and files
-that read from `stdin`.
+The 12 header-only files are the Spring orders service and the WorkFlowExecutor package. They
+carry a shortened header explaining their role in the project instead of a runnable example,
+because a standalone `javac` has no classpath for Spring, Lombok, Jackson, JUnit or Guava.
