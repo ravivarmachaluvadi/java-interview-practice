@@ -49,7 +49,7 @@
  *   single element) and prints actual vs expected.
  */
 
-public class C16_CycleLengthInArray {
+class CycleLengthInArray {
 
     /**
      * @param nums  array where every element is a valid index into nums

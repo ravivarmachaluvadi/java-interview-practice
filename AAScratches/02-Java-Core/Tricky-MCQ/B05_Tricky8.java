@@ -56,7 +56,7 @@
  *   main() runs 3 cases: the discarded result, the assigned result, and the
  *   identity check that shows literals are pooled but runtime results are not.
  */
-public class Tricky8 {
+class Tricky8 {
 
     public static void main(String[] args) {
         String a = "abc";

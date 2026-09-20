@@ -44,7 +44,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
-public class C14_FindAllMissedNumbers {
+class FindAllMissedNumbers {
 
     public static List<Integer> findDisappearedNumbers(int[] nums) {
         int n = nums.length;

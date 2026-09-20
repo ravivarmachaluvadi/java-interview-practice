@@ -48,7 +48,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
-public class C13_FindAllDuplicatesInAnArray {
+class FindAllDuplicatesInAnArray {
 
     public static List<Integer> findDuplicates(int[] nums) {
         // Phase 1: send every value v to index v - 1.

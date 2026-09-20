@@ -56,7 +56,7 @@
  *   main() runs 2 cases: the JVM-chosen entry point, and an explicit call to
  *   the Character[] overload. Each prints actual vs expected.
  */
-public class Tricky6 {
+class Tricky6 {
 
     /** The one signature the JVM launcher recognises as the entry point. */
     public static void main(String[] args) {

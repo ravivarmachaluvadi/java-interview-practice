@@ -78,7 +78,7 @@ class Cat extends Animal {
     }
 }
 
-public class Tricky4 {
+class Tricky4 {
 
     public static void main(String[] args) {
         // Case 1 - the puzzle itself. Static type Animal, dynamic type Dog,

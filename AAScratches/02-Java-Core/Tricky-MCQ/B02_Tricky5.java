@@ -62,7 +62,7 @@
  *   main() runs 3 cases: the legal downcast, an instanceof-guarded call, and a
  *   downcast that fails at runtime. Each prints actual vs expected.
  */
-public class Tricky5 {
+class Tricky5 {
 
     /** Parent type: deliberately declares nothing. */
     static class Animal {

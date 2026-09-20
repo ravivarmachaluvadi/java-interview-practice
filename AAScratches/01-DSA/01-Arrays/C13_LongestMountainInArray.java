@@ -45,7 +45,7 @@
  *   and prints actual vs expected.
  */
 
-public class C12_LongestMountainInArray {
+class LongestMountainInArray {
 
     public static int longestMountain(int[] arr) {
         if (arr == null || arr.length < 3) {

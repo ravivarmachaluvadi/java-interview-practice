@@ -69,7 +69,7 @@ class Dog extends Animal {
     }
 }
 
-public class Tricky3 {
+class Tricky3 {
     public static void main(String[] args) {
         Animal a = new Dog();
         a.makeSound(); // never reached - the file does not compile

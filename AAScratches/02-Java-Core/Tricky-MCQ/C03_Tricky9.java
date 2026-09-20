@@ -56,7 +56,7 @@
  *   - What happens with m1(int) and m1(Integer) when called with 5?
  *   - How do generics erase to Object and cause "same erasure" clashes?
  */
-public class Tricky9 {
+class Tricky9 {
 
     /**
      * Each overload returns a tag naming itself, so main() can compare the

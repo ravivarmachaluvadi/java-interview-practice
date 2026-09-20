@@ -68,7 +68,7 @@
  *   Nothing runs. Compilation is expected to fail on the "int x = 10;" line,
  *   and that failure is the expected result.
  */
-public class Tricky7 {
+class Tricky7 {
     public static void main(String[] args) {
         int x = 9;                   // scope: from here to the end of main
 
