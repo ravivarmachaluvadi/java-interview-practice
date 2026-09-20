@@ -60,7 +60,8 @@ class LongestIncreasingSubsequence {
     static int maxLen = 0;
 
     static int backtracking(int[] nums) {
-        maxLen = 0;                                   // reset the global so the method is re-runnable
+        // reset the global so the method is re-runnable
+        maxLen = 0;
         if (nums == null) return 0;
         backtrack(nums, 0, new ArrayList<>());
         return maxLen;

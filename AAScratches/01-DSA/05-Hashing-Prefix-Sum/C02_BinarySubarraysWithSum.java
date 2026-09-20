@@ -86,8 +86,10 @@ class BinarySubarraysWithSum {
     }
 
     private static void run(String label, int[] nums, int goal, int expected) {
-        System.out.println(label + " map    : " + numSubarraysWithSum(nums, goal) + "   expected " + expected);
-        System.out.println(label + " window : " + numSubarraysWithSumWindow(nums, goal) + "   expected " + expected);
+        System.out.println(label + " map    : " + numSubarraysWithSum(nums, goal)
+                + "   expected " + expected);
+        System.out.println(label + " window : " + numSubarraysWithSumWindow(nums, goal)
+                + "   expected " + expected);
     }
 
     public static void main(String[] args) {

@@ -101,6 +101,7 @@ class CarPooling {
 
         // Case 4: tricky - same handover as case 2 but the trips are listed in the
         // other order. The old location-only comparator returned false here.
-        print("case 4 (reordered handover)", carPooling(new int[][]{{3, 5, 7}, {2, 1, 5}}, 4), true);
+        print("case 4 (reordered handover)",
+                carPooling(new int[][]{{3, 5, 7}, {2, 1, 5}}, 4), true);
     }
 }

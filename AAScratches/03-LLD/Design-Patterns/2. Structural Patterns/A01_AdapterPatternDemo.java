@@ -111,7 +111,8 @@ class CsvToJsonDataProvider implements JsonDataProvider {
                     json.append(",");
                 }
                 String value = col < cells.length ? cells[col].trim() : ""; // short row -> empty
-                json.append("\"").append(headers[col].trim()).append("\":\"").append(value).append("\"");
+                json.append("\"").append(headers[col].trim())
+                    .append("\":\"").append(value).append("\"");
             }
             json.append("}");
         }
@@ -135,8 +136,10 @@ class AdapterPatternDemo {
         JsonDataProvider empty = new CsvToJsonDataProvider(new CsvDataProvider(""));
         print("case 3 empty source ", empty.getDataInJson(), "[]");
 
-        JsonDataProvider shortRow = new CsvToJsonDataProvider(new CsvDataProvider("name,age\nRavi"));
-        print("case 4 missing cell ", shortRow.getDataInJson(), "[{\"name\":\"Ravi\",\"age\":\"\"}]");
+        JsonDataProvider shortRow =
+                new CsvToJsonDataProvider(new CsvDataProvider("name,age\nRavi"));
+        print("case 4 missing cell ", shortRow.getDataInJson(),
+                "[{\"name\":\"Ravi\",\"age\":\"\"}]");
     }
 
     private static void print(String label, Object actual, Object expected) {

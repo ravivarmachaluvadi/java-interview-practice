@@ -83,7 +83,8 @@ class Streams {
         List<String> viaList = Stream.of(words)
                 .filter(s -> s.startsWith(prefix))
                 .collect(Collectors.toList());
-        String[] fromList = viaList.toArray(new String[0]);   // new String[0] is the idiomatic size hint
+        // new String[0] is the idiomatic size hint
+        String[] fromList = viaList.toArray(new String[0]);
 
         if (!Arrays.equals(direct, fromList)) {
             throw new AssertionError("both routes must agree");
@@ -151,7 +152,8 @@ class Streams {
 
     public static void main(String[] args) {
         // ---- typical cases -------------------------------------------------
-        print("countOccurrences        : ", sorted(countOccurrences(new int[]{1, 2, 3, 3, 3, 4, 5})),
+        print("countOccurrences        : ",
+                sorted(countOccurrences(new int[]{1, 2, 3, 3, 3, 4, 5})),
                 "{1=1, 2=1, 3=3, 4=1, 5=1}");
 
         print("filterToArrayAndList    : ",
@@ -179,9 +181,11 @@ class Streams {
                 "{Finance=6500.0, HR=4500.0, IT=8000.0}");
 
         // The two filtering positions, side by side. Bob is exactly 7000, so he fails "> 7000".
-        print("highEarners keepEmpty   : ", sorted(highEarnersByDeptKeepEmptyGroups(employees, 7000)),
+        print("highEarners keepEmpty   : ",
+                sorted(highEarnersByDeptKeepEmptyGroups(employees, 7000)),
                 "{Finance=[], HR=[], IT=[David(IT,8000.0)]}");
-        print("highEarners dropEmpty   : ", sorted(highEarnersByDeptDropEmptyGroups(employees, 7000)),
+        print("highEarners dropEmpty   : ",
+                sorted(highEarnersByDeptDropEmptyGroups(employees, 7000)),
                 "{IT=[David(IT,8000.0)]}");
 
         // ---- edge case: empty input ---------------------------------------
@@ -216,7 +220,8 @@ class Employee {
         return name + "(" + department + "," + salary + ")";
     }
 
-    // Salaries chosen so the 7000 threshold splits them: only David passes, Bob is exactly 7000 (not >).
+    // Salaries chosen so the 7000 threshold splits them: only David passes,
+    // Bob is exactly 7000 (not >).
     static List<Employee> sample() {
         return Arrays.asList(
                 new Employee("Alice", "HR", 4000),

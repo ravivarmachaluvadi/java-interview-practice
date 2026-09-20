@@ -55,7 +55,10 @@ class DelimiterSplit {
         return input.split(Pattern.quote(String.valueOf(delimiter)));
     }
 
-    /** Manual scan: cut a token at every delimiter; mirrors split() by dropping trailing empties. */
+    /**
+     * Manual scan: cut a token at every delimiter; mirrors split() by dropping
+     * trailing empties.
+     */
     static String[] splitManually(String input, char delimiter) {
         List<String> tokens = new ArrayList<>();
         int tokenStart = 0;
@@ -74,14 +77,17 @@ class DelimiterSplit {
     }
 
     private static void check(String label, String input, char delimiter, String expected) {
-        System.out.println(label + " library : " + Arrays.toString(splitWithLibrary(input, delimiter))
+        System.out.println(label + " library : "
+                + Arrays.toString(splitWithLibrary(input, delimiter))
                 + "   expected " + expected);
-        System.out.println(label + " manual  : " + Arrays.toString(splitManually(input, delimiter))
+        System.out.println(label + " manual  : "
+                + Arrays.toString(splitManually(input, delimiter))
                 + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        check("case 1 (typical)        ", "apple,banana,orange,grape", ',', "[apple, banana, orange, grape]");
+        check("case 1 (typical)        ", "apple,banana,orange,grape", ',',
+                "[apple, banana, orange, grape]");
         check("case 2 (empty middle)   ", "a,,b", ',', "[a, , b]");
         check("case 3 (trailing delim) ", "a,b,", ',', "[a, b]");
         check("case 4 (empty input)    ", "", ',', "[]");

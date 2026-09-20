@@ -239,7 +239,8 @@ class HashMapImplementation {
         collide.put(13, 130);  // size 4 / 4 buckets = 1.0 > 0.75 -> resize
         print("case 3 buckets after", collide.bucketCount(), 8);
         print("case 3 gets survive rehash",
-                collide.get(1) + "/" + collide.get(5) + "/" + collide.get(9) + "/" + collide.get(13),
+                collide.get(1) + "/" + collide.get(5) + "/"
+                        + collide.get(9) + "/" + collide.get(13),
                 "10/50/90/130");
         collide.put(-7, -70);  // negative hashCode must still land on a valid index
         print("case 3 negative key", collide.get(-7), -70);

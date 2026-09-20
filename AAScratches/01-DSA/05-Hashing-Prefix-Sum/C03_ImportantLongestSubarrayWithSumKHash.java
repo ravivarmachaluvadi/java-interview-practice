@@ -102,9 +102,11 @@ class ImportantLongestSubarrayWithSumKHash {
     }
 
     private static void run(String label, int[] nums, int k, int expected) {
-        System.out.println(label + " map    : " + longestWithPrefixSumHash(nums, k) + "   expected " + expected);
+        System.out.println(label + " map    : " + longestWithPrefixSumHash(nums, k)
+                + "   expected " + expected);
         if (!hasNegative(nums)) {
-            System.out.println(label + " window : " + longestWithSlidingWindow(nums, k) + "   expected " + expected);
+            System.out.println(label + " window : " + longestWithSlidingWindow(nums, k)
+                    + "   expected " + expected);
         }
     }
 
@@ -116,7 +118,9 @@ class ImportantLongestSubarrayWithSumKHash {
         run("case 5 (no match)", new int[]{1, 2}, 10, 0);
 
         // Deliberate demonstration: the window is WRONG on negatives (true answer is 4).
-        System.out.println("demo window on negatives: " + longestWithSlidingWindow(new int[]{1, -1, 5, -2, 3}, 3)
-                + "   expected 0 (wrong on purpose; true answer 4, window cannot handle negatives)");
+        System.out.println("demo window on negatives: "
+                + longestWithSlidingWindow(new int[]{1, -1, 5, -2, 3}, 3)
+                + "   expected 0 (wrong on purpose; true answer 4,"
+                + " window cannot handle negatives)");
     }
 }

@@ -53,7 +53,8 @@ class AnagramStrings {
         for (char c : s.toCharArray()) count[c - 'a']++;
         for (char c : t.toCharArray()) count[c - 'a']--;
         for (int i : count) {
-            if (i != 0) return false;                   // t had more (i<0) or fewer (i>0) of a letter
+            // t had more (i<0) or fewer (i>0) of a letter
+            if (i != 0) return false;
         }
         return true;
     }
@@ -68,9 +69,12 @@ class AnagramStrings {
         return Arrays.equals(a, b);
     }
 
-    private static void check(AnagramStrings sol, String label, String s, String t, boolean expected) {
-        System.out.println(label + " count : " + sol.anagramStrings(s, t) + "   expected " + expected);
-        System.out.println(label + " sort  : " + sol.isAnagramBySorting(s, t) + "   expected " + expected);
+    private static void check(AnagramStrings sol, String label, String s, String t,
+            boolean expected) {
+        System.out.println(label + " count : " + sol.anagramStrings(s, t)
+                + "   expected " + expected);
+        System.out.println(label + " sort  : " + sol.isAnagramBySorting(s, t)
+                + "   expected " + expected);
     }
 
     public static void main(String[] args) {

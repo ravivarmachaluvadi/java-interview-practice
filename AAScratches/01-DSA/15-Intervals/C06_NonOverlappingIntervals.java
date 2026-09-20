@@ -97,6 +97,7 @@ class NonOverlappingIntervals {
         // Case 4: tricky - a nested giant. Sorting by START would keep [1,100]
         // first and report 3; sorting by END keeps [1,11] and [11,22] and reports 2.
         print("case 4 (nested giant)",
-                solution.eraseOverlapIntervals(new int[][]{{1, 100}, {11, 22}, {1, 11}, {2, 12}}), 2);
+                solution.eraseOverlapIntervals(
+                        new int[][]{{1, 100}, {11, 22}, {1, 11}, {2, 12}}), 2);
     }
 }

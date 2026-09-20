@@ -75,13 +75,15 @@ class TournamentWinner {
     public static void main(String[] args) {
         print("case 1 (typical)",
                 tournamentWinner(
-                        List.of(List.of("TeamA", "TeamB"), List.of("TeamB", "TeamC"), List.of("TeamC", "TeamA")),
+                        List.of(List.of("TeamA", "TeamB"), List.of("TeamB", "TeamC"),
+                                List.of("TeamC", "TeamA")),
                         List.of(1, 0, 1)),
                 "TeamC");
 
         print("case 2 (AlgoExpert sample)",
                 tournamentWinner(
-                        List.of(List.of("HTML", "C#"), List.of("C#", "Python"), List.of("Python", "HTML")),
+                        List.of(List.of("HTML", "C#"), List.of("C#", "Python"),
+                                List.of("Python", "HTML")),
                         List.of(0, 0, 1)),
                 "Python");
 

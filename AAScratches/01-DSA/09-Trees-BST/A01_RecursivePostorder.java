@@ -74,7 +74,9 @@ class RecursivePostorder {
         }
         collectPostorder(node.left, result);
         collectPostorder(node.right, result);
-        result.add(node.data);   // visit AFTER both children; where this line sits defines the order
+        // visit AFTER both children; where this line sits
+        // defines the order
+        result.add(node.data);
     }
 
     /** Iterative postorder: produce root-right-left with a stack, then reverse it. */
@@ -118,7 +120,8 @@ class RecursivePostorder {
         leftSkewed.left.left = new TreeNode(3);
 
         print("case 1 full tree,   recursive", solver.postorder(full), "[4, 5, 2, 6, 7, 3, 1]");
-        print("case 1 full tree,   iterative", solver.iterativePostorder(full), "[4, 5, 2, 6, 7, 3, 1]");
+        print("case 1 full tree,   iterative", solver.iterativePostorder(full),
+                "[4, 5, 2, 6, 7, 3, 1]");
         print("case 2 empty tree,  recursive", solver.postorder(null), "[]");
         print("case 2 empty tree,  iterative", solver.iterativePostorder(null), "[]");
         print("case 3 left-skewed, recursive", solver.postorder(leftSkewed), "[3, 2, 1]");

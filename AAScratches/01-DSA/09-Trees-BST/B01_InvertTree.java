@@ -41,6 +41,8 @@
  *   level-order form of the result against the expected one.
  */
 
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -104,7 +106,9 @@ class InvertTree {
     static String toLevelOrder(TreeNode root) {
         if (root == null) return "[]";
         List<String> out = new ArrayList<>();
-        Deque<TreeNode> queue = new ArrayDeque<>();
+        // LinkedList, not ArrayDeque: this queue deliberately carries nulls to mark
+        // absent children, and ArrayDeque throws NullPointerException on add(null).
+        Queue<TreeNode> queue = new LinkedList<>();
         queue.add(root);
         while (!queue.isEmpty()) {
             TreeNode node = queue.poll();
@@ -136,7 +140,8 @@ class InvertTree {
         print("case 1 full tree, recursive ",
                 toLevelOrder(sol.invertTree(fromLevelOrder(full))), "[4, 7, 2, 9, 6, 3, 1]");
         print("case 1 full tree, iterative ",
-                toLevelOrder(sol.invertTreeIterative(fromLevelOrder(full))), "[4, 7, 2, 9, 6, 3, 1]");
+                toLevelOrder(sol.invertTreeIterative(fromLevelOrder(full))),
+                "[4, 7, 2, 9, 6, 3, 1]");
 
         print("case 2 empty, recursive     ", toLevelOrder(sol.invertTree(null)), "[]");
         print("case 2 empty, iterative     ", toLevelOrder(sol.invertTreeIterative(null)), "[]");
@@ -146,7 +151,8 @@ class InvertTree {
         print("case 3 left chain, recursive",
                 toLevelOrder(sol.invertTree(fromLevelOrder(chain))), "[1, null, 2, null, 3]");
         print("case 3 left chain, iterative",
-                toLevelOrder(sol.invertTreeIterative(fromLevelOrder(chain))), "[1, null, 2, null, 3]");
+                toLevelOrder(sol.invertTreeIterative(fromLevelOrder(chain))),
+                "[1, null, 2, null, 3]");
     }
 }
 

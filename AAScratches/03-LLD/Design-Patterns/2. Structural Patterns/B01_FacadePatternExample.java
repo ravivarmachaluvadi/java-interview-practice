@@ -94,7 +94,8 @@ class PaymentServiceFacade {
     private final NotificationService notificationService;
 
     public PaymentServiceFacade() {
-        this(new UserService(), new InventoryService(), new PaymentGateway(), new NotificationService());
+        this(new UserService(), new InventoryService(),
+                new PaymentGateway(), new NotificationService());
     }
 
     /** Injected form: same facade, but the subsystem can be stubbed in a test. */

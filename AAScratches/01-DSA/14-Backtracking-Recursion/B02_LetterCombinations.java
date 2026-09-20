@@ -75,7 +75,8 @@ class LetterCombinations {
         return combinations;
     }
 
-    private static void backtrack(List<String> combinations, String digits, int index, StringBuilder current) {
+    private static void backtrack(List<String> combinations, String digits,
+                                  int index, StringBuilder current) {
         if (index == digits.length()) {
             combinations.add(current.toString()); // snapshot: current keeps mutating
             return;
@@ -85,7 +86,8 @@ class LetterCombinations {
         for (int i = 0; i < letters.length(); i++) {
             current.append(letters.charAt(i));                   // choose
             backtrack(combinations, digits, index + 1, current); // explore the next digit
-            current.deleteCharAt(current.length() - 1);          // undo, so the next letter starts clean
+            // undo, so the next letter starts clean
+            current.deleteCharAt(current.length() - 1);
         }
     }
 

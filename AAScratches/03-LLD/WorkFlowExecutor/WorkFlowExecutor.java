@@ -100,7 +100,9 @@ public class WorkFlowExecutor {
         if (isEnabled) {
             for (int i = 0; i < groupedProcessorCount; i++) {
                 ThreadFactory namedThreadFactory =
-                        new ThreadFactoryBuilder().setNameFormat("es_snapshot_" + i + "-thread-%d").build();
+                        new ThreadFactoryBuilder()
+                                .setNameFormat("es_snapshot_" + i + "-thread-%d")
+                                .build();
                 executorServices.add(new ThreadPoolExecutor(1, 1, 1L,
                         TimeUnit.MILLISECONDS, new LimitQueue<>(queueSize), namedThreadFactory));
             }
@@ -117,16 +119,19 @@ public class WorkFlowExecutor {
                     Runnable runnableTask = () -> {
                         try {
                             log.info(OmsConstants.LOGGER_OK_PATTERN, LOG_OP,
-                                    "Shutdown attempted, Executor service pool:" + threadPoolExecutor.toString());
+                                    "Shutdown attempted, Executor service pool:"
+                                            + threadPoolExecutor.toString());
                             threadPoolExecutor.awaitTermination(shutdownTimeout, TimeUnit.SECONDS);
                             threadPoolExecutor.shutdown();
                         } catch (InterruptedException e) {
                             log.info(OmsConstants.LOGGER_KO_EXCEPTION_PATTERN, LOG_OP,
-                                    "Shutdown interrupted" + threadPoolExecutor.toString(), e.getStackTrace());
+                                    "Shutdown interrupted" + threadPoolExecutor.toString(),
+                                    e.getStackTrace());
                         } finally {
                             if (!threadPoolExecutor.isTerminated()) {
                                 log.warn(OmsConstants.LOGGER_OK_PATTERN, LOG_OP,
-                                        "Executor Service Pool not terminated " + threadPoolExecutor.toString());
+                                        "Executor Service Pool not terminated "
+                                                + threadPoolExecutor.toString());
                             }
                             threadPoolExecutor.shutdownNow();
                         }
@@ -175,7 +180,8 @@ public class WorkFlowExecutor {
      * @param orderNumber  orderNumber for the task
      * @param taskType     Add or Unlink the order order number to ThreadPoolExecutor
      */
-    private void handleAddTask(final Runnable runnableTask, final String orderNumber, final TaskType taskType) {
+    private void handleAddTask(final Runnable runnableTask, final String orderNumber,
+                               final TaskType taskType) {
         String stringPoolOrderNumber = orderNumber.intern();
         synchronized (stringPoolOrderNumber) {
             try {
@@ -187,7 +193,8 @@ public class WorkFlowExecutor {
                 executorService.execute(runnableTask);
             } catch (Exception e) {
                 log.error(OmsConstants.LOGGER_OK_PATTERN, LOG_OP, MessageFormat
-                        .format("Error in executing {0} for order {1}, {2}", taskType, orderNumber, e.getStackTrace()));
+                        .format("Error in executing {0} for order {1}, {2}", taskType,
+                                orderNumber, e.getStackTrace()));
                 //TODO: Check if clearing complete map cache is required
                 handleMapForUnlinkTask(stringPoolOrderNumber);
             }
@@ -219,7 +226,8 @@ public class WorkFlowExecutor {
         Integer orderNumberCount = 0;
         try {
             orderNumberCount = activeOrderMap.get(orderNumber);
-            //Dont unlink ThreadPoolExecutor if same order is present in the queue for further processing
+            //Dont unlink ThreadPoolExecutor if same order is present in the queue
+            //for further processing
             if (orderNumberCount > 1) {
                 activeOrderMap.put(orderNumber, orderNumberCount - 1);
                 return;
@@ -238,7 +246,8 @@ public class WorkFlowExecutor {
      * @param orderNumber     orderNumber to link
      * @param executorService threadPoolExecutor to be linked for processing
      */
-    private void handleMapForAddTask(final String orderNumber, final ThreadPoolExecutor executorService) {
+    private void handleMapForAddTask(final String orderNumber,
+                                     final ThreadPoolExecutor executorService) {
         jobMap.put(orderNumber, executorService);
         Integer orderNumberCount = activeOrderMap.get(orderNumber);
         if (orderNumberCount == null || orderNumberCount == 0) {
@@ -270,7 +279,8 @@ public class WorkFlowExecutor {
                 threadPoolExecutor = executorServices.get(index);
             } else {
                 threadPoolExecutor = minQueueService.orElseGet(() -> {
-                    log.info(OmsConstants.LOGGER_OK_PATTERN, LOG_OP, "Defaulting to 0th Executor Service");
+                    log.info(OmsConstants.LOGGER_OK_PATTERN, LOG_OP,
+                            "Defaulting to 0th Executor Service");
                     return executorServices.get(0);
                 });
             }
@@ -279,8 +289,8 @@ public class WorkFlowExecutor {
     }
 
     /**
-     * If all the ThreadPoolExecutor Queues are Full, follow a round robin approach to fecth the ThreadPoolExecutor
-     * for load balancing
+     * If all the ThreadPoolExecutor Queues are Full, follow a round robin approach
+     * to fecth the ThreadPoolExecutor for load balancing
      *
      * @return find the next index of ThreadPoolExecutor
      */
@@ -308,7 +318,8 @@ public class WorkFlowExecutor {
         java.lang.reflect.Field enabledField = WorkFlowExecutor.class.getDeclaredField("isEnabled");
         enabledField.setAccessible(true);
         enabledField.setBoolean(executor, true);
-        java.lang.reflect.Field countField = WorkFlowExecutor.class.getDeclaredField("groupedProcessorCount");
+        java.lang.reflect.Field countField =
+                WorkFlowExecutor.class.getDeclaredField("groupedProcessorCount");
         countField.setAccessible(true);
         countField.setInt(executor, 2);
         java.lang.reflect.Field queueField = WorkFlowExecutor.class.getDeclaredField("queueSize");
@@ -324,10 +335,12 @@ public class WorkFlowExecutor {
         String key = "order123";
 
         System.out.println("Submitting Task 1 with key: " + key);
-        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload), payload1, key);
+        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload),
+                payload1, key);
 
         System.out.println("Submitting Task 2 with same key to test ordering");
-        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload), payload2, key);
+        executor.submitTask(payload -> System.out.println("[PROC] Executing: " + payload),
+                payload2, key);
 
         // give some time for tasks to complete
         Thread.sleep(2000);

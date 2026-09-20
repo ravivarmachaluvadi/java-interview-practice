@@ -76,7 +76,8 @@ public class OrderDTO {
         System.out.println(order);
 
         // For demonstration, let's say we want to calculate final amount after discount
-        double finalAmount = order.getAmount() - (order.getDiscount() != null ? order.getDiscount() : 0);
+        double finalAmount = order.getAmount()
+                - (order.getDiscount() != null ? order.getDiscount() : 0);
 
         // Print the output result
         System.out.println("\nOutput: Final amount after discount:");

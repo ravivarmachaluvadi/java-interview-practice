@@ -73,7 +73,8 @@ public class LimitQueue<E> extends LinkedBlockingQueue<E> {
 
     public static void main(String[] args) throws Exception {
         // Create a LimitQueue with capacity 3
-        com.tgt.gom.federator.grouped_processor.LimitQueue<Integer> q = new com.tgt.gom.federator.grouped_processor.LimitQueue<>(3);
+        com.tgt.gom.federator.grouped_processor.LimitQueue<Integer> q =
+                new com.tgt.gom.federator.grouped_processor.LimitQueue<>(3);
 
         // Prepare input values
         Integer[] inputs = {1, 2, 3, 4};

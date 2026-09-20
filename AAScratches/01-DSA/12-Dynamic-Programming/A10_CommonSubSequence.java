@@ -134,7 +134,8 @@ class CommonSubSequence {
     }
 
     private static int memoRecurse(String s1, String s2, int ind1, int ind2, int[][] memo) {
-        if (ind1 < 0 || ind2 < 0) return 0;            // checked first, so memo is never indexed at -1
+        // checked first, so memo is never indexed at -1
+        if (ind1 < 0 || ind2 < 0) return 0;
         if (memo[ind1][ind2] != -1) return memo[ind1][ind2];
 
         if (s1.charAt(ind1) == s2.charAt(ind2))

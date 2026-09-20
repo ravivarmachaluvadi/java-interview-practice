@@ -146,7 +146,8 @@ class LowestCommonAncestorIV {
 
         Solution sol = new Solution();
         print("case 1 [4, 7]", sol.lowestCommonAncestor(root, pick(byValue, 4, 7)), "2");
-        print("case 2 [7, 6, 2, 4]", sol.lowestCommonAncestor(root, pick(byValue, 7, 6, 2, 4)), "5");
+        print("case 2 [7, 6, 2, 4]",
+                sol.lowestCommonAncestor(root, pick(byValue, 7, 6, 2, 4)), "5");
         print("case 3 [1]", sol.lowestCommonAncestor(root, pick(byValue, 1)), "1");
         print("case 4 [3, 8]", sol.lowestCommonAncestor(root, pick(byValue, 3, 8)), "3");
     }

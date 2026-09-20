@@ -81,7 +81,8 @@ class ElectionWinner {
     }
 
     public static void main(String[] args) {
-        String[] clearWinner = {"John", "Jane", "John", "Jane", "John", "Doe", "Doe", "Jane", "Doe", "John"};
+        String[] clearWinner = {"John", "Jane", "John", "Jane", "John",
+                "Doe", "Doe", "Jane", "Doe", "John"};
         String[] twoWayTie = {"Bob", "Alice", "Bob", "Alice"};     // 2 each -> smaller name
         String[] allDistinct = {"Zoe", "Adam", "Mia"};             // 1 each -> smaller name
         String[] noBallots = {};

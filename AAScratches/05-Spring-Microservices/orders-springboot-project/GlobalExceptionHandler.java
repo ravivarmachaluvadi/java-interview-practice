@@ -64,10 +64,11 @@ import java.util.List;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException exception,
-                                                             HttpHeaders headers,
-                                                             HttpStatusCode statusCode,
-                                                             WebRequest request) {
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request) {
 
         List<String> validationErrors = exception.getBindingResult()
                 .getFieldErrors()
@@ -85,7 +86,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(OrderNotFoundException.class)
-    public ResponseEntity<?> handleOrderNotFoundException(OrderNotFoundException ex, HttpServletRequest request) {
+    public ResponseEntity<?> handleOrderNotFoundException(OrderNotFoundException ex,
+                                                          HttpServletRequest request) {
         String path = request.getRequestURI();
 
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.NOT_FOUND.value(),

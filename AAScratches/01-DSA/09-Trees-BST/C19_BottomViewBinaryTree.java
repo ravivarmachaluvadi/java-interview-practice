@@ -122,7 +122,8 @@ class BottomViewBinaryTree {
         return result;
     }
 
-    private static void dfs(Node node, int hd, int level, Map<Integer, int[]> columnToLevelAndValue) {
+    private static void dfs(Node node, int hd, int level,
+                            Map<Integer, int[]> columnToLevelAndValue) {
         if (node == null) return;
 
         int[] stored = columnToLevelAndValue.get(hd);

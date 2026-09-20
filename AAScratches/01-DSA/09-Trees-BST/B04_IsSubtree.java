@@ -10,7 +10,8 @@
  *
  * EXAMPLE
  *   root = [3,4,5,1,2], subRoot = [4,1,2]                       -> true   node 4's subtree matches
- *   root = [3,4,5,1,2,null,null,null,null,0], subRoot = [4,1,2] -> false  node 4 has an extra leaf 0
+ *   root = [3,4,5,1,2,null,null,null,null,0], subRoot = [4,1,2] -> false
+ *       node 4 has an extra leaf 0
  *   root = [], subRoot = [1]                                    -> false  nothing to search
  *   root = [1,2,3], subRoot = [1,2,3]                           -> true   the whole tree matches
  *

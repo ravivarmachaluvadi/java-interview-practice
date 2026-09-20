@@ -93,7 +93,8 @@ class SmallestCommonRegion {
      * Same answer without the HashSet: level the two paths, then step up in lockstep.
      * Shown because "now do it in O(1) extra space" is the standard follow-up.
      */
-    public String findSmallestRegionNoSet(List<List<String>> regions, String region1, String region2) {
+    public String findSmallestRegionNoSet(List<List<String>> regions,
+                                          String region1, String region2) {
         Map<String, String> childToParent = buildChildToParent(regions);
 
         int depth1 = depthOf(region1, childToParent);
@@ -118,7 +119,9 @@ class SmallestCommonRegion {
 
     private int depthOf(String region, Map<String, String> childToParent) {
         int depth = 0;
-        for (String node = region; childToParent.get(node) != null; node = childToParent.get(node)) {
+        for (String node = region;
+             childToParent.get(node) != null;
+             node = childToParent.get(node)) {
             depth++;
         }
         return depth;
@@ -135,15 +138,29 @@ class SmallestCommonRegion {
                 Arrays.asList("South America", "Brazil")
         ));
 
-        print("case 1 typical     ", solution.findSmallestRegion(regions, "Quebec", "New York"), "North America");
-        print("case 2 ancestor    ", solution.findSmallestRegion(regions, "Earth", "Quebec"), "Earth");
-        print("case 3 same region ", solution.findSmallestRegion(regions, "Quebec", "Quebec"), "Quebec");
-        print("case 4 only the top", solution.findSmallestRegion(regions, "Quebec", "Brazil"), "Earth");
+        print("case 1 typical     ",
+                solution.findSmallestRegion(regions, "Quebec", "New York"),
+                "North America");
+        print("case 2 ancestor    ",
+                solution.findSmallestRegion(regions, "Earth", "Quebec"),
+                "Earth");
+        print("case 3 same region ",
+                solution.findSmallestRegion(regions, "Quebec", "Quebec"),
+                "Quebec");
+        print("case 4 only the top",
+                solution.findSmallestRegion(regions, "Quebec", "Brazil"),
+                "Earth");
 
         System.out.println("-- follow-up version with no extra set --");
-        print("case 5 typical     ", solution.findSmallestRegionNoSet(regions, "Quebec", "New York"), "North America");
-        print("case 6 ancestor    ", solution.findSmallestRegionNoSet(regions, "Earth", "Quebec"), "Earth");
-        print("case 7 only the top", solution.findSmallestRegionNoSet(regions, "Quebec", "Brazil"), "Earth");
+        print("case 5 typical     ",
+                solution.findSmallestRegionNoSet(regions, "Quebec", "New York"),
+                "North America");
+        print("case 6 ancestor    ",
+                solution.findSmallestRegionNoSet(regions, "Earth", "Quebec"),
+                "Earth");
+        print("case 7 only the top",
+                solution.findSmallestRegionNoSet(regions, "Quebec", "Brazil"),
+                "Earth");
     }
 
     private static void print(String label, Object actual, Object expected) {

@@ -58,7 +58,8 @@ class WordPathFinder {
     private static final int[] DY = {1, 0};
 
     public static List<int[]> findWord(char[][] grid, String word) {
-        if (grid == null || grid.length == 0 || grid[0].length == 0 || word == null || word.isEmpty()) {
+        if (grid == null || grid.length == 0 || grid[0].length == 0
+                || word == null || word.isEmpty()) {
             return null;
         }
 
@@ -73,7 +74,8 @@ class WordPathFinder {
         return null;
     }
 
-    private static boolean dfs(char[][] grid, String word, int idx, int x, int y, List<int[]> path) {
+    private static boolean dfs(char[][] grid, String word, int idx,
+                               int x, int y, List<int[]> path) {
         // Checked first on purpose: the last letter may sit on the grid edge, and
         // its "next" cell is off the grid. Success must win over the bounds test.
         if (idx == word.length()) {

@@ -64,7 +64,8 @@ public class ErrorResponse {
 
         // Create the ErrorResponse instance using the exposed constructor
         com.target.orders.exception.exceptions.ErrorResponse errorResponse =
-                new com.target.orders.exception.exceptions.ErrorResponse(status, message, errors, path);
+                new com.target.orders.exception.exceptions.ErrorResponse(
+                        status, message, errors, path);
 
         // Print both input and output with labels
         System.out.println("Input:");

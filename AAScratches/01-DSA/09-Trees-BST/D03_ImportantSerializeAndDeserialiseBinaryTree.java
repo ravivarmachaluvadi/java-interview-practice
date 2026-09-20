@@ -159,7 +159,8 @@ class ImportantSerializeAndDeserialiseBinaryTree {
     }
 
     public static void main(String[] args) {
-        ImportantSerializeAndDeserialiseBinaryTree codec = new ImportantSerializeAndDeserialiseBinaryTree();
+        ImportantSerializeAndDeserialiseBinaryTree codec =
+                new ImportantSerializeAndDeserialiseBinaryTree();
 
         //        1
         //       / \

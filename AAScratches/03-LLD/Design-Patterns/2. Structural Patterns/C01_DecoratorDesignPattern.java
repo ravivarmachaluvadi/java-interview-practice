@@ -141,8 +141,10 @@ class DecoratorDesignPattern {
 
         // Case 4: tricky - the SAME decorator twice. Inheritance cannot do this;
         // wrapping can, because a decorator is just another Coffee.
-        Coffee doubleSugar = new SugarDecorator(new SugarDecorator(new MilkDecorator(new SimpleCoffee())));
-        print("case 4 milk+2 sugar", describe(doubleSugar), "Simple Coffee, Milk, Sugar, Sugar $7.5");
+        Coffee doubleSugar = new SugarDecorator(
+                new SugarDecorator(new MilkDecorator(new SimpleCoffee())));
+        print("case 4 milk+2 sugar", describe(doubleSugar),
+                "Simple Coffee, Milk, Sugar, Sugar $7.5");
 
         // Case 5: tricky - reversed order. Same cost, different description,
         // because addition commutes but string concatenation does not.

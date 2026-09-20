@@ -66,7 +66,8 @@ class GenerateParenthesis {
      * @param left  how many '(' are still available to place
      * @param right how many ')' are still available to place
      */
-    private static void generateParenthesisHelper(int left, int right, String expression, List<String> result) {
+    private static void generateParenthesisHelper(int left, int right,
+                                                  String expression, List<String> result) {
         if (left == 0 && right == 0) {
             result.add(expression);
             return;

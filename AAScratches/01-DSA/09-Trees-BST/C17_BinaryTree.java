@@ -105,8 +105,12 @@ class BinaryTree {
         return result;
     }
 
-    /** Enqueue a neighbour the first time we reach it - visited is what stops us going backwards. */
-    private static void visitNeighbour(TreeNode neighbour, Queue<TreeNode> queue, Set<TreeNode> visited) {
+    /**
+     * Enqueue a neighbour the first time we reach it - visited is what stops us
+     * going backwards.
+     */
+    private static void visitNeighbour(TreeNode neighbour, Queue<TreeNode> queue,
+                                       Set<TreeNode> visited) {
         if (neighbour != null && visited.add(neighbour)) {
             queue.offer(neighbour);
         }

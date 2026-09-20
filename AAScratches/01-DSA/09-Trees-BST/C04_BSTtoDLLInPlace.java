@@ -125,18 +125,22 @@ class BSTtoDLLInPlace {
         return root;
     }
 
-    private static void check(String label, TreeNode head, String expectedForward, String expectedBackward) {
+    private static void check(String label, TreeNode head,
+                              String expectedForward, String expectedBackward) {
         System.out.println(label + " forward: " + forward(head) + "   expected " + expectedForward);
-        System.out.println(label + " backward: " + backward(head) + "   expected " + expectedBackward);
+        System.out.println(label + " backward: " + backward(head)
+                + "   expected " + expectedBackward);
     }
 
     public static void main(String[] args) {
         BSTtoDLLInPlace converter = new BSTtoDLLInPlace();
 
-        check("case 1 (typical)", converter.bstToDLL(buildTree()), "1 2 3 4 5 6 7", "7 6 5 4 3 2 1");
+        check("case 1 (typical)", converter.bstToDLL(buildTree()),
+                "1 2 3 4 5 6 7", "7 6 5 4 3 2 1");
         check("case 2 (single)", converter.bstToDLL(new TreeNode(4)), "4", "4");
         check("case 3 (right chain)", converter.bstToDLL(buildRightChain()), "1 2 3", "3 2 1");
         check("case 4 (empty)", converter.bstToDLL(null), "", "");
-        System.out.println("case 4 head is null: " + (converter.bstToDLL(null) == null) + "   expected true");
+        System.out.println("case 4 head is null: " + (converter.bstToDLL(null) == null)
+                + "   expected true");
     }
 }

@@ -56,7 +56,8 @@ class FirstCharToUpperCase {
     }
 
     private static void check(String label, String input, String expected) {
-        System.out.println(label + ": \"" + capitalizeWords(input) + "\"   expected \"" + expected + "\"");
+        System.out.println(label + ": \"" + capitalizeWords(input)
+                + "\"   expected \"" + expected + "\"");
     }
 
     public static void main(String[] args) {

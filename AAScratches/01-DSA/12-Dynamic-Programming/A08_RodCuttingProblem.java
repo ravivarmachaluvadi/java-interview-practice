@@ -131,7 +131,8 @@ class RodCuttingProblem {
         for (int c = 0; c < prices.length; c++) {
             int[] price = prices[c];
             int n = price.length;
-            System.out.println("case " + (c + 1) + ": price = " + Arrays.toString(price) + ", n = " + n);
+            System.out.println("case " + (c + 1) + ": price = " + Arrays.toString(price)
+                    + ", n = " + n);
             print("  bruteForce ", sol.bruteForce(price, n), expected[c]);
             print("  memoization", sol.memoization(price, n), expected[c]);
         }

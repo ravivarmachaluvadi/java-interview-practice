@@ -141,7 +141,8 @@ class TopVideos {
         return list;
     }
 
-    private static void check(String label, List<Pair<String, Integer>> input, int k, String expected) {
+    private static void check(String label, List<Pair<String, Integer>> input,
+                              int k, String expected) {
         List<String> bySort = topVideosBySort(input, k);
         List<String> byHeap = topVideosByHeap(input, k);
         System.out.println(label + " sort: " + bySort + "   expected " + expected);
@@ -169,7 +170,8 @@ class TopVideos {
     }
 }
 
-/** Minimal pair holder so the file stays dependency-free (javafx.util.Pair is not on the JDK path). */
+/** Minimal pair holder so the file stays dependency-free
+ *  (javafx.util.Pair is not on the JDK path). */
 class Pair<K, V> {
     private final K key;
     private final V value;

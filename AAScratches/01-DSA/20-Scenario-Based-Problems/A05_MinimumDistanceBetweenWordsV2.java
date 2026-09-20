@@ -84,7 +84,8 @@ class MinimumDistanceBetweenWordsV2 {
             }
             // Only the most recent occurrence of the other word can improve the answer.
             if (lastPositionWord1 != -1 && lastPositionWord2 != -1) {
-                minDistance = Math.min(minDistance, Math.abs(lastPositionWord1 - lastPositionWord2));
+                minDistance = Math.min(minDistance,
+                        Math.abs(lastPositionWord1 - lastPositionWord2));
             }
         }
         return (minDistance == Integer.MAX_VALUE) ? -1 : minDistance;
@@ -142,7 +143,8 @@ class MinimumDistanceBetweenWordsV2 {
             if (word.equals(word1)) last1 = midpoint;
             else if (word.equals(word2)) last2 = midpoint;
             else continue;
-            // Midpoints arrive in increasing order, so the nearest partner is always the last one seen.
+            // Midpoints arrive in increasing order, so the nearest partner is
+            // always the last one seen.
             if (last1 != -1 && last2 != -1) shortest = Math.min(shortest, Math.abs(last1 - last2));
         }
         return shortest == Integer.MAX_VALUE ? -1 : shortest;
@@ -151,19 +153,24 @@ class MinimumDistanceBetweenWordsV2 {
     // -------- Demo --------
 
     private static final String DOCUMENT =
-            "In publishing and graphic design, lorem ipsum is a filler text commonly used to demonstrate the graphic elements"
-          + " lorem ipsum text has been used in typesetting since the 1960s or earlier, when it was popularized by advertisements"
-          + " for Letraset transfer sheets. It was introduced to the Information Age in the mid-1980s by Aldus Corporation, which";
+            "In publishing and graphic design, lorem ipsum is a filler text"
+          + " commonly used to demonstrate the graphic elements"
+          + " lorem ipsum text has been used in typesetting since the 1960s or"
+          + " earlier, when it was popularized by advertisements"
+          + " for Letraset transfer sheets. It was introduced to the Information"
+          + " Age in the mid-1980s by Aldus Corporation, which";
 
     private static void print(String label, Object actual, Object expected) {
         System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        String[] words = {"the", "quick", "brown", "fox", "quick", "jumps", "over", "the", "lazy", "dog"};
+        String[] words = {"the", "quick", "brown", "fox", "quick",
+                          "jumps", "over", "the", "lazy", "dog"};
 
         print("case 1 array, quick vs the", wordIndexDistance(words, "quick", "the"), 1);
-        print("case 2 array, quick vs missing word (edge)", wordIndexDistance(words, "quick", "missing"), -1);
+        print("case 2 array, quick vs missing word (edge)",
+                wordIndexDistance(words, "quick", "missing"), -1);
         System.out.println();
 
         // Karat sample: the published answers 6 / 14 / 25 are CHARACTER distances

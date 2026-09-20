@@ -90,7 +90,8 @@ class BestAverageGrade {
     }
 
     public static void main(String[] args) {
-        String[][] typical = {{"Bobby", "87"}, {"Charles", "100"}, {"Eric", "64"}, {"Charles", "22"}};
+        String[][] typical = {{"Bobby", "87"}, {"Charles", "100"},
+                              {"Eric", "64"}, {"Charles", "22"}};
         String[][] singleStudent = {{"Solo", "42"}};
         String[][] allNegative = {{"Ann", "-10"}, {"Ann", "-11"}};
         String[][] empty = {};

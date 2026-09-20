@@ -115,7 +115,8 @@ class PrePostInorderInOneTraversal {
         return Arrays.asList(pre, in, post);
     }
 
-    private static void dfs(TreeNode node, List<Integer> pre, List<Integer> in, List<Integer> post) {
+    private static void dfs(TreeNode node, List<Integer> pre,
+                            List<Integer> in, List<Integer> post) {
         if (node == null) return;
         pre.add(node.data);
         dfs(node.left, pre, in, post);

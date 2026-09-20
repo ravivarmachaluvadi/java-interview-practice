@@ -103,7 +103,8 @@ class MeetingRoomsII {
         print("case 2 (no overlap)", minMeetingRooms(new int[][]{{7, 10}, {2, 4}}), 1);
 
         // Case 3: tricky - three meetings all alive at time 4.
-        print("case 3 (triple overlap)", minMeetingRooms(new int[][]{{1, 5}, {2, 6}, {4, 7}, {8, 9}}), 3);
+        print("case 3 (triple overlap)",
+                minMeetingRooms(new int[][]{{1, 5}, {2, 6}, {4, 7}, {8, 9}}), 3);
 
         // Case 4: edge - no meetings at all.
         print("case 4 (empty)", minMeetingRooms(new int[][]{}), 0);

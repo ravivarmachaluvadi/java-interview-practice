@@ -122,7 +122,8 @@ class BinarySearchTreeToGreaterSumTree {
     public static void main(String[] args) {
         BinarySearchTreeToGreaterSumTree converter = new BinarySearchTreeToGreaterSumTree();
 
-        System.out.println("case 1 (LC example): " + inorder(converter.bstToGst(buildLeetCodeExample()))
+        System.out.println("case 1 (LC example): "
+                + inorder(converter.bstToGst(buildLeetCodeExample()))
                 + "   expected [36, 36, 35, 33, 30, 26, 21, 15, 8]");
         System.out.println("case 2 (single node): " + inorder(converter.bstToGst(new TreeNode(5)))
                 + "   expected [5]");

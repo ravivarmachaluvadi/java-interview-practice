@@ -95,7 +95,8 @@ class CharactersNotInString {
                 + "\"   expected \"" + expected + "\"");
         System.out.println("   alphabetSet   : \"" + missingLettersByAlphabetSet(input)
                 + "\"   expected \"" + expected + "\"");
-        System.out.println("   isPangram     : " + isPangram(input) + "   expected " + expected.isEmpty());
+        System.out.println("   isPangram     : " + isPangram(input)
+                + "   expected " + expected.isEmpty());
     }
 
     public static void main(String[] args) {

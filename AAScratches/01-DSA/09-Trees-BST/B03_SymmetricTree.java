@@ -139,6 +139,7 @@ class SymmetricTree {
 
         print("case 3 empty tree                 ", sol.isSymmetric(null), true);
         print("case 4 single node                ", sol.isSymmetric(fromLevelOrder(7)), true);
-        print("case 4 single node, iterative     ", sol.isSymmetricIterative(fromLevelOrder(7)), true);
+        print("case 4 single node, iterative     ",
+                sol.isSymmetricIterative(fromLevelOrder(7)), true);
     }
 }

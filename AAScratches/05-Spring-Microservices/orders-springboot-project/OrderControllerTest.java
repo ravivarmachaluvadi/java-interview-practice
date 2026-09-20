@@ -117,7 +117,8 @@ class OrderControllerTest {
         dto.setDiscount(0.1);
 
         // Convert to JSON string using ObjectMapper
-        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
         String jsonInput = mapper.writeValueAsString(dto);
 
         // Print the input with a label
@@ -126,7 +127,8 @@ class OrderControllerTest {
         System.out.println();
 
         // Simulate the controller's saveOrder behavior by converting back to DTO
-        com.target.orders.dto.OrderDTO outputDto = mapper.readValue(jsonInput, com.target.orders.dto.OrderDTO.class);
+        com.target.orders.dto.OrderDTO outputDto =
+                mapper.readValue(jsonInput, com.target.orders.dto.OrderDTO.class);
 
         // Print the output with a label
         System.out.println("Output OrderDTO after round-trip:");

@@ -101,7 +101,8 @@ class ExponentPairs {
 
     private static void run(String label, int[] arr, String expected) {
         System.out.println(label + " brute  : " + findPairs(arr) + "   expected " + expected);
-        System.out.println(label + " closed : " + findPairsClosedForm(arr) + "   expected " + expected);
+        System.out.println(label + " closed : " + findPairsClosedForm(arr)
+                + "   expected " + expected);
     }
 
     public static void main(String[] args) {

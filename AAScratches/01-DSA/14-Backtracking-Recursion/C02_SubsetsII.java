@@ -66,7 +66,8 @@ class SubsetsII {
         return result;
     }
 
-    private static void backtrack(List<List<Integer>> result, List<Integer> current, int[] nums, int start) {
+    private static void backtrack(List<List<Integer>> result, List<Integer> current,
+                                  int[] nums, int start) {
         // every node of the recursion tree is itself a valid subset
         result.add(new ArrayList<>(current));
 
