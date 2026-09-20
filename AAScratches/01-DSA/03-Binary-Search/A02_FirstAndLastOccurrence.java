@@ -1,15 +1,46 @@
-/**
- * Problem: Given a sorted array of integers, find the starting and ending indices
- * of a specified target value. If the target is not present, return [-1, -1].
+/*
+ * =====================================================================
+ *  Find First and Last Position of Element in Sorted Array    LeetCode 34 | Medium
+ * =====================================================================
  *
- * Approach: Use two binary searches—one to locate the first occurrence and one for
- * the last. Each search runs in O(log n) time by narrowing the search window based
- * on comparisons with the middle element.
+ * PROBLEM
+ *   Given a sorted int array (may contain duplicates) and a target, return the index of the
+ *   first and last occurrence of target as [first, last]. If target is absent return [-1, -1].
+ *   Must run in O(log n), so a linear scan is not acceptable.
  *
- * Complexity:
- *   Time:  O(log n) + O(log n) = O(log n)
- *   Space: O(1) auxiliary space (in-place algorithm)
+ * EXAMPLE
+ *   nums = [5, 7, 7, 8, 8, 10], target = 8  ->  [3, 4]
+ *   nums = [5, 7, 7, 8, 8, 10], target = 6  ->  [-1, -1]   absent
+ *   nums = [],                  target = 0  ->  [-1, -1]   empty input
+ *   nums = [2, 2, 2, 2],        target = 2  ->  [0, 3]     every element matches
+ *
+ * APPROACH  (two bounded binary searches)
+ *   1. firstOccurrence: standard binary search, but when nums[mid] == target do NOT stop.
+ *      Record mid as a candidate and keep searching LEFT (high = mid - 1).
+ *   2. lastOccurrence: same, but on a match record mid and keep searching RIGHT (low = mid + 1).
+ *   3. If the first search returns -1 the target is absent; skip the second search.
+ *
+ * KEY INSIGHT
+ *   This is the lower/upper bound template (A01) called twice. A plain binary search stops at
+ *   ANY match; to reach the edge of a run of duplicates you treat a match as "possible answer,
+ *   keep going" instead of "done". The only difference between the two helpers is which side
+ *   you continue toward after a match.
+ *
+ * COMPLEXITY
+ *   Time  O(log n)  two independent halvings of the window
+ *   Space O(1)      a handful of ints
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Count occurrences of target: last - first + 1 (or 0 when absent).
+ *   - Solve with a single lowerBound helper: first = lowerBound(target),
+ *     last = lowerBound(target + 1) - 1; check nums[first] == target.
+ *   - Why not find any match then expand linearly: a run of n duplicates makes that O(n).
+ *
+ * RUN
+ *   main() runs 4 cases (typical, absent, empty, all duplicates) and prints actual vs expected.
  */
+import java.util.Arrays;
+
 class FirstAndLastOccurrence {
 
     private int firstOccurrence(int[] nums, int target) {
@@ -18,8 +49,8 @@ class FirstAndLastOccurrence {
         while (low <= high) {
             int mid = low + (high - low) / 2;
             if (nums[mid] == target) {
-                first = mid;
-                high = mid - 1;
+                first = mid;     // a match, but an earlier one may exist
+                high = mid - 1;  // keep looking to the left
             } else if (nums[mid] < target) {
                 low = mid + 1;
             } else {
@@ -35,8 +66,8 @@ class FirstAndLastOccurrence {
         while (low <= high) {
             int mid = low + (high - low) / 2;
             if (nums[mid] == target) {
-                last = mid;
-                low = mid + 1;
+                last = mid;      // a match, but a later one may exist
+                low = mid + 1;   // keep looking to the right
             } else if (nums[mid] < target) {
                 low = mid + 1;
             } else {
@@ -48,17 +79,20 @@ class FirstAndLastOccurrence {
 
     public int[] searchRange(int[] nums, int target) {
         int first = firstOccurrence(nums, target);
-        if (first == -1) return new int[]{-1, -1};
+        if (first == -1) return new int[]{-1, -1}; // absent: no need for the second search
         int last = lastOccurrence(nums, target);
         return new int[]{first, last};
     }
 
-    public static void main(String[] args) {
-        FirstAndLastOccurrence solution = new FirstAndLastOccurrence();
-        int[] nums = {5, 7, 7, 8, 8, 10};
-        int target = 8;
+    private static void print(String label, int[] nums, int target, String expected) {
+        int[] actual = new FirstAndLastOccurrence().searchRange(nums, target);
+        System.out.println(label + ": " + Arrays.toString(actual) + "   expected " + expected);
+    }
 
-        int[] result = solution.searchRange(nums, target);
-        System.out.println("First and Last Occurrence of " + target + ": [" + result[0] + ", " + result[1] + "]");
+    public static void main(String[] args) {
+        print("case 1 typical       ", new int[]{5, 7, 7, 8, 8, 10}, 8, "[3, 4]");
+        print("case 2 absent        ", new int[]{5, 7, 7, 8, 8, 10}, 6, "[-1, -1]");
+        print("case 3 empty         ", new int[]{}, 0, "[-1, -1]");
+        print("case 4 all duplicates", new int[]{2, 2, 2, 2}, 2, "[0, 3]");
     }
 }

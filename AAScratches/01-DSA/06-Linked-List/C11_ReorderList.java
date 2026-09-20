@@ -1,82 +1,109 @@
-/**
- * Reorders a singly linked list so that nodes are arranged in the pattern:
- * L0 → Ln → L1 → Ln-1 → L2 → Ln-2 … .
+/*
+ * =====================================================================
+ *  Reorder List                                     LeetCode 143 | Medium
+ * =====================================================================
  *
- * The algorithm finds the middle of the list, reverses the second half,
- * then merges the two halves node by node while safely disconnecting old links.
+ * PROBLEM
+ *   Given the head of a singly linked list L0 -> L1 -> ... -> Ln, reorder it in place to
+ *   L0 -> Ln -> L1 -> Ln-1 -> L2 -> Ln-2 -> ... Only node links may change, not node values.
+ *   Return nothing extra: the list is rewired under the same head.
  *
- * Time Complexity: O(n) – single pass to find middle, one reverse, and one merge.
- * Space Complexity: O(1) – only a few pointers are used; no extra data structures.
+ * EXAMPLE
+ *   1 -> 2 -> 3 -> 4 -> 5   ->  1 -> 5 -> 2 -> 4 -> 3     (odd length, middle stays last)
+ *   1 -> 2 -> 3 -> 4        ->  1 -> 4 -> 2 -> 3          (even length)
+ *   7                       ->  7                         (single node, nothing to do)
+ *
+ * APPROACH  (middle, reverse second half, interleave)
+ *   1. Slow/fast walk to the middle. For odd length slow lands on the exact middle; for
+ *      even length it lands on the last node of the first half. Either way the first half
+ *      is the longer (or equal) one, which is what the interleave needs.
+ *   2. Cut after slow: secondHalf = slow.next; slow.next = null. Reverse secondHalf in place.
+ *   3. Interleave: take one node from the first half, one from the reversed second half,
+ *      appending to a dummy-headed result. Save both .next pointers BEFORE overwriting
+ *      either, because appending a node destroys its old link.
+ *   4. Whatever is left (at most one node from the first half) is appended as the tail.
+ *
+ * KEY INSIGHT
+ *   The target order is "first half forwards" zipped with "second half backwards". A
+ *   singly linked list cannot walk backwards, so you physically reverse the second half
+ *   and then a plain two-list zip gives the answer. Whenever a problem wants nodes from
+ *   both ends of a list at once, think: find middle + reverse one half + walk both.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  one pass to find the middle, one to reverse, one to zip
+ *   Space O(1)  only pointer variables; the dummy is a single extra node
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Same trick family: palindrome check (C10) and max twin sum (C09) reverse a half too.
+ *   - Can you do it without a dummy node? Yes: zip in place starting from head, but the
+ *     dummy makes the "append and advance" loop symmetric and harder to get wrong.
+ *   - Why cut at slow and not slow.next? For even length both halves are equal; for odd
+ *     length the extra node must be in the first half so it ends up last.
+ *
+ * RUN
+ *   main() runs 3 cases (odd length, even length, single node) and prints actual vs expected.
  */
 class ReorderList {
 
     public static void main(String[] args) {
-        int[] values = {1, 2, 3, 4, 5};
-        ListNode head = createLinkedList(values);
-
-        System.out.print("Original list: ");
-        printLinkedList(head);
-
-        head = reorderList(head);
-
-        System.out.print("Reordered list: ");
-        printLinkedList(head);
+        print("case 1 odd   ", reorderList(fromArray(new int[]{1, 2, 3, 4, 5})), "1 5 2 4 3");
+        print("case 2 even  ", reorderList(fromArray(new int[]{1, 2, 3, 4})), "1 4 2 3");
+        print("case 3 single", reorderList(fromArray(new int[]{7})), "7");
     }
 
-    private static ListNode reorderList(ListNode head) {
+    static ListNode reorderList(ListNode head) {
         if (head == null || head.next == null) return head;
 
-        // Step 1: Find middle
+        // Step 1: slow stops on the middle (odd) or the last node of the first half (even)
         ListNode slow = head, fast = head;
         while (fast != null && fast.next != null) {
             slow = slow.next;
             fast = fast.next.next;
         }
 
-        // Step 2: Reverse second half
-        ListNode list2 = slow.next;
+        // Step 2: cut the list after slow and reverse the second half
+        ListNode secondHalf = slow.next;
         slow.next = null;
-        ListNode prev = null;
-        while (list2 != null) {
-            ListNode next = list2.next;
-            list2.next = prev;
-            prev = list2;
-            list2 = next;
-        }
-        list2 = prev; // reversed second half
+        secondHalf = reverse(secondHalf);
 
-        // Step 3: Merge using your dummy + merged pointer safely
+        // Step 3: zip the two halves, one node from each in turn
+        ListNode first = head;
         ListNode dummy = new ListNode(-1);
-        ListNode merged = dummy;
+        ListNode tail = dummy;
+        while (first != null && secondHalf != null) {
+            ListNode nextFirst = first.next;        // save before we overwrite first.next
+            ListNode nextSecond = secondHalf.next;  // save before we overwrite secondHalf.next
 
-        while (head != null && list2 != null) {
-            ListNode next1 = head.next;
-            ListNode next2 = list2.next;
+            tail.next = first;
+            tail = first;
+            tail.next = secondHalf;
+            tail = secondHalf;
 
-            // connect head, then disconnect its next
-            merged.next = head;
-            head.next = null; // disconnect old link
-            merged = merged.next;
-
-            // connect list2, then disconnect its next
-            merged.next = list2;
-            list2.next = null; // disconnect old link
-            merged = merged.next;
-
-            // move pointers
-            head = next1;
-            list2 = next2;
+            first = nextFirst;
+            secondHalf = nextSecond;
         }
 
-        // Attach the remainder (if any)
-        if (head != null) merged.next = head;
-        if (list2 != null) merged.next = list2;
+        // Step 4: first half can be one node longer (odd length); it becomes the last node
+        tail.next = (first != null) ? first : secondHalf;
 
         return dummy.next;
     }
 
-    // Helpers
-    private static ListNode createLinkedList(int[] values) {
+    /** Standard iterative reversal: returns the new head. */
+    private static ListNode reverse(ListNode head) {
+        ListNode prev = null;
+        while (head != null) {
+            ListNode next = head.next;
+            head.next = prev;
+            prev = head;
+            head = next;
+        }
+        return prev;
+    }
+
+    // ---- helpers for main ------------------------------------------------
+
+    private static ListNode fromArray(int[] values) {
         ListNode dummy = new ListNode(0);
         ListNode current = dummy;
         for (int value : values) {
@@ -86,12 +113,17 @@ class ReorderList {
         return dummy.next;
     }
 
-    private static void printLinkedList(ListNode head) {
-        while (head != null) {
-            System.out.print(head.val + " ");
-            head = head.next;
+    private static String toString(ListNode head) {
+        StringBuilder sb = new StringBuilder();
+        for (ListNode n = head; n != null; n = n.next) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(n.val);
         }
-        System.out.println();
+        return sb.toString();
+    }
+
+    private static void print(String label, ListNode actual, String expected) {
+        System.out.println(label + ": " + toString(actual) + "   expected " + expected);
     }
 }
 

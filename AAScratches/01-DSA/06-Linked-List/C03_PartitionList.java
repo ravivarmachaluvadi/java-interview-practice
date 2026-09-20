@@ -1,16 +1,46 @@
-/**
- * Problem:
- * Given the head of a singly linked list and an integer x, reorder the list so that all nodes with values less than x come before nodes with values greater than or equal to x.
- * The relative order among nodes in each partition must remain unchanged.
+/*
+ * =====================================================================
+ *  Partition List                                  LeetCode 86 | Medium
+ * =====================================================================
  *
- * Approach:
- * Create two dummy heads for "less" and "greater/equal" partitions. Traverse the original list once,
- * appending each node to the appropriate partition based on its value. After traversal, terminate
- * the greater partition with null and link the less partition to the head of the greater partition.
+ * PROBLEM
+ *   Given the head of a linked list and a value x, rearrange it so every node with value < x
+ *   comes before every node with value >= x. The relative order inside each group must be
+ *   preserved (this is a STABLE partition, unlike quicksort's partition step).
  *
- * Complexity:
- * Time:  O(n) – single pass through n nodes.
- * Space: O(1) – only a few pointers are used; no additional data structures proportional to input size.
+ * EXAMPLE
+ *   [1,4,3,2,5,2], x = 3  ->  [1,2,2,4,3,5]   less: 1,2,2  greater-or-equal: 4,3,5
+ *   [2,1], x = 2          ->  [1,2]
+ *   [4,5], x = 1          ->  [4,5]           "less" chain is empty
+ *   [], x = 0             ->  []
+ *
+ * APPROACH  (two dummy chains, stable relink)
+ *   1. Create two sentinel nodes, lessHead and greaterHead, with tail pointers less and greater.
+ *   2. Walk the original list once. Append each node to the less chain if val < x, otherwise to
+ *      the greater chain. Appending means tail.next = node; tail = node. Order is preserved
+ *      because we only ever append.
+ *   3. After the walk: greater.next = null (cut the stale link into the old list),
+ *      less.next = greaterHead.next (splice the chains), return lessHead.next.
+ *
+ * KEY INSIGHT
+ *   Reuse the existing nodes: you are not building a new list, you are re-threading the old
+ *   one into two chains and joining them. The one trap is step 3: the last node of the greater
+ *   chain still points at whatever followed it originally, and if that node ended up in the less
+ *   chain you now have a CYCLE. Always null-terminate the second chain before splicing.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  one pass
+ *   Space O(1)  two sentinels and two tail pointers; no new data nodes
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Sort a list of 0s, 1s and 2s: same idea with three chains (C04 in this folder).
+ *   - Why not swap values in place? Stability requires moving nodes, not values, and an
+ *     array-style in-place stable partition is O(n^2) or needs extra memory.
+ *   - Odd/Even list (LeetCode 328) is the same split-and-splice without sentinels.
+ *
+ * RUN
+ *   main() runs 4 cases (typical, two nodes, empty less-chain, empty list) and prints actual
+ *   vs expected.
  */
 class ListNode {
     int val;
@@ -21,21 +51,14 @@ class ListNode {
         this.next = null;
     }
 }
-/**
- * Given the head of a linked list and a value x, partition it such
- * <p>
- * that all nodes less than x come before nodes greater than or equal to x.
- * <p>
- * You should preserve the original relative order of the nodes in each of the two partitions.
- */
 
-// https://leetcode.com/problems/partition-list/description/
 class PartitionList {
+
     public ListNode partition(ListNode head, int x) {
         ListNode lessHead = new ListNode(0);
         ListNode greaterHead = new ListNode(0);
-        ListNode less = lessHead;
-        ListNode greater = greaterHead;
+        ListNode less = lessHead;       // tail of the "< x" chain
+        ListNode greater = greaterHead; // tail of the ">= x" chain
 
         while (head != null) {
             if (head.val < x) {
@@ -47,28 +70,41 @@ class PartitionList {
             }
             head = head.next;
         }
-        greater.next = null;
-        less.next = greaterHead.next;
+        greater.next = null;            // cut the stale link, otherwise a cycle is possible
+        less.next = greaterHead.next;   // splice: less chain, then greater chain
         return lessHead.next;
     }
 
     public static void main(String[] args) {
-        // Example usage
         PartitionList solution = new PartitionList();
-        ListNode head = new ListNode(1);
-        head.next = new ListNode(4);
-        head.next.next = new ListNode(3);
-        head.next.next.next = new ListNode(2);
-        head.next.next.next.next = new ListNode(5);
-        head.next.next.next.next.next = new ListNode(2);
 
-        ListNode result = solution.partition(head, 3);
+        print("case 1 [1,4,3,2,5,2] x=3", solution.partition(build(1, 4, 3, 2, 5, 2), 3),
+                "[1, 2, 2, 4, 3, 5]");
+        print("case 2 [2,1] x=2        ", solution.partition(build(2, 1), 2), "[1, 2]");
+        print("case 3 [4,5] x=1        ", solution.partition(build(4, 5), 1), "[4, 5]");
+        print("case 4 [] x=0           ", solution.partition(build(), 0), "[]");
+    }
 
-        // Print the result
-        while (result != null) {
-            System.out.print(result.val + " ");
-            result = result.next;
+    static void print(String label, ListNode actual, String expected) {
+        System.out.println(label + ": " + toStr(actual) + "   expected " + expected);
+    }
+
+    static ListNode build(int... vals) {
+        ListNode dummy = new ListNode(0);
+        ListNode tail = dummy;
+        for (int v : vals) {
+            tail.next = new ListNode(v);
+            tail = tail.next;
         }
-        // Output: 1 2 2 4 3 5
+        return dummy.next;
+    }
+
+    static String toStr(ListNode head) {
+        StringBuilder sb = new StringBuilder("[");
+        for (ListNode n = head; n != null; n = n.next) {
+            if (n != head) sb.append(", ");
+            sb.append(n.val);
+        }
+        return sb.append("]").toString();
     }
 }

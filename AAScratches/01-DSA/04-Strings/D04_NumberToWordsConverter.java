@@ -1,61 +1,119 @@
-/**
- * Converts an integer into its English word representation using the Indian numbering system.
+/*
+ * =====================================================================
+ *  Number to Words (Indian system)          LeetCode 273 variant | Hard
+ * =====================================================================
  *
- * The method handles numbers up to 99,99,99,999 (hundreds of crores) by breaking them into
- * crore, lakh, thousand, hundred and the last two digits. Each segment is converted with
- * helper arrays for values below twenty and tens multiples.
+ * PROBLEM
+ *   Convert an int to English words using the Indian grouping: crore (10^7), lakh (10^5),
+ *   thousand, hundred, then the last two digits. Insert "and" before the final 1-99 when the
+ *   number has a hundreds-or-higher part ("one thousand and thirty four"). Handle 0, negatives
+ *   and the whole int range: Integer.MAX_VALUE is 214 crore, so the crore group itself can be
+ *   a three-digit number.
  *
- * Approach:
- *   1. Decompose the number into crore, lakh, thousand, hundred and remainder parts.
- *   2. Convert each part to words using lookup tables.
- *   3. Concatenate segments, inserting "and" when appropriate, then trim and collapse spaces.
+ * EXAMPLE
+ *   123456789  -> "twelve crore thirty four lakh fifty six thousand seven hundred and eighty nine"
+ *   1034       -> "one thousand and thirty four"
+ *   100000000  -> "ten crore"
+ *   0          -> "zero"
+ *   -45        -> "minus forty five"
+ *   2147483647 -> "two hundred and fourteen crore seventy four lakh eighty three thousand
+ *                  six hundred and forty seven"
  *
- * Time Complexity: O(1) – constant work for a fixed-size integer.
- * Space Complexity: O(1) – only a few string buffers are used regardless of input size.
+ * APPROACH  (group decomposition with lookup tables)
+ *   1. Two tables: LESS_THAN_20[0..19] and TENS[2..9]; belowHundred(n) reads them.
+ *   2. Split by integer division: crore = n / 10^7, lakh = (n / 10^5) % 100,
+ *      thousand = (n / 1000) % 100, hundred = (n / 100) % 10, rest = n % 100.
+ *   3. Emit each non-zero group as "<words> <unit> ". The crore group goes through
+ *      belowThousand() because it can reach 214.
+ *   4. Emit "and " when n > 99 and rest > 0, then belowHundred(rest); trim the trailing space.
+ *
+ * KEY INSIGHT
+ *   Every group is "a number below 100 (or 1000) plus a unit word", so one small helper does
+ *   all the wording and the top level is only arithmetic on group boundaries. The international
+ *   system (LeetCode 273) has the same shape with uniform groups of 1000 (thousand, million,
+ *   billion) instead of the 1000-100-100 pattern of thousand, lakh, crore.
+ *
+ * Fixed: a crore group of 100 or more (any n >= 100 crore, e.g. Integer.MAX_VALUE) indexed
+ *        TENS[21] and threw ArrayIndexOutOfBoundsException. Negative input was not handled.
+ *
+ * COMPLEXITY
+ *   Time  O(1)  a fixed number of groups for a 32-bit int
+ *   Space O(1)  a few short strings
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - LeetCode 273 (international): three-digit groups with Thousand / Million / Billion.
+ *   - long input: which extra units appear (arab, kharab) and where belowThousand() applies.
+ *   - Currency: "rupees ... and ... paise" is the same converter called twice.
+ *   - The inverse, words to number: running total with a multiplier for each unit word.
+ *
+ * RUN
+ *   main() runs 7 cases and prints actual vs expected.
  */
 class NumberToWordsConverter {
 
-    private static final String[] lessThan20 = {
+    private static final String[] LESS_THAN_20 = {
             "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
             "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
             "seventeen", "eighteen", "nineteen"};
 
-    private static final String[] tens = {
+    private static final String[] TENS = {
             "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
 
-    private static String getInWords(int i, String s) {
-        if (i == 0) return "";
-        if (i < 20) return lessThan20[i] + " " + s + " ";
-        StringBuilder t = new StringBuilder();
-        t.append(tens[i / 10]).append(" ");
-        if (i % 10 > 0) t.append(lessThan20[i % 10]).append(" ");
-        return t.append(s).append(" ").toString();
+    /** 0..99 -> "" | "seven" | "twenty one"  (no trailing space). */
+    private static String belowHundred(int n) {
+        if (n < 20) return LESS_THAN_20[n];
+        return n % 10 == 0 ? TENS[n / 10] : TENS[n / 10] + " " + LESS_THAN_20[n % 10];
+    }
+
+    /** 0..999 -> "" | "two hundred" | "two hundred and fourteen". Needed for the crore group. */
+    private static String belowThousand(int n) {
+        if (n < 100) return belowHundred(n);
+        String hundreds = LESS_THAN_20[n / 100] + " hundred";
+        return n % 100 == 0 ? hundreds : hundreds + " and " + belowHundred(n % 100);
+    }
+
+    /** "" for an empty group, otherwise "<words> <unit> " with a trailing space. */
+    private static String withUnit(String words, String unit) {
+        return words.isEmpty() ? "" : words + " " + unit + " ";
     }
 
     public static String convertToWords(int number) {
         if (number == 0) return "zero";
+        long n = Math.abs((long) number);        // long so Integer.MIN_VALUE negates safely
 
-        String words =
-                getInWords(number / 10000000, "crore") +
-                        getInWords((number / 100000) % 100, "lakh") +
-                        getInWords((number / 1000) % 100, "thousand") +
-                        getInWords((number / 100) % 10, "hundred");
+        int crore    = (int) (n / 10_000_000);    // up to 214 for a 32-bit int
+        int lakh     = (int) (n / 100_000 % 100);
+        int thousand = (int) (n / 1_000 % 100);
+        int hundred  = (int) (n / 100 % 10);
+        int rest     = (int) (n % 100);
 
-        if (number > 99 && number % 100 > 0)
-            words += "and ";
+        StringBuilder words = new StringBuilder(number < 0 ? "minus " : "");
+        words.append(withUnit(belowThousand(crore), "crore"))
+             .append(withUnit(belowHundred(lakh), "lakh"))
+             .append(withUnit(belowHundred(thousand), "thousand"))
+             .append(withUnit(belowHundred(hundred), "hundred"));
+        if (n > 99 && rest > 0) words.append("and ");   // "one thousand and thirty four"
+        words.append(belowHundred(rest));
+        return words.toString().trim();
+    }
 
-        words += getInWords(number % 100, "");
-
-        return words.trim().replaceAll("\\s+", " ");
+    private static void check(int number, String expected) {
+        System.out.println(number + " -> \"" + convertToWords(number)
+                + "\"   expected \"" + expected + "\"");
     }
 
     public static void main(String[] args) {
-        System.out.println(convertToWords(123456789));
-        System.out.println(convertToWords(100000000));
-        System.out.println(convertToWords(1234));
-        System.out.println(convertToWords(0));
+        // typical
+        check(123456789,
+                "twelve crore thirty four lakh fifty six thousand seven hundred and eighty nine");
+        check(1034, "one thousand and thirty four");
+        // edge
+        check(0, "zero");
+        check(20, "twenty");
+        check(-45, "minus forty five");
+        // tricky: empty middle groups, and a three-digit crore group
+        check(100000000, "ten crore");
+        check(Integer.MAX_VALUE, "two hundred and fourteen crore seventy four lakh "
+                + "eighty three thousand six hundred and forty seven");
     }
 }
-
-// 1234/1000 -> 1
-// 1234%1000 -> 234

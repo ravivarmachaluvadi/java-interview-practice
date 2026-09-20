@@ -1,70 +1,83 @@
-/**
- * LeetCode 334 — Increasing Triplet Subsequence.
+/*
+ * =====================================================================
+ *  Increasing Triplet Subsequence                   LeetCode 334 | Medium
+ * =====================================================================
  *
- * <p>Returns {@code true} if there exist indices {@code i < j < k} such that
- * {@code nums[i] < nums[j] < nums[k]}.
+ * PROBLEM
+ *   Given an integer array nums, return true if there are indices i < j < k with
+ *   nums[i] < nums[j] < nums[k] (strictly increasing, not necessarily adjacent).
+ *   The target is O(n) time and O(1) extra space; the input must not be modified.
  *
- * <p><b>Approach.</b> Track the smallest value seen so far ({@code first}) and the
- * smallest value that has a smaller element before it ({@code second}). Any element
- * exceeding {@code second} completes a triplet.
+ * EXAMPLE
+ *   nums = [2, 1, 5, 0, 4, 6]   ->  true    0 < 4 < 6
+ *   nums = [5, 4, 3, 2, 1]      ->  false   strictly decreasing
+ *   nums = [5, 6, 1, 7]         ->  true    5 < 6 < 7, even though 'first' goes stale
+ *   nums = [1, 1, 2]            ->  false   duplicates are not strictly increasing
+ *   nums = []                   ->  false   fewer than three elements
  *
- * <p><b>Why the stale {@code first} is harmless.</b> {@code first} may be overwritten
- * by a value occurring <i>after</i> {@code second}, so the pair is not always a valid
- * subsequence. Correctness rests on {@code second} alone: it is assigned only in the
- * branch where {@code num > first}, and that {@code first} came from a strictly
- * earlier index. So a finite {@code second} always carries the guarantee that some
- * smaller element preceded it. Lowering {@code first} only makes future pairs easier
- * to form; it never invalidates that guarantee.
+ * APPROACH  (two sentinels, O(1) space)
+ *   1. first  = smallest value seen so far (starts at Integer.MAX_VALUE).
+ *   2. second = smallest value that has some smaller value BEFORE it (starts MAX).
+ *   3. For each num:
+ *        num <= first   -> lower first
+ *        num <= second  -> lower second (num > first, so a smaller element precedes it)
+ *        otherwise      -> num > second > something earlier: return true
+ *   4. If the loop ends, return false.
  *
- * <p><b>Why {@code <=} and not {@code <}.</b> Both comparisons must be non-strict to
- * reject duplicates. With strict {@code <}, the input {@code [1, 1, 2]} would assign
- * {@code second = 1}, and {@code 2} would then report a triplet that is not strictly
- * increasing.
+ * KEY INSIGHT
+ *   Correctness rests on 'second' alone. It is assigned only when num > first, and
+ *   that first came from an earlier index, so a finite second always has a smaller
+ *   predecessor. Lowering first later (a "stale" first that sits AFTER second) cannot
+ *   break that guarantee; it only makes future pairs easier to form. Both comparisons
+ *   are non-strict (<=) so an equal value refreshes a sentinel instead of advancing:
+ *   with strict <, [1, 1, 2] would set second = 1 and wrongly report a triplet.
+ *   Pattern: keep the best endpoint of a chain of length 1 and of length 2; this is
+ *   LIS "tails" (patience sorting) with k = 3 collapsed into two scalars.
  *
- * <pre>
- * Input:  nums = [2, 1, 5, 0, 4, 6]
- * Output: true                        // 0 &lt; 4 &lt; 6
+ * COMPLEXITY
+ *   Time  O(n)  single pass
+ *   Space O(1)  two ints; only existence is reported, indices are not recoverable
  *
- * Input:  nums = [5, 4, 3, 2, 1]
- * Output: false
- * </pre>
+ * INTERVIEW FOLLOW-UPS
+ *   - Return the actual indices: remember the index of first that produced second,
+ *     plus the index of second, and report them with the final k.
+ *   - Generalise to an increasing subsequence of length k: LIS tails, O(n log k).
+ *   - Why is [5, 6, 1, 7] still true when first = 1 sits after second = 6?
  *
- * <p>O(n) time, O(1) space, single pass, input left unmodified. The trade-off is that
- * the actual indices are not recoverable — the sentinels report existence only.
- *
- * @see <a href="https://leetcode.com/problems/increasing-triplet-subsequence/">LeetCode 334</a>
+ * RUN
+ *   main() runs 5 cases (typical, decreasing, stale first, duplicates, empty)
+ *   and prints actual vs expected.
  */
-public static boolean increasingTriplet(int[] nums) {
-    int first = Integer.MAX_VALUE;    // smallest value seen so far
-    int second = Integer.MAX_VALUE;   // smallest value with something smaller before it
+import java.util.Arrays;
 
-    for (int num : nums) {
-        if (num <= first) {
-            first = num;
-        } else if (num <= second) {
-            second = num;             // num > first, so a smaller element precedes it
-        } else {
-            return true;              // num > second > (something earlier)
+class IncreasingTripletSubsequence {
+
+    public static boolean increasingTriplet(int[] nums) {
+        int first = Integer.MAX_VALUE;  // smallest value seen so far
+        int second = Integer.MAX_VALUE; // smallest value with something smaller before it
+
+        for (int num : nums) {
+            if (num <= first) {
+                first = num;
+            } else if (num <= second) {
+                second = num;           // num > first, so a smaller element precedes it
+            } else {
+                return true;            // num > second > (something earlier)
+            }
         }
+        return false;
     }
-    return false;
-}
 
-void main() {
-    int[][] cases = {
-            {1, 2, 3, 4, 5},              // true  — trivially increasing
-            {5, 4, 3, 2, 1},              // false — strictly decreasing
-            {2, 1, 5, 0, 4, 6},           // true  — 0 < 4 < 6
-            {5, 6, 1, 7},                 // true  — 5 < 6 < 7, first goes stale
-            {20, 100, 10, 12, 5, 13},     // true  — 10 < 12 < 13
-            {1, 1, 1},                    // false — duplicates are not increasing
-            {1, 1, 2, 2, 3},              // true  — 1 < 2 < 3
-            {1, 5, 2},                    // false — only a pair
-            {1, 2},                       // false — too short
-            {}                            // false — empty
-    };
+    public static void main(String[] args) {
+        print(new int[]{2, 1, 5, 0, 4, 6}, true);
+        print(new int[]{5, 4, 3, 2, 1}, false);
+        print(new int[]{5, 6, 1, 7}, true);       // first goes stale, second still valid
+        print(new int[]{1, 1, 2}, false);         // duplicates must not count
+        print(new int[]{}, false);                // empty
+    }
 
-    for (int[] nums : cases) {
-        System.out.printf("%-30s -> %b%n", Arrays.toString(nums), increasingTriplet(nums));
+    private static void print(int[] nums, boolean expected) {
+        System.out.printf("%-22s -> %-5b   expected %b%n",
+                Arrays.toString(nums), increasingTriplet(nums), expected);
     }
 }

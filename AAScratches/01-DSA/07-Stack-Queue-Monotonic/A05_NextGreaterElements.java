@@ -1,65 +1,88 @@
-/**
- * Problem: For each element in an integer array, find the next greater element to its right.
- * If no such element exists, return -1 for that position.
+/*
+ * =====================================================================
+ *  Next Greater Element (array)                   LeetCode 496 family | Easy   MUST-KNOW
+ * =====================================================================
  *
- * Approach: Use a stack to keep indices of elements whose next greater hasn't been found yet.
- * Iterate through the array; while the current value is greater than the value at the top index,
- * pop and record the current value as the next greater. Push each index onto the stack.
- * After traversal, remaining indices in the stack have no greater element; set their result to -1.
+ * PROBLEM
+ *   For every element of an int array, find the first element to its RIGHT that is strictly
+ *   greater. If none exists, output -1 for that position. Return the results as an array of
+ *   the same length. Values may repeat.
  *
- * Time Complexity: O(n) – each element is pushed and popped at most once.
- * Space Complexity: O(n) – auxiliary stack plus output array of size n.
+ * EXAMPLE
+ *   [4, 5, 2, 10, 8]     ->  [5, 10, 10, -1, -1]
+ *   [3, 7, 1, 7, 6, 4]   ->  [7, -1, 7, -1, -1, -1]   equal 7 does not count as greater
+ *   [6, 8, 0, 1, 3]      ->  [8, -1, 1, 3, -1]
+ *   [5, 4, 3]            ->  [-1, -1, -1]              strictly decreasing, nothing resolves
+ *   []                   ->  []                        used to throw, see Fixed below
+ *
+ * APPROACH  (Monotonic decreasing stack of indices)
+ *   1. Keep a stack of INDICES whose next greater element is still unknown. The values at
+ *      those indices are always decreasing from bottom to top.
+ *   2. For each i: while the stack top's value is smaller than nums[i], that top has just
+ *      found its answer, nums[i]. Record it and pop.
+ *   3. Push i. It waits for something bigger to arrive.
+ *   4. After the loop, everything left on the stack never saw a bigger value: set -1.
+ *
+ * KEY INSIGHT
+ *   An element that is smaller than the newcomer can never be anyone's "next greater", so it
+ *   can be resolved and discarded right now. That is why the stack stays decreasing and why
+ *   every index is pushed once and popped once. Recognise the pattern whenever a question asks
+ *   "for each element, the nearest larger/smaller to the left/right".
+ *   Fixed: the original pushed index 0 before the loop, so an empty array threw
+ *   ArrayIndexOutOfBounds. The loop now starts at 0 and handles empty input naturally.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  each index is pushed and popped at most once, so the while loop is O(n) total
+ *   Space O(n)  the stack plus the output array
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Return the DISTANCE instead of the value: store indices (as here) and use i - top.
+ *     That is C01_DailyTemperatures.
+ *   - Circular array (LeetCode 503): loop i from 0 to 2n-1 and index with i % n.
+ *   - Next SMALLER element: flip the comparison, the stack becomes increasing.
+ *   - Previous greater element: same loop, but the answer for i is stack.peek() after popping.
+ *
+ * RUN
+ *   main() runs 5 cases (typical, duplicates, mixed, strictly decreasing, empty) and prints
+ *   actual vs expected.
  */
+import java.util.Arrays;
 import java.util.Stack;
 
 class NextGreaterElements {
 
-    private static int[] getNextGreaterElements(int[] input) {
-        Stack<Integer> stack = new Stack<>();
-        int n = input.length;
-        int[] output = new int[n];
+    static int[] getNextGreaterElements(int[] nums) {
+        int n = nums.length;
+        int[] result = new int[n];
+        // Indices still waiting for their next greater element; values decrease bottom to top
+        Stack<Integer> waiting = new Stack<>();
 
-        stack.push(0);
-
-        for (int i = 1; i < n; i++) {
-            while (!stack.isEmpty() && input[stack.peek()] < input[i]) {
-                output[stack.peek()] = input[i];
-                stack.pop();
+        for (int i = 0; i < n; i++) {
+            // nums[i] is the answer for every waiting index whose value is strictly smaller
+            while (!waiting.isEmpty() && nums[waiting.peek()] < nums[i]) {
+                result[waiting.pop()] = nums[i];
             }
-            stack.push(i);
+            waiting.push(i);
         }
 
-        while (!stack.isEmpty()) {
-            output[stack.pop()] = -1;
+        // Whatever is still waiting never met a bigger value
+        while (!waiting.isEmpty()) {
+            result[waiting.pop()] = -1;
         }
-
-        return output;
+        return result;
     }
 
-    private static void printArray(int[] arr) {
-        for (int i : arr) {
-            System.out.print(i + " ");
-        }
-        System.out.println();
+    static void print(String label, int[] input, String expected) {
+        int[] actual = getNextGreaterElements(input);
+        System.out.println(label + " " + Arrays.toString(input) + " -> " + Arrays.toString(actual)
+                + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        // Sample test case 1
-        int[] input1 = {4, 5, 2, 10, 8};
-        int[] result1 = getNextGreaterElements(input1);
-        System.out.println("Next greater elements for {4, 5, 2, 10, 8}: ");
-        printArray(result1);
-
-        // Sample test case 2
-        int[] input2 = {3, 7, 1, 7, 6, 4};
-        int[] result2 = getNextGreaterElements(input2);
-        System.out.println("Next greater elements for {3, 7, 1, 7, 6, 4}: ");
-        printArray(result2);
-
-        // Sample test case 3
-        int[] input3 = {6, 8, 0, 1, 3};
-        int[] result3 = getNextGreaterElements(input3);
-        System.out.println("Next greater elements for {6, 8, 0, 1, 3}: ");
-        printArray(result3);
+        print("case 1 typical   ", new int[]{4, 5, 2, 10, 8}, "[5, 10, 10, -1, -1]");
+        print("case 2 duplicates", new int[]{3, 7, 1, 7, 6, 4}, "[7, -1, 7, -1, -1, -1]");
+        print("case 3 mixed     ", new int[]{6, 8, 0, 1, 3}, "[8, -1, 1, 3, -1]");
+        print("case 4 decreasing", new int[]{5, 4, 3}, "[-1, -1, -1]");
+        print("case 5 empty     ", new int[]{}, "[]");
     }
 }

@@ -1,70 +1,100 @@
-import java.util.*;
-
-// https://leetcode.com/problems/maximum-frequency-of-an-element-after-performing-operations-i/description/
-// 3346. Maximum Frequency of an Element After Performing Operations I
-
-/**
- * You are given an integer array nums and two integers k and numOperations.
- * <p>
- * You must perform an operation numOperations times on nums, where in each operation you:
- * <p>
- * Select an index i that was not selected in any previous operations.
- * Add an integer in the range [-k, k] to nums[i].
- * Return the maximum possible frequency of any element in nums after performing the operations.
- * <p>
- * Example 1:
- * <p>
- * Input: nums = [1,4,5], k = 1, numOperations = 2
- * <p>
- * Output: 2
- * <p>
- * Explanation:
- * <p>
- * We can achieve a maximum frequency of two by:
- * <p>
- * Adding 0 to nums[1]. nums becomes [1, 4, 5].
- * Adding -1 to nums[2]. nums becomes [1, 4, 4].
+/*
+ * =====================================================================
+ *  Maximum Frequency of an Element After Performing Operations I   LeetCode 3346 | Medium
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Given nums, an int k and numOperations. Exactly numOperations times you pick an index
+ *   not picked before and add any value in [-k, k] to it. Return the largest frequency any
+ *   single value can have afterwards. 1 <= n <= 10^5, 0 <= k <= 10^5,
+ *   0 <= numOperations <= n.
+ *
+ * EXAMPLE
+ *   nums = [1, 4, 5],       k = 1, ops = 2  ->  2   (4 -> 4, 5 -> 4)
+ *   nums = [1, 4, 5],       k = 2, ops = 2  ->  2   (target 3 is reachable by all, but ops = 2)
+ *   nums = [5, 11, 20, 20], k = 5, ops = 1  ->  2   (the two 20s already; 11 cannot reach 20)
+ *   nums = [5, 5, 5, 1, 9], k = 1, ops = 1  ->  3   (the existing 5s, no operation helps)
+ *
+ * APPROACH  (difference-array sweep over candidate targets)
+ *   1. count[x] = how many times x already occurs in nums.
+ *   2. Each x can reach any target in [x - k, x + k]. Record that interval in a sorted
+ *      difference map: +1 at x - k, -1 at x + k + 1. Also register x itself as a key with
+ *      delta 0 so every existing value is evaluated as a target.
+ *   3. Sweep the keys in order, keeping a running sum reachable = number of x whose
+ *      interval covers the current target t.
+ *   4. For target t: already = count[t] need no operation; the others need one each, but
+ *      only numOperations are available. Candidate = already + min(ops, reachable - already).
+ *   5. Return the best candidate.
+ *
+ * KEY INSIGHT
+ *   The window view ("which sorted elements fit within 2k of each other") works, but the
+ *   cleaner mental model is an interval sweep: every element votes for a range of targets
+ *   and the answer is the best-voted target, adjusted for elements that are already there
+ *   for free. The running sum changes only at interval endpoints, so it is enough to test
+ *   the endpoints plus the original values. Recognise this shape: "each element can become
+ *   any value in a range" = difference array over the ranges.
+ *
+ * COMPLEXITY
+ *   Time  O(n log n)  the TreeMap holds up to 3n keys
+ *   Space O(n)        the count map and the difference map
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Sort + sliding window alternative: for each target, count elements in [t-k, t+k].
+ *   - Version II (LC 3347): k and values up to 10^9, same sweep, targets must be endpoints.
+ *   - Why is it enough to test only the endpoints and the original values?
+ *   - What changes if the same index may be picked more than once?
+ *
+ * Fixed: the original swept only the interval endpoints (x - k and x + k + 1), so a target
+ * equal to an existing value was never evaluated and its free "already" count was lost.
+ * On LeetCode example 2, [5, 11, 20, 20], k = 5, ops = 1, it returned 1 instead of 2.
+ *
+ * RUN
+ *   main() runs 4 cases (two LeetCode examples, the k = 2 variant, and the case that only
+ *   works once existing values are candidate targets) and prints actual vs expected.
  */
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
+
 class MaximumFrequencyOfAnElementAfterPerformingOperationsI {
+
     public static int maxFrequency(int[] nums, int k, int numOperations) {
-        Map<Integer, Integer> cnt = new HashMap<>();
+        if (nums == null || nums.length == 0)
+            return 0;
+
+        Map<Integer, Integer> count = new HashMap<>();
+        for (int x : nums)
+            count.merge(x, 1, Integer::sum);
+
+        // Difference map: +1 where x's reachable interval starts, -1 just after it ends.
         TreeMap<Integer, Integer> diff = new TreeMap<>();
-        // Count occurrences of each original number
         for (int x : nums) {
-            cnt.merge(x, 1, Integer::sum);
+            diff.merge(x - k, 1, Integer::sum);
+            diff.merge(x + k + 1, -1, Integer::sum);
+            diff.merge(x, 0, Integer::sum); // make x itself a candidate target
         }
-        // Build difference map: each x contributes +1 at (x−k), −1 at (x+k+1)
-        for (int x : nums) {
-            int start = x - k;
-            int end = x + k + 1;  // exclusive boundary
-            diff.merge(start, 1, Integer::sum);
-            diff.merge(end, -1, Integer::sum);
+
+        int best = 0;
+        int reachable = 0; // running sum: elements whose interval covers the current target
+        for (Map.Entry<Integer, Integer> e : diff.entrySet()) {
+            int target = e.getKey();
+            reachable += e.getValue();
+
+            int already = count.getOrDefault(target, 0);   // no operation needed
+            int needOperation = reachable - already;        // one operation each
+            best = Math.max(best, already + Math.min(numOperations, needOperation));
         }
-        int ans = 1;
-        int current = 0;  // running sum = how many elements can reach this target
-        for (Map.Entry<Integer, Integer> entry : diff.entrySet()) {
-            int t = entry.getKey();
-            int delta = entry.getValue();
-            current += delta;
-            int already = cnt.getOrDefault(t, 0);
-            int otherReachable = current - already;
-            int possible = already + Math.min(numOperations, otherReachable);
-            ans = Math.max(ans, possible);
-        }
-        return ans;
+        return best;
+    }
+
+    private static void print(String label, int actual, int expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        int[] nums = {1, 4, 5};
-        int k = 2;
-        int numOperations = 2;
-        int result = maxFrequency(nums, k, numOperations);
-        System.out.println("Result = " + result);
-        // For example: we can make at most frequency = 2
-        // Explanation: you can pick target value 3:
-        //   1 → +2 = 3 (1 operation)
-        //   4 → −1 = 3 (1 operation)
-        //   5 cannot also be made 3 because only 2 operations allowed.
-        // So you get two “3”s => freq = 2.
+        print("case 1 LC example 1   ", maxFrequency(new int[]{1, 4, 5}, 1, 2), 2);
+        print("case 2 k = 2 variant  ", maxFrequency(new int[]{1, 4, 5}, 2, 2), 2);
+        print("case 3 LC example 2   ", maxFrequency(new int[]{5, 11, 20, 20}, 5, 1), 2);
+        print("case 4 existing value ", maxFrequency(new int[]{5, 5, 5, 1, 9}, 1, 1), 3);
     }
 }

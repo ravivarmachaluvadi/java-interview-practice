@@ -1,47 +1,50 @@
-/**
- * LeetCode 485 — Max Consecutive Ones.
+/*
+ * =====================================================================
+ *  Max Consecutive Ones                              LeetCode 485 | Easy
+ * =====================================================================
  *
- * <p>Given a binary array {@code nums}, return the maximum number of consecutive {@code 1}s in
- * the array.</p>
+ * PROBLEM
+ *   Given a binary array (only 0s and 1s), return the length of the longest
+ *   run of consecutive 1s. An empty or all-zero array gives 0.
  *
- * <p><b>Examples</b></p>
- * <pre>
- * Input:  nums = [1,1,0,1,1,1]
- * Output: 3
- * Reason: the first two digits and the last three form runs of 1s; the longest has length 3.
+ * EXAMPLE
+ *   [1, 1, 0, 1, 1, 1]  ->  3   runs of 2 and 3; the last one wins
+ *   [1, 0, 1, 1, 0, 1]  ->  2
+ *   [1, 0, 1, 1, 1]     ->  3   longest run sits at the very end (the trap)
+ *   [1, 1, 1, 1]        ->  4   whole array is one run
+ *   [0, 0, 0]           ->  0   no ones at all
+ *   []                  ->  0
  *
- * Input:  nums = [1,0,1,1,0,1]
- * Output: 2
- * </pre>
+ * APPROACH  (running streak with reset)
+ *   1. currentRun = length of the run of 1s ending at the current index.
+ *   2. On a 1, extend it by one; on a 0, reset it to zero.
+ *   3. After every element, maxCount = max(maxCount, currentRun).
  *
- * <p><b>Approach — single pass with a running counter</b></p>
- * <ul>
- *   <li>Track {@code currentRun}, the length of the run of 1s ending at the current index.</li>
- *   <li>On a {@code 1}, extend the run; on anything else, reset it to zero.</li>
- *   <li>Update {@code maxCount} after every step, so a run that reaches the end of the array
- *       is counted without a special case.</li>
- * </ul>
+ * KEY INSIGHT
+ *   Update the best answer after every step, not only when a run ends. A run
+ *   that reaches the last index never "ends", so code that records the max
+ *   only on a 0 returns 2 for [1, 0, 1, 1, 1]. Comparing on every element
+ *   removes the special case entirely. This streak counter is reused as-is
+ *   by "count zero-filled subarrays" and the sliding-window problems.
  *
- * <p>The common bug here is only comparing against {@code maxCount} when a run <em>ends</em>.
- * A trailing run never terminates, so {@code [1,1,0,1,1,1]} would wrongly yield {@code 2}.
- * Comparing on every increment avoids the problem structurally.</p>
+ * COMPLEXITY
+ *   Time  O(n)  one pass
+ *   Space O(1)  two counters
  *
- * <p><b>Complexity</b></p>
- * <ul>
- *   <li>Time: {@code O(n)}, one pass.</li>
- *   <li>Space: {@code O(1)}.</li>
- * </ul>
+ * INTERVIEW FOLLOW-UPS
+ *   - Allowed to flip at most one 0 (LeetCode 487)? Sliding window with a zero budget.
+ *   - Allowed to flip k zeros (LeetCode 1004)? Same window, budget k.
+ *   - Return the start index of the longest run as well as its length.
+ *   - Longest run of any equal value, not just 1s.
  *
- * @see <a href="https://leetcode.com/problems/max-consecutive-ones/description/">LeetCode 485</a>
+ * RUN
+ *   main() runs 6 cases (typical, two runs, trailing run, all ones, all zeros,
+ *   empty) and prints actual vs expected.
  */
+import java.util.Arrays;
+
 class MaxConsecutiveOnes {
 
-    /**
-     * Returns the length of the longest run of consecutive {@code 1}s.
-     *
-     * @param nums a binary array; may be {@code null} or empty
-     * @return the longest run of {@code 1}s, or {@code 0} if there is none
-     */
     public static int findMaxConsecutiveOnes(int[] nums) {
         if (nums == null) {
             return 0;
@@ -51,40 +54,24 @@ class MaxConsecutiveOnes {
         int maxCount = 0;
 
         for (int num : nums) {
-            currentRun = (num == 1) ? currentRun + 1 : 0;
-            maxCount = Math.max(maxCount, currentRun);
+            currentRun = (num == 1) ? currentRun + 1 : 0; // extend or reset the streak
+            maxCount = Math.max(maxCount, currentRun);    // every step, so a trailing run counts
         }
 
         return maxCount;
     }
 
+    private static void check(int[] nums, int expected) {
+        System.out.println(Arrays.toString(nums) + " -> " + findMaxConsecutiveOnes(nums)
+                + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
-        // LeetCode example 1 — the array from the original snippet.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 1, 0, 1, 1, 1}));  // 3
-
-        // LeetCode example 2.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 0, 1, 1, 0, 1}));  // 2
-
-        // Longest run sits at the very end — the classic failure case.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 0, 1, 1, 1}));     // 3
-
-        // Longest run sits at the very start.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 1, 1, 0, 1}));     // 3
-
-        // Entire array is ones.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 1, 1, 1}));        // 4
-
-        // No ones at all.
-        System.out.println(findMaxConsecutiveOnes(new int[]{0, 0, 0}));           // 0
-
-        // Single element, each way.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1}));                 // 1
-        System.out.println(findMaxConsecutiveOnes(new int[]{0}));                 // 0
-
-        // Alternating — no run longer than one.
-        System.out.println(findMaxConsecutiveOnes(new int[]{1, 0, 1, 0, 1}));     // 1
-
-        System.out.println(findMaxConsecutiveOnes(new int[]{}));                  // 0
-        System.out.println(findMaxConsecutiveOnes(null));                   // 0
+        check(new int[]{1, 1, 0, 1, 1, 1}, 3);   // LeetCode example 1
+        check(new int[]{1, 0, 1, 1, 0, 1}, 2);   // LeetCode example 2
+        check(new int[]{1, 0, 1, 1, 1}, 3);      // longest run at the end: the classic bug
+        check(new int[]{1, 1, 1, 1}, 4);         // whole array is one run
+        check(new int[]{0, 0, 0}, 0);            // no ones
+        check(new int[]{}, 0);                   // empty
     }
 }

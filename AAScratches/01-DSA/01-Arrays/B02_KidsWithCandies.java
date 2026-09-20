@@ -1,69 +1,82 @@
+/*
+ * =====================================================================
+ *  Kids With the Greatest Number of Candies              LeetCode 1431 | Easy
+ * =====================================================================
+ *
+ * PROBLEM
+ *   candies[i] is how many candies kid i has; extraCandies is a bonus that could
+ *   be handed to any ONE kid. For each kid answer: if this kid alone received all
+ *   the extra candies, would they have the greatest count in the class (ties count)?
+ *   Return a boolean list of the same length. 1 <= n <= 100, candies[i] >= 1.
+ *
+ * EXAMPLE
+ *   candies = [2, 3, 5, 1, 3], extra = 3  ->  [true, true, true, false, true]
+ *       max is 5; kid 3 has 1 + 3 = 4 < 5, every other kid reaches >= 5
+ *   candies = [4, 2, 1, 1, 2], extra = 1  ->  [true, false, false, false, false]
+ *   candies = [7],             extra = 0  ->  [true]          single kid is the max
+ *   candies = [3, 3, 3],       extra = 0  ->  [true, true, true]   ties count
+ *
+ * APPROACH  (find max, then compare pass)
+ *   1. First pass: scan once to find maxCandies, the current class maximum.
+ *   2. Second pass: for each kid, answer candies[i] + extraCandies >= maxCandies.
+ *   3. The extra candies go to one kid at a time, so the other kids' counts never
+ *      change and the maximum found in step 1 stays valid for every comparison.
+ *
+ * KEY INSIGHT
+ *   The question for each index depends only on one global aggregate (the max).
+ *   Compute the aggregate once, then answer every index in a second pass.
+ *   Pattern to recognise: "for each element, compare against something about the
+ *   whole array" = two passes, never a nested loop.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  two linear scans
+ *   Space O(1)  extra, excluding the output list of n booleans
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Why not an O(n^2) compare-each-kid-to-every-other loop? The max is the only
+ *     value that matters, so precomputing it removes the inner loop.
+ *   - What if the extra candies were split among several kids? The others' counts
+ *     would change and the single precomputed max would no longer be enough.
+ *   - Return a boolean[] instead of List<Boolean> to avoid boxing; same logic.
+ *
+ * RUN
+ *   main() runs 4 cases (typical, LeetCode example 2, single kid, all equal) and
+ *   prints actual vs expected.
+ */
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * <p>Solves <b>Kids With the Greatest Number of Candies</b> (LeetCode #1431).</p>
- *
- * <p>Given an array {@code candies} where {@code candies[i]} is the number of
- * candies the {@code i}-th kid has, and an integer {@code extraCandies}
- * representing extra candies one kid could receive, returns a boolean array
- * {@code result} of the same length where {@code result[i]} is {@code true}
- * if giving the {@code i}-th kid all the {@code extraCandies} would let them
- * have the greatest number of candies among all kids (ties count), or
- * {@code false} otherwise.</p>
- *
- * <p><b>Approach:</b></p>
- * <ul>
- *   <li>First pass: find {@code maxCandies}, the current maximum.</li>
- *   <li>Second pass: for each kid, check if {@code candy + extraCandies >= maxCandies}.</li>
- * </ul>
- *
- * <pre>
- * Input:  candies = [2, 3, 5, 1, 3], extraCandies = 3
- * Output: [true, true, true, false, true]
- * </pre>
- *
- * <p>Time complexity: {@code O(n)}. Space complexity: {@code O(1)} excluding the output list.</p>
- *
- * @see <a href="https://leetcode.com/problems/kids-with-the-greatest-number-of-candies/description">LeetCode 1431</a>
- */
 class KidsWithCandies {
 
-    /**
-     * <p>Determines, for each kid, whether receiving all {@code extraCandies}
-     * would give them the greatest candy count among all kids.</p>
-     *
-     * @param candies      array where {@code candies[i]} is the candies the {@code i}-th kid has
-     * @param extraCandies number of extra candies available to give to one kid at a time
-     * @return a list of booleans where element {@code i} is {@code true} if the
-     * {@code i}-th kid would have the max (or tied max) after receiving {@code extraCandies}
-     */
     public static List<Boolean> kidsWithCandies(int[] candies, int extraCandies) {
-        List<Boolean> result = new ArrayList<>();
-        int maxCandies = 0;
+        // Pass 1: the current maximum. MIN_VALUE seed keeps this correct even if
+        // counts could be zero or negative (LeetCode guarantees >= 1, but be safe).
+        int maxCandies = Integer.MIN_VALUE;
         for (int candy : candies) {
             maxCandies = Math.max(maxCandies, candy);
         }
+
+        // Pass 2: each kid is compared against that fixed maximum (ties count).
+        List<Boolean> result = new ArrayList<>(candies.length);
         for (int candy : candies) {
-            result.add((candy + extraCandies) >= maxCandies);
+            result.add(candy + extraCandies >= maxCandies);
         }
         return result;
     }
 
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
-        int[] candies1 = {2, 3, 5, 1, 3};
-        int extraCandies1 = 3;
-        System.out.println("(Example 1): " + kidsWithCandies(candies1, extraCandies1));
-        // Output: [true, true, true, false, true]
-
-        int[] candies2 = {4, 2, 1, 1, 2};
-        int extraCandies2 = 1;
-        System.out.println("(Example 2): " + kidsWithCandies(candies2, extraCandies2));
-        // Output: [true, false, false, false, false]
-
-        int[] candies3 = {12, 1, 12};
-        int extraCandies3 = 10;
-        System.out.println("(Example 3): " + kidsWithCandies(candies3, extraCandies3));
-        // Output: [true, false, true]
+        print("case 1 typical   ", kidsWithCandies(new int[]{2, 3, 5, 1, 3}, 3),
+                "[true, true, true, false, true]");
+        print("case 2 one winner", kidsWithCandies(new int[]{4, 2, 1, 1, 2}, 1),
+                "[true, false, false, false, false]");
+        print("case 3 single kid", kidsWithCandies(new int[]{7}, 0),
+                "[true]");
+        print("case 4 all equal ", kidsWithCandies(new int[]{3, 3, 3}, 0),
+                "[true, true, true]");
     }
 }

@@ -1,83 +1,115 @@
-/**
- * <h2>Find Cycle Length in a Functional Graph</h2>
+/*
+ * =====================================================================
+ *  Cycle Length in an Array (Functional Graph)      Floyd building block | Medium
+ * =====================================================================
  *
- * <p>Given an array where each element {@code nums[i]} is a valid index into
- * the same array, the array defines a functional graph: from any index you
- * follow {@code i -> nums[i]} to reach the next index. Starting from
- * {@code start} and following this mapping repeatedly, the walk must
- * eventually revisit an index, forming a cycle.</p>
+ * PROBLEM
+ *   nums[i] is itself a valid index into nums, so "i -> nums[i]" is a next-pointer and
+ *   the array is a linked structure (a functional graph). Starting at 'start' and
+ *   following the pointers you must eventually loop. Return the length of that loop
+ *   using O(1) extra space. A self-loop (nums[i] == i) is a cycle of length 1.
  *
- * <p>This method returns the length of that cycle, found via Floyd's
- * tortoise-and-hare algorithm in two phases:</p>
- * <ul>
- *   <li><b>Phase 1</b> — advance {@code slow} by one step and {@code fast}
- *       by two until they meet. The meeting node is guaranteed to lie on
- *       the cycle.</li>
- *   <li><b>Phase 2</b> — hold the meeting node fixed and walk a second
- *       pointer around from it, counting steps until it returns. That count
- *       is the exact cycle length.</li>
- * </ul>
+ * EXAMPLE
+ *   nums = [1, 0],          start 0  ->  2   0 -> 1 -> 0
+ *   nums = [1, 2, 3, 1],    start 0  ->  3   tail 0, cycle 1 -> 2 -> 3 -> 1
+ *   nums = [0, 1, 1, 1],    start 0  ->  1   self-loop at 0
+ *   nums = [1, 2, 3, 4, 3], start 0  ->  2   tail 0 -> 1 -> 2, cycle 3 -> 4 -> 3
+ *   nums = [0],             start 0  ->  1   single element, self-loop
  *
- * <p>Phase 2 is required: the step count at the Phase 1 meeting point is
- * {@code λ * ceil(μ / λ)} (a multiple of the cycle length {@code λ}, where
- * {@code μ} is the tail length), which equals {@code λ} only when
- * {@code μ <= λ}.</p>
+ * APPROACH  (Floyd tortoise and hare, two phases)
+ *   1. Validate: non-empty array, start in range, every element in range. A cycle is
+ *      then guaranteed (finite set of nodes, every node has an out-edge).
+ *   2. Phase 1: slow moves one step (slow = nums[slow]) and fast moves two
+ *      (fast = nums[nums[fast]]) until they land on the same index. That index is
+ *      somewhere on the cycle.
+ *   3. Phase 2: from the meeting index, walk one pointer around until it returns,
+ *      counting steps. That count is the cycle length.
  *
- * <p>A self-loop ({@code nums[i] == i}) is a valid cycle of length 1.
- * Because every element is an in-range index, a cycle always exists, so
- * there is no "no cycle found" case.</p>
+ * KEY INSIGHT
+ *   The Phase 1 meeting point lies on the cycle, but the number of steps taken to get
+ *   there is NOT the cycle length: it is a multiple of it that also depends on the tail
+ *   ([1, 2, 3, 4, 3] meets after 4 steps although the cycle has length 2). So a second,
+ *   separate lap around the cycle is required. Pattern: any "array of indices" or
+ *   "array of values in 1..n" is a linked list in disguise, so Floyd applies with no
+ *   extra memory. C17 (Find the Duplicate) is exactly this machinery plus phase 3.
  *
- * <pre>
- * Examples:
- *   {1, 0}          start 0 -> 2   (0 -> 1 -> 0)
- *   {1, 2, 0}       start 0 -> 3   (0 -> 1 -> 2 -> 0)
- *   {1, 2, 3, 1}    start 0 -> 3   (tail 0, cycle 1 -> 2 -> 3 -> 1)
- *   {0, 1, 1, 1}    start 0 -> 1   (self-loop at 0)
- *   {1, 2, 3, 4, 3} start 0 -> 2   (tail 0..2, cycle 3 -> 4 -> 3)
- * </pre>
+ * COMPLEXITY
+ *   Time  O(mu + lambda)  tail length plus cycle length; the validation scan adds O(n)
+ *   Space O(1)            three index variables
  *
- * <p>Time: {@code O(μ + λ)}.<br>
- * Space: {@code O(1)}.</p>
+ * INTERVIEW FOLLOW-UPS
+ *   - Find the cycle START (mu): reset one pointer to 'start', advance both one step at a
+ *     time until they meet. That is LeetCode 142 and the engine of LeetCode 287 (C17).
+ *   - Why does fast catch slow at all? Inside the cycle the gap shrinks by exactly 1 per step.
+ *   - Values in 1..n instead of 0..n-1: use nums[i] - 1 as the pointer, or start at index 0.
+ *   - Nodes may have no next (nums[i] == -1): stop when fast reaches -1, meaning no cycle.
  *
- * @param nums  array where every element is a valid index into {@code nums}
- * @param start index to begin the walk from
- * @return the length of the cycle reached from {@code start}
- * @throws IllegalArgumentException if the array is null/empty, {@code start}
- *                                  is out of range, or any element is not a valid index
+ * RUN
+ *   main() runs 5 cases (pure cycle, tail + cycle, self-loop, tail longer than cycle,
+ *   single element) and prints actual vs expected.
  */
-private static int findCycleLength(int[] nums, int start) {
-    if (nums == null || nums.length == 0) {
-        throw new IllegalArgumentException("nums must be non-empty");
+
+public class C16_CycleLengthInArray {
+
+    /**
+     * @param nums  array where every element is a valid index into nums
+     * @param start index to begin the walk from
+     * @return the length of the cycle reached from start
+     * @throws IllegalArgumentException if the array is null/empty, start is out of range,
+     *                                  or any element is not a valid index
+     */
+    public static int findCycleLength(int[] nums, int start) {
+        validate(nums, start);
+
+        // Phase 1: find a node guaranteed to be on the cycle.
+        int slow = nums[start];
+        int fast = nums[nums[start]];
+        while (slow != fast) {
+            slow = nums[slow];
+            fast = nums[nums[fast]];
+        }
+
+        // Phase 2: walk the cycle once from the meeting node to measure it.
+        int length = 1;
+        for (int cur = nums[slow]; cur != slow; cur = nums[cur]) {
+            length++;
+        }
+        return length;
     }
-    if (start < 0 || start >= nums.length) {
-        throw new IllegalArgumentException("start out of range: " + start);
-    }
-    for (int v : nums) {
-        if (v < 0 || v >= nums.length) {
-            throw new IllegalArgumentException("not a valid index: " + v);
+
+    /** Every element must be an in-range index; that is what guarantees a cycle exists. */
+    private static void validate(int[] nums, int start) {
+        if (nums == null || nums.length == 0) {
+            throw new IllegalArgumentException("nums must be non-empty");
+        }
+        if (start < 0 || start >= nums.length) {
+            throw new IllegalArgumentException("start out of range: " + start);
+        }
+        for (int v : nums) {
+            if (v < 0 || v >= nums.length) {
+                throw new IllegalArgumentException("not a valid index: " + v);
+            }
         }
     }
 
-    // Phase 1: find a node guaranteed to be on the cycle
-    int slow = nums[start];
-    int fast = nums[nums[start]];
-    while (slow != fast) {
-        slow = nums[slow];
-        fast = nums[nums[fast]];
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
-    // Phase 2: walk the cycle once to measure it
-    int length = 1;
-    for (int cur = nums[slow]; cur != slow; cur = nums[cur]) {
-        length++;
-    }
-    return length;
-}
+    public static void main(String[] args) {
+        // Typical: the whole array is one cycle.
+        print("case 1 pure cycle     ", findCycleLength(new int[]{1, 2, 0}, 0), 3);
 
-void main() {
-    IO.println(findCycleLength(new int[]{1, 0}, 0));          // 2
-    IO.println(findCycleLength(new int[]{1, 2, 0}, 0));       // 3
-    IO.println(findCycleLength(new int[]{1, 2, 3, 1}, 0));    // 3
-    IO.println(findCycleLength(new int[]{0, 1, 1, 1}, 0));    // 1  (was -1)
-    IO.println(findCycleLength(new int[]{1, 2, 3, 4, 3}, 0)); // 2  (was 4)
+        // Typical: a tail of length 1 leading into a 3-cycle.
+        print("case 2 tail + cycle   ", findCycleLength(new int[]{1, 2, 3, 1}, 0), 3);
+
+        // Edge: self-loop at the start node.
+        print("case 3 self-loop      ", findCycleLength(new int[]{0, 1, 1, 1}, 0), 1);
+
+        // Tricky: tail longer than the cycle; phase 1 meets after 4 steps, cycle is 2.
+        print("case 4 long tail      ", findCycleLength(new int[]{1, 2, 3, 4, 3}, 0), 2);
+
+        // Edge: single element must point to itself.
+        print("case 5 single element ", findCycleLength(new int[]{0}, 0), 1);
+    }
 }

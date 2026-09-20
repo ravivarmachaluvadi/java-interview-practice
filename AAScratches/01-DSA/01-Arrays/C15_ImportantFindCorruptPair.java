@@ -1,26 +1,57 @@
+/*
+ * =====================================================================
+ *  Find the Corrupt Pair (Set Mismatch)       LeetCode 645 | Easy   MUST-KNOW
+ * =====================================================================
+ *
+ * PROBLEM
+ *   An array of length n should contain 1..n exactly once, but one value got written
+ *   twice and so one value is missing. Return {missing, duplicated}. Target: O(n) time,
+ *   O(1) extra space. (LeetCode 645 asks for the same pair in the order [dup, missing].)
+ *
+ * EXAMPLE
+ *   nums = [3, 1, 2, 5, 2]           ->  [4, 2]   4 is missing, 2 appears twice
+ *   nums = [1, 1]                    ->  [2, 1]   smallest possible input
+ *   nums = [2, 2]                    ->  [1, 2]   duplicate at the top of the range
+ *   nums = [3, 1, 2, 5, 4, 6, 7, 5]  ->  [8, 5]   the missing value is n itself
+ *
+ * APPROACH 1  (cyclic sort, single mismatch)  -- cyclicSort()
+ *   1. Value v belongs at index v - 1. Walk i: if nums[i] != nums[nums[i] - 1], swap
+ *      nums[i] home and re-check i; otherwise advance i.
+ *   2. After placement exactly one slot is wrong: one copy of the duplicate is home, the
+ *      other copy is stranded in the slot the missing value should own.
+ *   3. Scan for the first j with nums[j] != j + 1: missing = j + 1, duplicate = nums[j].
+ *
+ * APPROACH 2  (XOR partition, input untouched)  -- xorPartition()
+ *   1. XOR every nums[i] and every 1..n together. Values present once cancel, leaving
+ *      xr = missing ^ dup.
+ *   2. bit = xr & -xr isolates the lowest set bit; missing and dup differ at that bit.
+ *   3. XOR the same two streams again, but into two buckets split by that bit. Each
+ *      bucket collapses to one candidate: one is missing, the other is dup.
+ *   4. Count one candidate in nums: two hits means it is the duplicate.
+ *
+ * KEY INSIGHT
+ *   After cyclic sort, a SINGLE wrong index tells you both answers: what is sitting
+ *   there (the extra copy) and what should be (the absent value). That double payoff is
+ *   why cyclic sort is worth memorising for any "values in 1..n" question. The XOR route
+ *   answers "and if you may not modify the input?"; it is LeetCode 260 (Single Number
+ *   III) in disguise, with 1..n acting as the second half of the stream.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  cyclic sort: at most n swaps + one scan; XOR: four linear passes
+ *   Space O(1)  cyclic sort reorders the input in place; XOR needs only a few ints
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Input is read-only? Use xorPartition, or sum / sum-of-squares algebra (watch overflow).
+ *   - Only the duplicate is needed, read-only, O(1) space: Floyd's cycle detection (C17).
+ *   - Several duplicates and several missing: cyclic sort still works; collect every bad slot.
+ *   - Why does the equality guard (not an index guard) stop the swap loop from spinning?
+ *
+ * RUN
+ *   main() runs 4 cases through both methods and prints actual vs expected.
+ */
+
 import java.util.Arrays;
 
-/**
- * Problem: an array should hold {@code 1..n} exactly once, but one value is duplicated
- * and therefore one value is missing. Return the {@code {missing, duplicated}} pair.
- *
- * <p>Approaches:
- * <ul>
- *   <li>{@link #cyclicSort} — swap each value {@code v} to index {@code v-1}; the single
- *       mismatched slot names both numbers. O(n) time, O(1) space, <b>mutates input</b>.</li>
- *   <li>{@link #xorPartition} — XOR all values with {@code 1..n} to get {@code missing ^ dup},
- *       split by the lowest set bit into two groups, XOR each group, then count to tell
- *       which is the duplicate. O(n) time, O(1) space, input untouched.</li>
- * </ul>
- *
- * <pre>
- * Input:  [3, 1, 2, 5, 2]
- * Output: {4, 2}          // 4 is missing, 2 is duplicated
- * </pre>
- *
- * <p>Constraints: {@code 1 <= nums[i] <= n} where {@code n == nums.length}; exactly one
- * value appears twice and exactly one value is absent.
- */
 class FindCorruptPair {
 
     // ---------------------------------------------------------------------------------------
@@ -28,20 +59,11 @@ class FindCorruptPair {
     // ---------------------------------------------------------------------------------------
 
     /**
-     * Each value {@code v} belongs at index {@code v - 1}, so a clean array reads
-     * {@code [1, 2, 3, ...]}. Walk the array and swap values toward their home index until
-     * every slot is settled.
-     *
-     * <p>The swap is skipped when {@code nums[i] == nums[correctIdx]}, covering both
-     * "already in place" and "a duplicate already holds the slot". Without that guard,
-     * two equal values would swap against each other forever. Termination is guaranteed
-     * because each swap parks a value at its final index, capping the run at {@code n}
-     * swaps even though {@code i} does not advance on swap iterations.
-     *
-     * <p>Afterwards exactly one index is wrong: one copy of the duplicate sits at its
-     * correct position, while the other is stranded at the index that belonged to the
-     * missing value. That single mismatch yields both answers — {@code nums[j]} is the
-     * duplicate and {@code j + 1} is the missing number.
+     * Each value v belongs at index v - 1, so a clean array reads [1, 2, 3, ...].
+     * The swap is skipped when nums[i] == nums[correctIdx], which covers both "already in
+     * place" and "a duplicate already holds the slot"; without that guard two equal values
+     * would swap against each other forever. Each swap parks one value at its final index,
+     * so the loop makes at most n swaps even though i does not advance on a swap.
      *
      * <pre>
      * Input:  [3, 1, 2, 5, 2]
@@ -50,7 +72,7 @@ class FindCorruptPair {
      * </pre>
      *
      * @param nums the input array, reordered in place (that is what buys the O(1) space)
-     * @return {@code {missing, duplicated}}
+     * @return {missing, duplicated}
      */
     public static int[] cyclicSort(int[] nums) {
         int n = nums.length;
@@ -88,32 +110,27 @@ class FindCorruptPair {
     /**
      * XOR properties this relies on:
      * <pre>
-     * Self-inverse   a ^ a = 0                   duplicates cancel — the engine of the trick
+     * Self-inverse   a ^ a = 0                   duplicates cancel: the engine of the trick
      * Identity       a ^ 0 = a                   safe accumulator seed
      * Commutative    a ^ b = b ^ a               traversal order is irrelevant
      * Associative    (a ^ b) ^ c = a ^ (b ^ c)   fold an array in one pass
-     * Involution     a ^ b ^ b = a               XOR is its own undo
-     * Complement     a ^ ~0 = ~a                 bitwise NOT via XOR
      * Bit semantics  bit is 1 iff inputs differ  the partitioning insight below
      * </pre>
      *
-     * <p>Step 1: XOR every array value with every value {@code 1..n}. Values present once
-     * cancel with their counterpart, leaving {@code xr = missing ^ dup}.
+     * <p>Step 1: XOR every array value with every value 1..n. Values present once cancel
+     * with their counterpart, leaving xr = missing ^ dup.
      *
-     * <p>Step 2: {@code xr & -xr} isolates the lowest set bit of {@code xr}. Missing and
-     * dup differ at that bit (that is what "set" means), so it splits every number into
-     * a "bit=1" group and a "bit=0" group with missing in one and dup in the other.
-     * Note it is minus {@code -xr}, not tilde {@code ~xr}.
+     * <p>Step 2: xr & -xr isolates the lowest set bit of xr (note: minus, not tilde).
+     * Missing and dup differ at that bit, so it splits every number into a "bit=1" group
+     * and a "bit=0" group with missing in one and dup in the other.
      *
-     * <p>Step 3: XOR each group separately over array values and {@code 1..n}. Each group
-     * collapses to a single number: one is missing, the other is dup, but we do not yet
-     * know which is which.
+     * <p>Step 3: XOR each group separately over array values and 1..n. Each group collapses
+     * to a single number: one is missing, the other is dup, but not yet known which.
      *
-     * <p>Step 4: count how often one candidate appears in the array. Twice means it is the
-     * duplicate.
+     * <p>Step 4: count how often one candidate appears in the array. Twice means duplicate.
      *
      * @param a the input array, not modified
-     * @return {@code {missing, duplicated}}
+     * @return {missing, duplicated}
      */
     public static int[] xorPartition(int[] a) {
         int n = a.length;
@@ -149,30 +166,29 @@ class FindCorruptPair {
 
     // ---------------------------------------------------------------------------------------
 
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
+    }
+
+    /** Runs both approaches on one input; cyclicSort mutates, so it gets a copy. */
+    private static void runCase(String label, int[] nums, String expected) {
+        int[] bySort = cyclicSort(Arrays.copyOf(nums, nums.length));
+        int[] byXor = xorPartition(nums);
+        print(label + " cyclicSort  ", Arrays.toString(bySort), expected);
+        print(label + " xorPartition", Arrays.toString(byXor), expected);
+    }
+
     public static void main(String[] args) {
-        int[][] cases = {
-                {3, 1, 2, 5, 2},
-                {3, 1, 2, 3, 6, 4},
-                {4, 1, 2, 1, 6, 3},
-                {4, 3, 4, 5, 1},
-                {5, 3, 5, 6, 2, 1},
-                {3, 1, 2, 5, 4, 6, 7, 5},
-                {1, 1},              // smallest case
-                {2, 2}               // duplicate at the far end of the range
-        };
+        // Typical: 4 missing, 2 duplicated.
+        runCase("case 1 typical     ", new int[]{3, 1, 2, 5, 2}, "[4, 2]");
 
-        String separator = "-".repeat(60);
-        for (int i = 0; i < cases.length; i++) {
-            String before = Arrays.toString(cases[i]);
+        // Edge: smallest possible input.
+        runCase("case 2 smallest    ", new int[]{1, 1}, "[2, 1]");
 
-            // cyclicSort mutates, so give it a copy; xorPartition reads the original.
-            int[] bySort = cyclicSort(Arrays.copyOf(cases[i], cases[i].length));
-            int[] byXor = xorPartition(cases[i]);
+        // Edge: duplicate at the far end of the range.
+        runCase("case 3 top of range", new int[]{2, 2}, "[1, 2]");
 
-            System.out.printf("%d.\tGiven array: %s%n", i + 1, before);
-            System.out.printf("\tcyclicSort   -> Missing: %d, Duplicated: %d%n", bySort[0], bySort[1]);
-            System.out.printf("\txorPartition -> Missing: %d, Duplicated: %d%n", byXor[0], byXor[1]);
-            System.out.println(separator);
-        }
+        // Tricky: the missing value is n itself, so the wrong slot is the last one.
+        runCase("case 4 missing n   ", new int[]{3, 1, 2, 5, 4, 6, 7, 5}, "[8, 5]");
     }
 }

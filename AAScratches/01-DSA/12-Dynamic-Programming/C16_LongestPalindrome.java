@@ -21,6 +21,13 @@ class LongestPalindrome {
         int center = 0;
         int radius = 0;
         for (int i = 0; i < n; i++) {
+            /**
+             * center: The current center of the palindrome you are examining.
+             *
+             * i: The index on the right side of the center for which you are calculating the mirror position.
+             *
+             * mirror: This is the index on the left side of the center, symmetric to i.
+             */
             int mirror = 2 * center - i;
             if (i < radius) {
                 palindromeLength[i] = Math.min(

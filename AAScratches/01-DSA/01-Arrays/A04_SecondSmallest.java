@@ -1,80 +1,96 @@
+/*
+ * =====================================================================
+ *  Second Smallest Element                                 GfG | Easy
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Given an integer array, return the second smallest DISTINCT value. So
+ *   [1, 1, 2] gives 2, not 1: the duplicate 1 does not count twice. If the
+ *   array has fewer than 2 elements or fewer than 2 distinct values, there is
+ *   no answer and the method throws IllegalArgumentException.
+ *
+ * EXAMPLE
+ *   [4, 2, 2, 1, 1]   ->  2      smallest 1, next distinct value 2
+ *   [0, 1]            ->  1
+ *   [1, 1, 2]         ->  2      duplicate of the smallest is ignored
+ *   [-3, -3, -1, 0]   ->  -1     negatives work the same way
+ *   [5, 5, 5]         ->  throws  only one distinct value
+ *   [0]               ->  throws  too short
+ *
+ * APPROACH  (track two extremes, one pass)
+ *   1. smallest = second = +infinity (long, so any int is below it).
+ *   2. For each num:
+ *        if num < smallest: demote smallest to second, then smallest = num
+ *        else if smallest < num < second: second = num
+ *   3. If second is still +infinity, no second distinct value exists: throw.
+ *
+ * KEY INSIGHT
+ *   Two rules make this work. Order: demote the old smallest BEFORE
+ *   overwriting it, or the previous minimum is lost. Distinctness: the
+ *   num > smallest guard in the else-branch stops a repeat of the minimum
+ *   from being promoted to second place. Using long for the sentinels means
+ *   Integer.MIN_VALUE / MAX_VALUE in the input are handled without a flag.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  single pass
+ *   Space O(1)  two scalars
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Second largest? Mirror the comparisons with -infinity sentinels.
+ *   - k-th smallest distinct? Sort-and-dedupe O(n log n), or a size-k max-heap.
+ *   - Return -1 instead of throwing when there is no answer (GfG style).
+ *   - Why not sort and take index 1? O(n log n) and wrong with duplicates.
+ *
+ * RUN
+ *   main() runs 6 cases (typical with duplicates, two elements, duplicate of
+ *   the minimum, negatives, all equal, single element) and prints actual vs expected.
+ */
 import java.util.Arrays;
 
-/**
- * Finds the second-smallest <strong>distinct</strong> value in an array of integers.
- *
- * <h2>Definition</h2>
- * <p>"Second smallest" here means the second smallest <em>distinct</em> value, not the
- * second element in sorted order. For example, {@code {1, 1, 2}} has second-smallest
- * value {@code 2}, not {@code 1} — the duplicate {@code 1} doesn't count twice.</p>
- *
- * <h2>Approach</h2>
- * <p>Single pass tracking the smallest and second-smallest distinct values seen so far:</p>
- * <ul>
- *   <li>If {@code num} is smaller than the current smallest, the old smallest demotes to
- *       second-smallest and {@code num} becomes the new smallest.</li>
- *   <li>Otherwise, if {@code num} is strictly greater than the current smallest (i.e. not
- *       a duplicate of it) and smaller than the current second-smallest, it becomes the
- *       new second-smallest.</li>
- * </ul>
- * <p>The {@code num > smallest} guard (not just {@code num < secondSmallest}) is what
- * enforces distinctness — without it, a duplicate of the smallest value would incorrectly
- * overwrite second-smallest.</p>
- *
- * <p>Time: {@code O(n)}. Space: {@code O(1)}.</p>
- *
- * <p>Throws {@link IllegalArgumentException} if the array has fewer than 2 elements, or
- * if it has fewer than 2 <em>distinct</em> values (e.g. {@code {5, 5, 5}}) — in either
- * case there is no well-defined second-smallest value.</p>
- */
 class SecondSmallest {
 
-    /**
-     * Returns the second smallest distinct value in {@code nums}.
-     *
-     * @param nums the input array
-     * @return the second smallest distinct value
-     * @throws IllegalArgumentException if {@code nums} has fewer than 2 elements, or
-     *                                  fewer than 2 distinct values
-     */
     public static int secondSmallest(int[] nums) {
         if (nums.length < 2) {
             throw new IllegalArgumentException("Array must contain at least 2 elements");
         }
 
-        long smallest = Long.MAX_VALUE;
+        long smallest = Long.MAX_VALUE;        // long so Integer.MAX_VALUE in input still counts
         long secondSmallest = Long.MAX_VALUE;
 
         for (int num : nums) {
             if (num < smallest) {
-                secondSmallest = smallest;
+                secondSmallest = smallest;     // demote first, then take the new minimum
                 smallest = num;
-            } else if (num > smallest && num < secondSmallest) { // strictly > smallest enforces distinctness
-                secondSmallest = num;
+            } else if (num > smallest && num < secondSmallest) {
+                secondSmallest = num;          // strictly > smallest keeps duplicates out
             }
         }
 
         if (secondSmallest == Long.MAX_VALUE) {
             throw new IllegalArgumentException("Array must contain at least 2 distinct values");
         }
-
         return (int) secondSmallest;
     }
 
-    public static void main(String[] args) {
-        int[] a = {0};              // too short -> throws
-        int[] b = {0, 1};           // normal case -> 1
-        int[] c = {1, 1, 2};        // duplicate of smallest ignored -> 2
-        int[] d = {5, 5, 5};        // no second distinct value -> throws
-        int[] e = {4, 2, 2, 1, 1};  // smallest=1, second distinct smallest=2 -> 2
-        int[] f = {-3, -3, -1, 0};  // negatives -> -1
-
-        for (int[] nums : new int[][]{a, b, c, d, e, f}) {
-            try {
-                System.out.println(Arrays.toString(nums) + " -> " + secondSmallest(nums));
-            } catch (IllegalArgumentException ex) {
-                System.out.println(Arrays.toString(nums) + " -> threw: " + ex.getMessage());
-            }
+    /** Runs the method and turns an exception into the word "throws" so it can be compared. */
+    private static String run(int[] nums) {
+        try {
+            return String.valueOf(secondSmallest(nums));
+        } catch (IllegalArgumentException ex) {
+            return "throws";
         }
+    }
+
+    private static void check(int[] nums, String expected) {
+        System.out.println(Arrays.toString(nums) + " -> " + run(nums) + "   expected " + expected);
+    }
+
+    public static void main(String[] args) {
+        check(new int[]{4, 2, 2, 1, 1}, "2");        // typical, with duplicates
+        check(new int[]{0, 1}, "1");                 // smallest possible valid input
+        check(new int[]{1, 1, 2}, "2");              // duplicate of the minimum is ignored
+        check(new int[]{-3, -3, -1, 0}, "-1");       // negatives
+        check(new int[]{5, 5, 5}, "throws");         // only one distinct value
+        check(new int[]{0}, "throws");               // too short
     }
 }

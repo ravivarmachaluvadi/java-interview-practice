@@ -1,32 +1,61 @@
-/**
- * Problem: Given two integer arrays, return a sorted list of every element that appears in
- *          exactly one of them (the symmetric difference = union minus intersection).
+/*
+ * =====================================================================
+ *  Set Difference of Two Arrays (symmetric difference)      Related: LeetCode 2215 | Easy
+ * =====================================================================
  *
- * Approaches:
- *   1. setDifferenceWithHashSets   - two HashSets, scan each for elements absent from the other,
- *                                    sort the result.            Time O(n + m + k log k), Space O(n + m)
- *   2. setDifferenceWithTwoPointers - sort both arrays, walk them with two pointers, skip equal
- *                                    elements, append leftovers. Time O(n log n + m log m), Space O(n + m)
+ * PROBLEM
+ *   Given two integer arrays, return a sorted list of every distinct value that appears in
+ *   exactly one of them: (nums1 union nums2) minus (nums1 intersect nums2). Values that repeat
+ *   inside one array count once. Arrays may be empty.
  *
- * Related but different problem: LeetCode 2215 "Find the Difference of Two Arrays" returns the two
- * one-sided differences as separate lists ([[nums1-only], [nums2-only]]). See
- * B01_FindTheDifferenceOfTwoArrays in this folder - same HashSet technique, different output shape.
+ * EXAMPLE
+ *   nums1 = [1, 2, 3],    nums2 = [2, 4, 6]  ->  [1, 3, 4, 6]   2 is in both, so it is dropped
+ *   nums1 = [5, 1, 3, 3], nums2 = [3, 9, 5]  ->  [1, 9]         the repeated 3 is still "in both"
+ *   nums1 = [],           nums2 = [7, 7]     ->  [7]            empty side, duplicate deduped
+ *   nums1 = [4, 4],       nums2 = [4]        ->  []             everything cancels
+ *
+ * APPROACH  (two HashSets, then sort)  -- setDifferenceWithHashSets
+ *   1. Pour each array into its own HashSet; this dedupes within an array for free.
+ *   2. Every element of set1 missing from set2 goes to the result; then the mirror scan.
+ *   3. HashSet order is arbitrary, so sort the result list once at the end.
+ *
+ * APPROACH  (sort + two pointers)  -- setDifferenceWithTwoPointers
+ *   1. Sort both arrays. Walk them with pointers i and j.
+ *   2. Equal heads: the value is common, skip it on both sides.
+ *      Smaller head: it has no partner, emit it and advance that side only.
+ *   3. After the walk, emit the leftovers of whichever array remains.
+ *   4. Each time a value is consumed, also skip its in-array repeats so it is counted once.
+ *   Fixed: the original skipped no in-array repeats, so [5,1,3,3] vs [3,9,5] gave [1,3,9].
+ *
+ * KEY INSIGHT
+ *   "In exactly one array" is two one-sided differences glued together (A\B then B\A).
+ *   A Set answers "is x in the other array?" in O(1); the two-pointer walk answers the same
+ *   question with no extra structure because sorted order lines matching values up.
+ *
+ * COMPLEXITY
+ *   HashSets:     Time O(n + m + k log k)  build, scan, sort the k-element result;  Space O(n + m)
+ *   Two pointers: Time O(n log n + m log m) dominated by sorting;  Space O(1) beyond the output
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Return the two one-sided lists separately (LeetCode 2215, see B01 in this folder).
+ *   - Inputs already sorted and huge: two pointers wins because it needs no extra memory.
+ *   - Streams of unknown length: HashSet version works online, two pointers does not.
+ *   - Keep multiplicity (multiset difference): switch the sets for count maps.
+ *
+ * RUN
+ *   main() runs 4 cases through both methods and prints actual vs expected.
  */
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 class SetDifferenceOfTwoArrays {
 
-    /**
-     * Approach 1: HashSets.
-     * - Insert each array's values into separate HashSets to deduplicate.
-     * - For every element in set1 not present in set2, add it to the result.
-     * - Repeat for elements in set2 not present in set1.
-     * - Sort the resulting list before returning (HashSet iteration order is arbitrary).
-     *
-     * Time:  O(n + m) for building sets and scanning, plus O(k log k) to sort the result (k = result size).
-     * Space: O(n + m) for the two HashSets, plus O(k) for the output list.
-     */
-    public List<Integer> setDifferenceWithHashSets(int[] nums1, int[] nums2) {
+    /** Approach 1: two HashSets, one-sided scan each way, sort at the end. */
+    public static List<Integer> setDifferenceWithHashSets(int[] nums1, int[] nums2) {
         Set<Integer> set1 = new HashSet<>();
         Set<Integer> set2 = new HashSet<>();
         for (int num : nums1) set1.add(num);
@@ -39,58 +68,55 @@ class SetDifferenceOfTwoArrays {
         for (int num : set2) {
             if (!set1.contains(num)) result.add(num);
         }
-        Collections.sort(result);
+        Collections.sort(result);   // HashSet iteration order is arbitrary
         return result;
     }
 
-    /**
-     * Approach 2: Sort + two pointers.
-     * - Sort both input arrays (note: sorts the caller's arrays in place).
-     * - Traverse them simultaneously: when the heads are equal, skip both (element is in the
-     *   intersection); otherwise add the smaller head and advance that pointer only.
-     * - Append any remaining elements from either array after traversal.
-     * - Output comes out already sorted, so no final sort is needed.
-     *
-     * Caveat: unlike the HashSet version this does NOT deduplicate values that repeat within a
-     * single array (e.g. nums1 = {5,1,3,3}, nums2 = {3,9,5} yields [1, 3, 9], not [1, 9]).
-     * Fine for distinct-element inputs; otherwise dedupe first or use the HashSet version.
-     *
-     * Time:  O(n log n + m log m) due to sorting (n = nums1.length, m = nums2.length).
-     * Space: O(n + m) for the result list (plus sorting overhead).
-     */
-    public List<Integer> setDifferenceWithTwoPointers(int[] nums1, int[] nums2) {
-        Arrays.sort(nums1);
-        Arrays.sort(nums2);
-        int i = 0, j = 0;
+    /** Approach 2: sort both arrays and merge-walk them, skipping values present on both sides. */
+    public static List<Integer> setDifferenceWithTwoPointers(int[] nums1, int[] nums2) {
+        int[] a = nums1.clone();    // sort copies so the caller's arrays are untouched
+        int[] b = nums2.clone();
+        Arrays.sort(a);
+        Arrays.sort(b);
+
         List<Integer> result = new ArrayList<>();
-        while (i < nums1.length && j < nums2.length) {
-            if (nums1[i] == nums2[j]) {
-                i++;
-                j++;
-            } else if (nums1[i] < nums2[j]) {
-                result.add(nums1[i++]);
+        int i = 0, j = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) {
+                int common = a[i];                 // in both arrays: drop it from both sides
+                i = skipRunOf(a, i, common);
+                j = skipRunOf(b, j, common);
+            } else if (a[i] < b[j]) {
+                result.add(a[i]);                  // only in a
+                i = skipRunOf(a, i, a[i]);
             } else {
-                result.add(nums2[j++]);
+                result.add(b[j]);                  // only in b
+                j = skipRunOf(b, j, b[j]);
             }
         }
-        // Add leftovers
-        while (i < nums1.length) result.add(nums1[i++]);
-        while (j < nums2.length) result.add(nums2[j++]);
+        // Leftovers on one side cannot have a partner; emit each distinct value once.
+        while (i < a.length) { result.add(a[i]); i = skipRunOf(a, i, a[i]); }
+        while (j < b.length) { result.add(b[j]); j = skipRunOf(b, j, b[j]); }
         return result;
+    }
+
+    /** Returns the first index at or after {@code from} whose value differs from {@code value}. */
+    private static int skipRunOf(int[] sorted, int from, int value) {
+        while (from < sorted.length && sorted[from] == value) from++;
+        return from;
+    }
+
+    private static void print(String label, int[] nums1, int[] nums2, String expected) {
+        System.out.println(label + " hashSets    : " + setDifferenceWithHashSets(nums1, nums2)
+                + "   expected " + expected);
+        System.out.println(label + " twoPointers : " + setDifferenceWithTwoPointers(nums1, nums2)
+                + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        SetDifferenceOfTwoArrays solution = new SetDifferenceOfTwoArrays();
-        int[] nums1 = {1, 2, 3};
-        int[] nums2 = {2, 4, 6};
-        // Pass copies to the two-pointer version so its in-place sort cannot affect the other run.
-        System.out.println("HashSets    : " + solution.setDifferenceWithHashSets(nums1, nums2));   // [1, 3, 4, 6]
-        System.out.println("Two pointers: " + solution.setDifferenceWithTwoPointers(nums1.clone(), nums2.clone())); // [1, 3, 4, 6]
-
-        // Second case shows where the two approaches diverge: 3 repeats inside a.
-        int[] a = {5, 1, 3, 3};
-        int[] b = {3, 9, 5};
-        System.out.println("HashSets    : " + solution.setDifferenceWithHashSets(a, b));   // [1, 9]
-        System.out.println("Two pointers: " + solution.setDifferenceWithTwoPointers(a.clone(), b.clone())); // [1, 3, 9]  <- extra 3: in-array duplicate is not deduped (see caveat)
+        print("case 1 (typical)  ", new int[]{1, 2, 3}, new int[]{2, 4, 6}, "[1, 3, 4, 6]");
+        print("case 2 (dup in a) ", new int[]{5, 1, 3, 3}, new int[]{3, 9, 5}, "[1, 9]");
+        print("case 3 (empty a)  ", new int[]{}, new int[]{7, 7}, "[7]");
+        print("case 4 (all same) ", new int[]{4, 4}, new int[]{4}, "[]");
     }
 }
