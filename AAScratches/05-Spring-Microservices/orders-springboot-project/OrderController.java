@@ -1,18 +1,45 @@
-/**
- * Handles CRUD operations for orders via a REST API.
+/*
+ * =====================================================================
+ *  OrderController -- the REST entry point         Spring Boot: orders service
+ * =====================================================================
  *
- * <p>Problem: Persist and retrieve {@link com.target.orders.dto.OrderDTO} objects by ID,
- * returning appropriate HTTP responses and throwing an exception when an order is not found.</p>
+ * ROLE IN THE PROJECT
+ *   The only class in this project a client ever talks to. It exposes two endpoints
+ *   under /v1/api/orders and owns the (in-memory) store that backs them:
  *
- * <p>Approach: Uses an in-memory {@code Map<Integer, OrderDTO>} to store orders.
- * POST requests add or overwrite entries; GET requests fetch by key and wrap the result
- * in a {@link org.springframework.http.ResponseEntity}. If the ID does not exist,
- * an {@link com.target.orders.exception.exceptions.OrderNotFoundException} is thrown.</p>
+ *     POST /v1/api/orders        body = OrderDTO   -> 200 with the saved order
+ *     GET  /v1/api/orders/{id}                     -> 200 with the order, or 404
  *
- * <p>Time Complexity: O(1) for both saveOrder and getOrder due to hash map operations.</p>
+ *   It is deliberately thin. There is no service layer and no repository: the map is
+ *   the database. That keeps the file about the web layer -- routing, binding,
+ *   validation, status codes -- which is what the rest of the project demonstrates.
  *
- * <p>Space Complexity: O(n), where n is the number of stored orders, as each entry
- * occupies a constant amount of space in the map.</p>
+ *   How the three annotations split the work:
+ *     @RestController  = @Controller + @ResponseBody, so returns are serialised to JSON.
+ *     @RequestMapping  puts the shared /v1/api/orders prefix on every method.
+ *     @Valid on the body triggers Bean Validation against OrderDTO's constraints; a
+ *        violation becomes MethodArgumentNotValidException, which GlobalExceptionHandler
+ *        turns into a 400. The controller never checks a field itself.
+ *
+ *   The 404 path is the same idea: getOrder throws OrderNotFoundException and lets the
+ *   advice decide the status. No error handling lives here.
+ *
+ * WHAT TO NOTICE
+ *   - The store is a static HashMap. Static means it is shared by every request and
+ *     survives between tests; HashMap means it is not thread-safe, so two concurrent
+ *     POSTs can corrupt it. ConcurrentHashMap (non-static, injected) is the fix, and
+ *     "why is that map static" is a near-certain interview question.
+ *   - @Validated on the class and @Valid on the parameter are different things. @Valid
+ *     (Jakarta) cascades validation into the request body; @Validated (Spring) enables
+ *     validation groups and method-level constraints on @PathVariable/@RequestParam.
+ *     Here @Validated does nothing useful, because no parameter carries a constraint.
+ *   - The optional @RequestParam "val" is declared and never read. Dead surface area on
+ *     a public API is worse than dead code -- callers may start sending it.
+ *   - Optional.ofNullable(map.get(id)).orElseThrow(...) is the idiomatic shape, but the
+ *     intermediate orderDTO variable makes it read twice. One chained call is clearer.
+ *   - saveOrder overwrites silently on a duplicate id and returns 200. A create should
+ *     return 201 with a Location header, or 409 when the id already exists.
+ *   - ResponseEntity<?> hides the payload type; ResponseEntity<OrderDTO> documents it.
  */
 package com.target.orders.controller;
 
@@ -61,10 +88,10 @@ public class OrderController {
         // Create controller instance
         OrderController controller = new OrderController();
 
-        // Build a simple OrderDTO (assuming it has a no‑arg constructor and setId)
+        // Build a simple OrderDTO (assuming it has a no-arg constructor and setId)
         com.target.orders.dto.OrderDTO order = new com.target.orders.dto.OrderDTO();
         order.setId(1);
-        order.setDescription("Sample order");
+        order.setCustomerName("Sample order");
 
         // Call the primary method to save the order
         ResponseEntity<?> saveResponse = controller.saveOrder(order);
@@ -74,7 +101,7 @@ public class OrderController {
 
         // Print input and outputs
         System.out.println("Input OrderDTO: " + order);
-        System.out.println("Save response body: " + ((ResponseEntity<?>) saveResponse).getBody());
-        System.out.println("Get response body: " + ((ResponseEntity<?>) getResponse).getBody());
+        System.out.println("Save response body: " + saveResponse.getBody());
+        System.out.println("Get response body: " + getResponse.getBody());
     }
 }

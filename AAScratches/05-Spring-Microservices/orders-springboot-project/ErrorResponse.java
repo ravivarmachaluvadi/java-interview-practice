@@ -1,14 +1,36 @@
-/**
- * Represents a standardized error response for REST API endpoints.
+/*
+ * =====================================================================
+ *  ErrorResponse -- the error payload DTO          Spring Boot: orders service
+ * =====================================================================
  *
- * <p>Problem: When an exception occurs in the application, we need to return a consistent
- * JSON payload containing HTTP status, user‑friendly message, detailed errors and request path.
+ * ROLE IN THE PROJECT
+ *   Every failure this service returns is serialised from this one class, so a client
+ *   parses the same four fields whether the cause was a validation failure, a missing
+ *   order, or an unexpected crash. It is the "error contract" of the API.
  *
- * <p>Approach: This immutable data transfer object (DTO) holds all relevant error information
- * and is constructed once per exception. It can be serialized by Spring MVC into the response body.
+ *   Who builds it: GlobalExceptionHandler, and only GlobalExceptionHandler. Controllers
+ *   never construct it; they throw, and the advice turns the throw into this object.
  *
- * <p>Time Complexity: O(1) – construction simply assigns fields.
- * <p>Space Complexity: O(n) – proportional to the number of error strings stored in {@code errors}.
+ *   The four fields and why each earns its place:
+ *     status   - the numeric HTTP status, duplicated in the body so clients that only
+ *                log the body still know what happened.
+ *     message  - one human sentence ("Validation failed", "order not found with id 2").
+ *     errors   - the per-field detail list; empty for failures with no field breakdown.
+ *     path     - the request URI, so a log line identifies the call without correlation.
+ *
+ * WHAT TO NOTICE
+ *   - Lombok @Getter/@Setter generate the accessors. Jackson needs the getters to
+ *     serialise; the setters exist only so tests can deserialise the JSON back.
+ *   - There is no no-arg constructor. Jackson can still write this object out, but it
+ *     cannot read one back in without @JsonCreator or a default constructor. A test that
+ *     does mapper.readValue(body, ErrorResponse.class) will fail for exactly that reason.
+ *   - The class advertises itself as immutable in the original comment yet ships setters
+ *     and stores the caller's List by reference. Real immutability would mean final
+ *     fields, no setters, and List.copyOf(errors) in the constructor.
+ *   - The imported java.time.LocalDateTime is unused. A production error contract almost
+ *     always carries a timestamp; this one declares the import and then forgets the field.
+ *   - Interview angle: this is a hand-rolled version of RFC 7807 / Spring's ProblemDetail.
+ *     Knowing that Spring 6 ships ProblemDetail out of the box is the expected follow-up.
  */
 package com.target.orders.exception.exceptions;
 

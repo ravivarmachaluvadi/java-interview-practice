@@ -1,14 +1,44 @@
-/**
- * Represents a data transfer object for an order.
+/*
+ * =====================================================================
+ *  OrderDTO -- the request/response contract     Spring Boot: orders service
+ * =====================================================================
  *
- * Problem: Validates and encapsulates the core fields of an order (id, customer name,
- * amount, and optional discount) to be used in service layers or API endpoints.
+ * ROLE IN THE PROJECT
+ *   The shape of an order as it crosses the HTTP boundary, in both directions: Jackson
+ *   deserialises the POST body into one of these, and serialises it back out on the
+ *   200 response. It is also the map value inside OrderController, which is why this
+ *   project has no separate entity class -- the DTO is doing both jobs.
  *
- * Approach: Uses Lombok's @Data to generate boilerplate code and Jakarta Bean Validation
- * annotations (@NotBlank, @NotNull, @Positive) to enforce constraints on incoming data.
+ *   Four fields: id, customerName, amount, discount.
  *
- * Time Complexity: O(1) – validation occurs once per field during object creation.
- * Space Complexity: O(1) – only a fixed number of fields are stored in the DTO instance.
+ *   It is also where input validation is declared, not enforced. The annotations are
+ *   just metadata until @Valid on the controller parameter tells Spring to run them:
+ *     @NotBlank on customerName - rejects null, "" and "   " (whitespace only).
+ *     @NotNull + @Positive on amount - rejects a missing amount and any value <= 0.
+ *   A violation never reaches the controller body. Spring raises
+ *   MethodArgumentNotValidException, GlobalExceptionHandler catches it, and the client
+ *   gets a 400 listing "customerName : customer name should be there".
+ *
+ * WHAT TO NOTICE
+ *   - Know which annotation to reach for. @NotNull only rejects null; @NotEmpty rejects
+ *     null and length 0; @NotBlank rejects null, empty and all-whitespace, and applies
+ *     to CharSequence only. Putting @NotBlank on a Double does not compile.
+ *   - id carries no constraint at all, yet OrderController uses it as the map key. A
+ *     body with no id maps to key null and is silently stored. @NotNull belongs here.
+ *   - discount is likewise unconstrained: negative, larger than amount, or 0.1 meaning
+ *     "10%" vs "ten rupees" are all accepted. Unvalidated optional fields are where the
+ *     real bugs hide, not the ones the annotations already cover.
+ *   - Money as Double is wrong for anything that adds up; BigDecimal is the answer an
+ *     interviewer is listening for, and this is the natural place to say so.
+ *   - Fields are package-private, not private. Lombok's @Data still generates the
+ *     getters, setters, equals, hashCode and toString, so nothing breaks -- but the
+ *     encapsulation the getters imply is not actually there.
+ *   - @Data on a mutable object generates equals/hashCode over every field. Put one of
+ *     these in a HashSet, mutate it, and it is lost. Relevant here: the DTO doubles as
+ *     the stored value.
+ *   - The jakarta.validation NotEmpty import is unused. Note the jakarta.* package:
+ *     Spring Boot 3 moved off javax.*, and stale javax imports are a common upgrade
+ *     failure where the annotations compile but are simply never seen by the validator.
  */
 package com.target.orders.dto;
 
@@ -47,7 +77,7 @@ public class OrderDTO {
 
         // For demonstration, let's say we want to calculate final amount after discount
         double finalAmount = order.getAmount() - (order.getDiscount() != null ? order.getDiscount() : 0);
-    
+
         // Print the output result
         System.out.println("\nOutput: Final amount after discount:");
         System.out.printf("%.2f%n", finalAmount);

@@ -1,16 +1,52 @@
-/**
- * Problem: Given n computers (0‑based indices) and a list of undirected connections,
- * determine the minimum number of cable re‑connections required to connect all
- * computers into a single network. If it is impossible, return -1.
+/*
+ * =====================================================================
+ *  Number of Operations to Make Network Connected   LeetCode 1319 | Medium
+ * =====================================================================
  *
- * Approach: Use a Disjoint Set Union (Union‑Find) with path compression and
- * union by rank to group connected components. Count the number of distinct
- * components; at least (components - 1) extra cables are needed to connect them.
+ * PROBLEM
+ *   n computers are numbered 0..n-1 and joined by a list of undirected cables.
+ *   In one operation you may unplug any cable and re-plug it between any two
+ *   computers. Return the minimum number of operations that leaves every
+ *   computer in one single network, or -1 if that is impossible.
  *
- * Complexity:
- *   Time   O(n + m α(n))  where m is the number of edges and α is the inverse Ackermann function.
- *   Space  O(n)
+ * EXAMPLE
+ *   n = 4, edges = [[0,1],[0,2],[1,2]]                 ->  1   move the spare 1-2
+ *   n = 6, edges = [[0,1],[0,2],[0,3],[1,2],[1,3]]     ->  2   3 groups, 2 spares
+ *   n = 4, edges = [[0,1],[1,2]]                       -> -1   only 2 cables
+ *   n = 1, edges = []                                  ->  0   already connected
+ *
+ * APPROACH  (Disjoint Set Union, then count components)
+ *   1. Connecting n computers needs at least n-1 cables. If edges.length < n-1
+ *      no amount of rewiring can help, so return -1 immediately.
+ *   2. Otherwise you have enough cable. Union the two endpoints of every edge
+ *      with a DSU that uses path compression and union by rank.
+ *   3. Count the components: a node is the representative of its own component
+ *      exactly when parent[i] == i.
+ *   4. Joining c components into one takes c-1 cables, and step 1 already proved
+ *      that many spare cables exist. Return c - 1.
+ *
+ * KEY INSIGHT
+ *   You never have to work out WHICH cable to move. Once the total cable count
+ *   clears the n-1 bar, every redundant edge inside a component is free to
+ *   reuse, so the answer collapses to (components - 1). Counting components is
+ *   the whole problem, and DSU counts them in one pass without any traversal.
+ *   Remember the pairing: "is it connectable" is a cable-count check, "how many
+ *   moves" is a component count.
+ *
+ * COMPLEXITY
+ *   Time  O(n + m * alpha(n))  m unions, each near-constant after compression.
+ *   Space O(n)                 parent, rank and size arrays.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Return the actual cables to move, not just how many.
+ *   - Cables arrive one at a time: answer after each arrival (DSU streams well).
+ *   - Why DSU over BFS/DFS here, and when would BFS be the better answer?
+ *   - What changes if cables are directed (strong connectivity, not DSU)?
+ *
+ * RUN
+ *   main() runs 4 cases: typical, multi-component, impossible, single node.
  */
+
 import java.util.*;
 
 class DisjointSet {
@@ -26,12 +62,14 @@ class DisjointSet {
         }
     }
 
+    /** Ultimate parent, flattening the chain on the way back up (path compression). */
     int findUPar(int node) {
         if (node == parent[node])
             return node;
         return parent[node] = findUPar(parent[node]);
     }
 
+    // Attach the shallower tree under the deeper one, so depth grows slowly
     void unionByRank(int u, int v) {
         int ulp_u = findUPar(u);
         int ulp_v = findUPar(v);
@@ -42,11 +80,11 @@ class DisjointSet {
             parent[ulp_v] = ulp_u;
         } else {
             parent[ulp_v] = ulp_u;
-            rank[ulp_u]++;
+            rank[ulp_u]++;   // only a tie can increase the rank
         }
     }
 
-    // Function to implement union by size
+    // Sibling strategy: attach the smaller set under the larger one
     void unionBySize(int u, int v) {
         int ulp_u = findUPar(u);
         int ulp_v = findUPar(v);
@@ -61,41 +99,48 @@ class DisjointSet {
     }
 }
 
-// Solution class
 class NumberOfOperationsToMakeNetworkConnected {
 
-    public int solve(int n, int[][] Edge) {
-        int size = Edge.length;
-        /* Return -1 if connecting all 
-        vertices is not possible */
-        if (size < n - 1) return -1;
+    public int solve(int n, int[][] edges) {
+        int cableCount = edges.length;
+
+        // n nodes need n-1 cables at minimum; fewer than that is hopeless
+        if (cableCount < n - 1) return -1;
+
         DisjointSet ds = new DisjointSet(n);
-
-        // Add all the edges in the set
-        for (int i = 0; i < size; i++) {
-            ds.unionByRank(Edge[i][0], Edge[i][1]);
+        for (int[] edge : edges) {
+            ds.unionByRank(edge[0], edge[1]);
         }
-        // number of components
-        int count = 0;
-        for (int i = 0; i < n; i++)
-            if (ds.parent[i] == i) count++;
 
-        // Return the result
-        return count - 1;
+        // a node that is still its own parent represents one component
+        int components = 0;
+        for (int i = 0; i < n; i++) {
+            if (ds.parent[i] == i) components++;
+        }
+
+        // c components are stitched together by c-1 rewirings
+        return components - 1;
+    }
+
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        int n = 4;
-        int[][] Edge = {
-                {0, 1},
-                {0, 2},
-                {1, 2}
-        };
-
         NumberOfOperationsToMakeNetworkConnected sol =
                 new NumberOfOperationsToMakeNetworkConnected();
-        int ans = sol.solve(n, Edge);
 
-        System.out.println("The number of operations to make network connected is: " + ans);
+        int[][] e1 = {{0, 1}, {0, 2}, {1, 2}};
+        print("case 1 one spare cable ", sol.solve(4, e1), 1);
+
+        int[][] e2 = {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}};
+        print("case 2 three groups    ", sol.solve(6, e2), 2);
+
+        // edge: 2 cables cannot ever span 4 computers
+        int[][] e3 = {{0, 1}, {1, 2}};
+        print("case 3 not enough cable", sol.solve(4, e3), -1);
+
+        // edge: a lone computer is already a connected network
+        print("case 4 single computer ", sol.solve(1, new int[0][0]), 0);
     }
 }

@@ -1,85 +1,135 @@
+/*
+ * =====================================================================
+ *  Producer-Consumer on a shared queue        Java Core | Concurrency | Medium
+ * =====================================================================
+ *
+ * PROBLEM
+ *   One producer pushes items into a queue shared with one consumer. The consumer must
+ *   never poll an empty queue and the producer must never exceed the buffer capacity.
+ *   Coordinate them with one monitor: synchronized + wait() + notifyAll(). Both threads
+ *   must finish after exactly ITEMS items, with items consumed in FIFO order.
+ *
+ * TWO VERSIONS, RUN SIDE BY SIDE
+ *   1. NaiveIfGuard      - guards wait() with `if`, has no explicit capacity, and sleeps
+ *                          while holding the monitor. This is WHAT NOT TO DO.
+ *   2. CorrectWhileGuard - guards wait() with `while`, bounds the queue with CAPACITY,
+ *                          and sleeps after the state change. This is the answer to give.
+ *
+ * APPROACH  (monitor + condition loop)
+ *   1. Every read or write of the queue happens while holding the same monitor (`this`).
+ *   2. Producer: while (queue.size() == CAPACITY) wait();  then add, then notifyAll().
+ *   3. Consumer: while (queue.isEmpty())        wait();  then poll, then notifyAll().
+ *   4. Each thread has its own counter (val, consumed) so both loops terminate.
+ *
+ * KEY INSIGHT
+ *   wait() must always sit inside a `while` that re-tests the condition, never an `if`.
+ *   Waking up is not a promise that the condition now holds: a wakeup can be spurious,
+ *   and with several waiters notifyAll wakes everyone though only one can proceed. With
+ *   `if`, the woken thread acts on a stale assumption - adds to a full queue, or polls an
+ *   empty one and gets null. "wait in a loop, signal after the state change" is the whole
+ *   monitor pattern.
+ *
+ * COMPLEXITY
+ *   Time  O(n)          n items, each enqueue/dequeue is O(1); the sleeps are demo pacing
+ *   Space O(CAPACITY)   the bounded buffer (the naive version is an implicit 1-slot buffer)
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Why notifyAll() and not notify()? (with mixed waiters, notify can wake the wrong
+ *     kind of thread and the queue stalls with work available)
+ *   - Rewrite with ReentrantLock and two Conditions: now notify exactly the right side.
+ *   - Rewrite with ArrayBlockingQueue.put/take: how much of this disappears?
+ *   - How do you shut it down cleanly with N producers and M consumers? (poison pills)
+ *
+ * RUN
+ *   main() runs both versions and prints the consumed sequence vs the expected sequence,
+ *   plus an edge case with ITEMS = 1. Finishes in under 2 seconds.
+ */
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
-/**
- * Problem: Producer-consumer on a shared queue using one monitor (synchronized / wait / notifyAll).
- * Approaches:
- *   1. naiveIfGuard      - guards wait() with `if`, implicit 1-slot buffer, sleeps while holding the lock. WHAT NOT TO DO.
- *   2. correctWhileGuard - guards wait() with `while`, explicit CAPACITY bound, sleeps after notifyAll. The interview answer.
- *
- * Why the `while` guard matters (from the corrected version):
- *   - Spurious wakeups: a thread can return from wait() even if nobody called notify.
- *   - Multiple producers/consumers: notifyAll wakes everyone, but the condition may only hold for one of them.
- *   With `if`, a woken thread acts without re-checking -> add to a full queue / poll from an empty one.
- *
- * Time Complexity: O(n) for n produced/consumed items (each queue op is O(1)).
- * Space Complexity: O(CAPACITY) for the bounded buffer; O(1) for the naive 1-slot version.
- */
 class ProducerConsumer {
 
-    /** Items each demo produces and consumes, so the run terminates (the originals looped forever). */
-    static final int ITEMS = 5;
-    static final int SLEEP_MS = 50;
+    /** Bounded so the demo terminates; the original versions looped forever. */
+    static final int SLEEP_MS = 20;
 
     public static void main(String[] args) throws InterruptedException {
-        System.out.println("=== Approach 1: naive `if` guard (what NOT to do) ===");
-        new NaiveIfGuard().run();
+        System.out.println("=== Approach 1: naive `if` guard (what NOT to do), 5 items ===");
+        print("case 1", new NaiveIfGuard(5).run(), "[0, 1, 2, 3, 4]");
 
         System.out.println();
-        System.out.println("=== Approach 2: correct `while` guard, CAPACITY=" + CorrectWhileGuard.CAPACITY + " ===");
-        new CorrectWhileGuard().run();
+        System.out.println("=== Approach 2: correct `while` guard, CAPACITY=2, 5 items ===");
+        print("case 2", new CorrectWhileGuard(5).run(), "[0, 1, 2, 3, 4]");
+
+        System.out.println();
+        System.out.println("=== Edge case: a single item, so one side always waits first ===");
+        print("case 3", new CorrectWhileGuard(1).run(), "[0]");
+    }
+
+    static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
     // ---------------------------------------------------------------------
-    // Approach 1: naive version. Works for exactly one producer + one consumer
-    // by luck, but has three interview-relevant mistakes (marked BUG below).
+    // Approach 1: naive version. Happens to work for exactly one producer and
+    // one consumer, but has three interview-relevant mistakes (marked BUG).
     // ---------------------------------------------------------------------
     static class NaiveIfGuard {
-        Queue<Integer> queue = new LinkedList<>();
+        final Queue<Integer> queue = new LinkedList<>();
+        final List<Integer> consumedItems = new ArrayList<>();
+        final int items;
         int val = 0;
         int consumed = 0;
 
-        void run() throws InterruptedException {
+        NaiveIfGuard(int items) {
+            this.items = items;
+        }
+
+        List<Integer> run() throws InterruptedException {
             Thread producer = new Thread(this::producer, "naive-producer");
             Thread consumer = new Thread(this::consumer, "naive-consumer");
             producer.start();
             consumer.start();
             producer.join();
             consumer.join();
+            return consumedItems;           // safe to read: both threads have finished
         }
 
         synchronized void producer() {
-            while (val < ITEMS) {
-                if (queue.isEmpty()) {          // BUG 1: `if` -> not re-checked after a spurious/irrelevant wakeup
-                    int e = val++;              // BUG 2: no CAPACITY; "isEmpty" makes it an implicit 1-slot buffer
-                    System.out.println("Produced : " + e);
-                    sleep();                    // BUG 3: sleeping INSIDE the monitor blocks the consumer for no reason
-                    queue.add(e);
+            while (val < items) {
+                if (queue.isEmpty()) {      // BUG 1: `if` -> not re-tested after a wakeup
+                    int e = val++;          // BUG 2: no CAPACITY; "isEmpty" makes it 1 slot
+                    System.out.println("  Produced : " + e);
+                    sleep();                // BUG 3: sleeping INSIDE the monitor blocks the
+                    queue.add(e);           //        consumer for no reason at all
                     notifyAll();
                 } else {
-                    try {
-                        wait();                 // original comment: "wait also should be inside while loop"
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+                    await();
                 }
             }
         }
 
         synchronized void consumer() {
-            while (consumed < ITEMS) {
-                if (!queue.isEmpty()) {         // BUG 1 again
-                    System.out.println("Consumed : " + queue.poll());
+            while (consumed < items) {
+                if (!queue.isEmpty()) {     // BUG 1 again
+                    int item = queue.poll();
+                    consumedItems.add(item);
                     consumed++;
-                    sleep();                    // BUG 3 again
+                    System.out.println("  Consumed : " + item);
+                    sleep();                // BUG 3 again
                     notifyAll();
                 } else {
-                    try {
-                        wait();
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+                    await();
                 }
+            }
+        }
+
+        private void await() {
+            try {
+                wait();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
             }
         }
     }
@@ -88,60 +138,70 @@ class ProducerConsumer {
     // Approach 2: corrected version. Fixes all three bugs above.
     // ---------------------------------------------------------------------
     static class CorrectWhileGuard {
-        static final int CAPACITY = 5;
+        static final int CAPACITY = 2;
 
-        Queue<Integer> queue = new LinkedList<>();
+        final Queue<Integer> queue = new LinkedList<>();
+        final List<Integer> consumedItems = new ArrayList<>();
+        final int items;
         int val = 0;
         int consumed = 0;
 
-        void run() throws InterruptedException {
+        CorrectWhileGuard(int items) {
+            this.items = items;
+        }
+
+        List<Integer> run() throws InterruptedException {
             Thread producer = new Thread(this::producer, "correct-producer");
             Thread consumer = new Thread(this::consumer, "correct-consumer");
             producer.start();
             consumer.start();
             producer.join();
             consumer.join();
+            return consumedItems;
         }
 
         synchronized void producer() {
-            while (val < ITEMS) {
-                while (queue.size() == CAPACITY) { // FIX 1+2: `while` guard on an explicit bound; re-check after every wakeup
-                    try {
-                        wait();
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+            while (val < items) {
+                // FIX 1 + 2: `while` guard on an explicit bound; re-tested after every wakeup.
+                while (queue.size() == CAPACITY) {
+                    await();
                 }
                 int e = val++;
                 queue.add(e);
-                System.out.println("Produced : " + e);
+                System.out.println("  Produced : " + e);
                 notifyAll();
-                sleep();                            // FIX 3: sleep AFTER the state change + notifyAll, not before
+                sleep();                    // FIX 3: pace AFTER the state change + notifyAll
             }
         }
 
         synchronized void consumer() {
-            while (consumed < ITEMS) {
-                while (queue.isEmpty()) {           // wait if empty; re-check on wakeup
-                    try {
-                        wait();
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+            while (consumed < items) {
+                while (queue.isEmpty()) {   // wait if empty; re-tested on every wakeup
+                    await();
                 }
                 int item = queue.poll();
+                consumedItems.add(item);
                 consumed++;
-                System.out.println("Consumed : " + item);
+                System.out.println("  Consumed : " + item);
                 notifyAll();
                 sleep();
             }
         }
+
+        private void await() {
+            try {
+                wait();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
     }
 
-    // NOTE: even the corrected version still sleeps while holding `this` because the whole method is
-    // synchronized. Production code would use a synchronized block around only the queue ops, or a
-    // BlockingQueue (ArrayBlockingQueue.put/take) which does all of this for you.
+    // NOTE: even the corrected version still sleeps while holding `this`, because the whole
+    // method is synchronized. Production code would synchronize only the queue operations,
+    // or use ArrayBlockingQueue.put/take, which does all of this for you.
 
+    /** Pacing only, so the interleaving is visible in the output. */
     static void sleep() {
         try {
             Thread.sleep(SLEEP_MS);

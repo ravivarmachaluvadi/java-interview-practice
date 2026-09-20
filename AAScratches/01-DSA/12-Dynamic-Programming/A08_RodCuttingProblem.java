@@ -1,26 +1,60 @@
+/*
+ * =====================================================================
+ *  Rod Cutting Problem                                   Classic DP | Medium
+ * =====================================================================
+ *
+ * PROBLEM
+ *   A rod of length N can be cut into integer-length pieces. price[i] is what a piece of
+ *   length i+1 sells for, so price has exactly N entries. Return the maximum total revenue
+ *   obtainable. A piece length may be cut out any number of times (supply is unlimited).
+ *
+ * EXAMPLE
+ *   price = [1, 5, 8, 9, 10, 17, 17, 20], n = 8  ->  22   because 2 + 6 sells for 5 + 17
+ *   price = [2, 4, 6, 8], n = 4                  ->  8    every split ties at 8
+ *   price = [5], n = 1                           ->  5    edge case: one unit of rod
+ *
+ * APPROACH  (unbounded knapsack: take / not-take, with reuse)
+ *   1. State is (ind, len): piece lengths 1..ind+1 are available, len of rod is still uncut.
+ *   2. NOT TAKE  -> move to ind - 1 with the same len; this piece length is never used again.
+ *   3. TAKE      -> only if (ind + 1) <= len. Add price[ind] and recurse on the SAME ind with
+ *      len - (ind + 1). Staying on ind is the whole difference from 0/1 knapsack.
+ *   4. Base case ind == 0: only unit pieces remain, so revenue is price[0] * len.
+ *   5. Cache every (ind, len) in dp, so each state is computed once.
+ *   bruteForce() is the same search with no cache, kept to show what memoisation buys.
+ *
+ * KEY INSIGHT
+ *   0/1 knapsack and unbounded knapsack share one skeleton; the only edit is the index in the
+ *   TAKE branch. Move to ind - 1 and each item is used at most once; stay on ind and it can be
+ *   reused. Recognise "pieces/coins may repeat" and reach for exactly this template.
+ *
+ * COMPLEXITY
+ *   Time  O(N^2)   N piece lengths x N rod lengths, each state solved once
+ *   Space O(N^2)   the dp table, plus O(N) recursion stack
+ *   bruteForce is exponential: it re-derives the same (ind, len) on every path.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Print the actual cut list, not just the revenue (store the winning choice per state).
+ *   - Convert to bottom-up tabulation, then to a single 1-D array of size n + 1.
+ *   - Coin Change / Coin Change II are this recurrence with min and sum in place of max.
+ *   - Add a fixed cost per cut, or cap how many times each length may be used.
+ *
+ * RUN
+ *   main() runs 4 cases (classic CLRS, all-ties, unit-price-heavy, single unit) and prints
+ *   both approaches against the expected revenue.
+ */
+
 import java.util.Arrays;
 
-/**
- * Problem: Given a rod of length N and price[] where price[i] is the selling price of a piece of
- * length i+1, find the maximum revenue obtainable by cutting the rod into integer-length pieces.
- * (Each piece length may be used any number of times - this is unbounded knapsack in disguise.)
- *
- * Approaches:
- * 1) bruteForce   - exhaustive recursion: at each length either skip it or cut it (and stay on the
- *                   same length so it can be reused); track the best profit in a field. O(2^N) time.
- * 2) memoization  - take / not-take recursion on (index, remainingLength) cached in a 2-D dp table.
- *                   O(N * N) states, each O(1) -> O(N^2) time, O(N^2) space + O(N) stack.
- */
 class RodCuttingProblem {
 
-    // ---------------------------------------------------------------------------------------------
-    // Approach 1: brute force recursion (no caching)
-    // ---------------------------------------------------------------------------------------------
-    int maxProfit = -1;
+    // ---------------------------------------------------------------------------------------
+    // Approach 1: brute force recursion, no caching. Shown only as the "before" picture.
+    // ---------------------------------------------------------------------------------------
+    private int maxProfit = -1;
 
     public int bruteForce(int[] price, int n) {
         maxProfit = -1;
-        bruteForceProfit(price, 0, n, 1); // start with piece length 1
+        bruteForceProfit(price, 0, n, 1); // start by considering piece length 1
         return maxProfit;
     }
 
@@ -37,7 +71,7 @@ class RodCuttingProblem {
         if (index > price.length || n < 0)  // ran out of piece lengths, or over-cut
             return;
 
-        // choice 1: skip this piece length, move to the next one
+        // choice 1: skip this piece length for good, move to the next one
         bruteForceProfit(price, profit, n, index + 1);
 
         // choice 2: cut a piece of this length (if it fits) and stay on the same index -> reusable
@@ -45,17 +79,20 @@ class RodCuttingProblem {
             bruteForceProfit(price, profit + price[index - 1], n - index, index);
     }
 
-    // ---------------------------------------------------------------------------------------------
-    // Approach 2: take / not-take recursion with memoization (unbounded knapsack pattern)
-    // ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
+    // Approach 2: same take / not-take recursion with memoization (unbounded knapsack pattern)
+    // ---------------------------------------------------------------------------------------
     public int memoization(int[] price, int n) {
-        // dp[ind][len] = best revenue using piece lengths 1..ind+1 for a rod of length len;
-        // -1 marks an uncalculated state
-        int[][] dp = new int[n][n + 1];
+        // Guard: memo() indexes price[0], so an empty rod has no state to solve.
+        if (n == 0 || price.length == 0) return 0;
+
+        // dp[ind][len] = best revenue using piece lengths 1..ind+1 on a rod of length len;
+        // -1 marks an uncalculated state.
+        int[][] dp = new int[price.length][n + 1];
         for (int[] row : dp)
             Arrays.fill(row, -1);
 
-        return memo(n - 1, n, price, dp);
+        return memo(price.length - 1, n, price, dp);
     }
 
     private int memo(int ind, int n, int[] price, int[][] dp) {
@@ -66,30 +103,37 @@ class RodCuttingProblem {
 
         int notTaken = memo(ind - 1, n, price, dp);
 
-        int rodLength = ind + 1;           // piece length represented by this index
+        int pieceLength = ind + 1;         // piece length represented by this index
         int taken = Integer.MIN_VALUE;     // impossible unless the piece fits
-        if (rodLength <= n)
+        if (pieceLength <= n)
             // stay on the same ind: the same piece length may be cut again (unbounded)
-            taken = price[ind] + memo(ind, n - rodLength, price, dp);
+            taken = price[ind] + memo(ind, n - pieceLength, price, dp);
 
         dp[ind][n] = Math.max(notTaken, taken);
         return dp[ind][n];
     }
 
-    // ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------
+    private static void print(String label, int actual, int expected) {
+        System.out.println(label + " -> " + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
         int[][] prices = {
-                {2, 4, 6, 8},                  // expected 8  (four length-1 pieces, or any combo)
-                {1, 5, 8, 9, 10, 17, 17, 20},  // classic CLRS example, expected 22 (2 + 6)
-                {3, 5, 8, 9, 10, 17, 17, 20}   // expected 24 (eight length-1 pieces)
+                {2, 4, 6, 8},                  // every split ties
+                {1, 5, 8, 9, 10, 17, 17, 20},  // classic CLRS example: 2 + 6
+                {3, 5, 8, 9, 10, 17, 17, 20},  // unit pieces dominate
+                {5}                            // edge case: rod of length 1
         };
+        int[] expected = {8, 22, 24, 5};
 
         RodCuttingProblem sol = new RodCuttingProblem();
-        for (int[] price : prices) {
+        for (int c = 0; c < prices.length; c++) {
+            int[] price = prices[c];
             int n = price.length;
-            System.out.println("price = " + Arrays.toString(price) + ", n = " + n);
-            System.out.println("  bruteForce  : " + sol.bruteForce(price, n));
-            System.out.println("  memoization : " + sol.memoization(price, n));
+            System.out.println("case " + (c + 1) + ": price = " + Arrays.toString(price) + ", n = " + n);
+            print("  bruteForce ", sol.bruteForce(price, n), expected[c]);
+            print("  memoization", sol.memoization(price, n), expected[c]);
         }
     }
 }

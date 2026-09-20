@@ -1,41 +1,89 @@
+/*
+ * =====================================================================
+ *  Minimum Number of Taps to Open to Water a Garden   LeetCode 1326 | Hard
+ * =====================================================================
+ *
+ * PROBLEM
+ *   A garden is the segment [0, n] on a line. Tap i sits at point i and waters
+ *   the closed interval [i - ranges[i], i + ranges[i]] (a range of 0 waters
+ *   nothing). Return the minimum number of taps to open so every point of
+ *   [0, n] is watered, or -1 if the whole garden cannot be covered.
+ *
+ * EXAMPLE
+ *   n = 5, ranges = [3,4,1,1,0,0]  ->  1   tap 1 alone covers [-3,5] -> [0,5]
+ *   n = 3, ranges = [0,0,0,0]      ->  -1  every tap waters nothing
+ *   n = 8, ranges = [4,0,0,0,0,0,0,0,4] -> 2  tap 0 covers [0,4], tap 8 [4,8]
+ *   n = 1, ranges = [1,0]          ->  1   tap 0 covers [0,1] on its own
+ *
+ * APPROACH  (interval covering reduced to Jump Game II)
+ *   1. Collapse the taps into a jump array. For each tap i compute
+ *      left = max(0, i - ranges[i]) and right = min(n, i + ranges[i]), then
+ *      maxReachFrom[left] = max(maxReachFrom[left], right). Overlapping taps
+ *      that start at the same point keep only the one that reaches furthest -
+ *      a shorter one is never useful.
+ *   2. Now run Jump Game II verbatim over positions 0..n-1:
+ *      farthest = max(farthest, maxReachFrom[i]) is the best right edge of any
+ *      tap whose interval has already started by i.
+ *   3. If farthest <= i the water stops at i and nothing extends past it, so the
+ *      garden is uncoverable: return -1.
+ *   4. When i reaches currentEnd, the current tap's coverage is used up: open
+ *      one more tap (tapsOpened++) and set currentEnd = farthest.
+ *
+ * KEY INSIGHT
+ *   The reduction is the whole problem. Once every tap is rewritten as "standing
+ *   at position left, I can jump to right", covering [0, n] with fewest taps IS
+ *   reaching index n in fewest jumps. Keeping only the furthest reach per left
+ *   endpoint is safe because two intervals with the same start are comparable -
+ *   the shorter is strictly dominated.
+ *   Pattern to recognise: minimum intervals to cover a segment -> bucket by left
+ *   endpoint, then layered frontier. Video Stitching is the identical problem.
+ *   Note we iterate i < n, not i <= n: reaching n ends the job, it is not a
+ *   position you need to jump out of.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  one pass to build maxReachFrom, one pass to sweep it
+ *   Space O(n)  the maxReachFrom array
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Same problem stated as intervals with arbitrary endpoints (Video Stitching).
+ *   - The DP alternative: dp[j] = min taps to cover [0, j]; why is it O(n^2)?
+ *   - What if taps had costs and you wanted minimum total cost, not count?
+ *   - Why is the "furthest reach per left endpoint" pruning lossless?
+ *
+ * RUN
+ *   main() runs 4 cases (typical, impossible, chained taps, smallest garden) and
+ *   prints actual vs expected.
+ */
+
 import java.util.Arrays;
 
-// https://leetcode.com/problems/minimum-number-of-taps-to-open-to-water-a-garden/description/
-// 1326. Minimum Number of Taps to Open to Water a Garden
 class MinimumNumberOfTapsToOpenToWaterAGarden {
+
     /**
-     * Returns the minimum number of taps that should be opened to water the garden from 0 to n.
-     * If impossible, returns -1.
+     * Minimum taps to water all of [0, n], or -1 when it cannot be covered.
      */
     public int minTaps(int n, int[] ranges) {
-        // For each starting point l (0 ≤ l ≤ n), we
-        // want to compute the farthest right reach
-        // of any tap whose left reach is exactly l.
+        // maxReachFrom[l] = furthest right edge among taps whose interval starts at l.
         int[] maxReachFrom = new int[n + 1];
 
         for (int i = 0; i <= n; i++) {
-            int r = ranges[i];
-            int left = Math.max(0, i - r);
-            int right = Math.min(n, i + r);
-            // From starting at position `left`, we can reach `right`
+            int left = Math.max(0, i - ranges[i]);
+            int right = Math.min(n, i + ranges[i]);
             maxReachFrom[left] = Math.max(maxReachFrom[left], right);
         }
 
         int tapsOpened = 0;
-        // the end of the current coverage
-        int currentEnd = 0;
-        // the farthest we can reach so far
-        int farthest = 0;
+        int currentEnd = 0;   // right edge of the coverage already paid for
+        int farthest = 0;     // best right edge reachable from anything seen so far
 
-        // We only need to iterate positions from 0 to n-1 (if we can cover up to n)
+        // Position n itself needs no tap to jump out of - arriving there is the goal.
         for (int i = 0; i < n; i++) {
-            // Update the farthest reachable point from among all taps that start at or before i
             farthest = Math.max(farthest, maxReachFrom[i]);
-            // If we cannot extend coverage beyond i, then impossible
+
+            // Nothing seen so far waters past i, so point i (or just after) stays dry.
             if (farthest <= i) {
                 return -1;
             }
-            // If we've reached the end of current coverage segment, we need to open a new tap
             if (i == currentEnd) {
                 tapsOpened++;
                 currentEnd = farthest;
@@ -44,25 +92,28 @@ class MinimumNumberOfTapsToOpenToWaterAGarden {
         return tapsOpened;
     }
 
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
-        MinimumNumberOfTapsToOpenToWaterAGarden sol = new MinimumNumberOfTapsToOpenToWaterAGarden();
+        MinimumNumberOfTapsToOpenToWaterAGarden sol =
+                new MinimumNumberOfTapsToOpenToWaterAGarden();
 
-        // Example 1:
-        int n1 = 5;
-        int[] ranges1 = {3, 4, 1, 1, 0, 0};
-        System.out.println("Example1: n = " + n1 + ", ranges = " + Arrays.toString(ranges1));
-        int result1 = sol.minTaps(n1, ranges1);
-        System.out.println("Minimum taps = " + result1);
-        // Expected: 1 (because tap at position 1 covers [0,5])
+        // typical: one wide tap covers the whole garden
+        int[] r1 = {3, 4, 1, 1, 0, 0};
+        print("case 1 n=5 " + Arrays.toString(r1), sol.minTaps(5, r1), 1);
 
-        // Example 2:
-        int n2 = 3;
-        int[] ranges2 = {0, 0, 0, 0};
-        System.out.println("Example2: n = " + n2 + ", ranges = " + Arrays.toString(ranges2));
-        int result2 = sol.minTaps(n2, ranges2);
-        System.out.println("Minimum taps = " + result2);
-        // Expected: -1 (cannot cover all [0,3])
+        // edge: every tap is dead, nothing can be covered
+        int[] r2 = {0, 0, 0, 0};
+        print("case 2 n=3 " + Arrays.toString(r2), sol.minTaps(3, r2), -1);
 
-        // You can add more test cases as needed.
+        // tricky: two taps that meet exactly at point 4 - touching is enough
+        int[] r3 = {4, 0, 0, 0, 0, 0, 0, 0, 4};
+        print("case 3 n=8 " + Arrays.toString(r3), sol.minTaps(8, r3), 2);
+
+        // edge: the smallest legal garden
+        int[] r4 = {1, 0};
+        print("case 4 n=1 " + Arrays.toString(r4), sol.minTaps(1, r4), 1);
     }
 }

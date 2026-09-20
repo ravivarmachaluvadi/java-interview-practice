@@ -1,46 +1,84 @@
-import java.util.*;
+/*
+ * =====================================================================
+ *  Minimum Number of Moves to Make Palindrome          LeetCode 2193 | Hard
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Given a lowercase string s that can be rearranged into a palindrome, return the
+ *   minimum number of ADJACENT swaps needed to turn s into a palindrome.
+ *   LeetCode guarantees the input is feasible; this file adds its own feasibility
+ *   guard so an impossible string returns -1 instead of looping or lying.
+ *
+ * EXAMPLE
+ *   "zzazz"  -> 0    already a palindrome
+ *   "letelt" -> 2    two adjacent swaps reach "lettel"
+ *   "aabb"   -> 2    aabb -> abab -> abba
+ *   "aab"    -> 1    aab  -> aba          ('b' is the odd char, nudged to the middle)
+ *   "mamad"  -> 3    the classic case that a careless two-sided scan gets wrong
+ *   "mbadm"  -> -1   three letters with odd counts, so no palindrome exists
+ *
+ * APPROACH  (adjacent-swap matching with two pointers)
+ *   1. Feasibility first: count letters; a palindrome allows at most one odd count.
+ *   2. Walk two pointers i (left) and j (right). If arr[i] == arr[j] the pair is
+ *      already settled, so shrink both and continue.
+ *   3. Otherwise scan k from j leftwards for a partner equal to arr[i]. Bubble that
+ *      partner right to position j, one adjacent swap at a time, adding (j - k) moves.
+ *      Then shrink both pointers.
+ *   4. If the scan reaches k == i there is no partner: arr[i] is the odd middle char.
+ *      Swap it one step inward (1 move) and retry the same i without shrinking.
+ *   twoSidedFixed() is the same idea that also searches for a partner for arr[j] and
+ *   takes whichever side is cheaper. It returns identical answers - shown so you can
+ *   see that the choice of side does not change the cost, only the path.
+ *
+ * KEY INSIGHT
+ *   Fix the outermost pair first and never revisit it. Bubbling the partner inward
+ *   never disturbs the already-fixed outside, and any other pairing of arr[i] costs at
+ *   least as much (exchange argument). The one case that breaks naive code is the odd
+ *   middle character: it has no partner, so it must be walked to the centre by itself.
+ *   Pattern to recognise: "minimum adjacent swaps" is always an inversion count in
+ *   disguise - here, the inversions of the target pairing.
+ *
+ * COMPLEXITY
+ *   Time  O(n^2)  every pair may scan and bubble across the whole remaining window
+ *   Space O(n)    one char[] copy of the input
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Get it to O(n log n): record each char's target index, then count inversions
+ *     with a Fenwick tree instead of physically bubbling.
+ *   - What if swaps are between ANY two positions, not just adjacent ones?
+ *   - What if s may contain a character with odd count more than once - detect and
+ *     return -1 (the canBePalindrome guard below).
+ *   - Related: minimum adjacent swaps to sort an array = number of inversions.
+ *
+ * RUN
+ *   main() runs 6 feasible cases, 2 impossible cases, and one deliberately buggy
+ *   variant kept as a teaching contrast. Every line prints actual vs expected.
+ */
 
-// https://leetcode.com/problems/minimum-number-of-moves-to-make-palindrome/description/
-// 2193. Minimum Number of Moves to Make Palindrome
-//
-// Problem: minimum adjacent swaps to turn s into a palindrome (LeetCode guarantees it is possible).
-// Approaches:
-//   1. greedyFromRight   - two pointers; for each left char find its partner from the right and bubble
-//                          it to position j; no partner => it is the odd middle char, nudge it inward.
-//                          Includes an odd-frequency feasibility check (returns -1 if impossible).
-//   2. naiveTwoSided     - searches both directions and picks the cheaper side, but the two searches
-//                          share one pointer pair and there is no "odd middle" handling: "aab" -> 0
-//                          (expected 1), "aabb" -> 1 (expected 2). Kept to show the bugs.
-//   3. twoSidedFixed     - the two-sided idea done right: if neither side finds a partner, the left char
-//                          is the odd one -> swap it one step toward the middle and retry.
 class MinimumMovesToMakePalindrome {
 
-    // ---------- Approach 1: greedy, partner searched from the right (correct) ----------
+    // ---------- Approach 1: greedy, partner always searched from the right ----------
     public static int greedyFromRight(String s) {
-        int n = s.length();
         char[] arr = s.toCharArray();
-
-        // 1. Feasibility: a palindrome allows at most one char with an odd count
         if (!canBePalindrome(arr)) return -1;
 
-        // 2. Greedy pairing from both ends
-        int i = 0, j = n - 1, moves = 0;
+        int i = 0, j = arr.length - 1, moves = 0;
         while (i < j) {
-            if (arr[i] == arr[j]) {
+            if (arr[i] == arr[j]) {   // outer pair already matches, nothing to pay
                 i++;
                 j--;
                 continue;
             }
             int k = j;
-            // find matching partner for arr[i] from the right side
-            while (k > i && arr[k] != arr[i]) k--;
+            while (k > i && arr[k] != arr[i]) k--;   // nearest partner for arr[i]
 
             if (k == i) {
-                // no partner: arr[i] is the odd middle char, push it one step toward the middle
+                // No partner anywhere: arr[i] is the single odd char. Walk it one step
+                // toward the centre and retry the same i on the next iteration.
                 swap(arr, i, i + 1);
                 moves++;
             } else {
-                // partner at k < j: bubble it right until it sits at j
+                // Bubble the partner from k up to j; each adjacent swap costs 1 move.
                 for (int t = k; t < j; t++) {
                     swap(arr, t, t + 1);
                     moves++;
@@ -52,70 +90,32 @@ class MinimumMovesToMakePalindrome {
         return moves;
     }
 
-    // ---------- Approach 2: naive two-sided (BUGGY, kept for contrast) ----------
-    // Two bugs, both from sharing one tempLeft/tempRight pair across the two searches:
-    //  1. Odd middle char: neither while finds a partner, the chosen for-loop runs zero times,
-    //     and the pointers advance as if the pair matched. "aab" -> 0, correct is 1.
-    //  2. The second search starts where the first stopped (tempLeft < tempRight), so it can
-    //     miss a real partner and undercount. "aabb" -> 1 (correct 2), "mamad" -> 0 (correct 3).
-    public static int naiveTwoSided(String s) {
-        char[] chars = s.toCharArray();
-        int left = 0, right = chars.length - 1, moves = 0;
-
-        while (left < right) {
-            if (chars[left] == chars[right]) {
-                left++;
-                right--;
-                continue;
-            }
-            int tempLeft = left, tempRight = right;
-
-            // Try to move the left character towards the right (find a match for chars[right])
-            while (tempLeft < tempRight && chars[tempLeft] != chars[right]) tempLeft++;
-            // Try to move the right character towards the left (find a match for chars[left])
-            while (tempLeft < tempRight && chars[left] != chars[tempRight]) tempRight--;
-
-            // Choose the direction with fewer moves
-            if (tempLeft - left <= right - tempRight) {
-                for (int i = tempLeft; i > left; i--) { swap(chars, i, i - 1); moves++; }
-            } else {
-                for (int i = tempRight; i < right; i++) { swap(chars, i, i + 1); moves++; }
-            }
-            left++;
-            right--;
-        }
-        return moves;
-    }
-
-    // ---------- Approach 3: two-sided, with the odd-middle case handled ----------
-    // Same "pick the cheaper side" idea, but each search is independent and a miss is detected.
+    // ---------- Approach 2: search both sides, bubble whichever is cheaper ----------
+    // Same answers as approach 1, different swap path. Kept to show that the greedy
+    // cost is independent of which end you move.
     public static int twoSidedFixed(String s) {
         char[] arr = s.toCharArray();
-        // Without this guard an impossible input like "mbadm" loops forever: both ends stay
-        // unpaired, the nudge swaps b<->a back and forth, and the pointers never advance.
+        // Without this guard an impossible input like "mbadm" loops forever: both ends
+        // stay unpaired, the nudge swaps back and forth, and the pointers never advance.
         if (!canBePalindrome(arr)) return -1;
-        int left = 0, right = arr.length - 1, moves = 0;
 
+        int left = 0, right = arr.length - 1, moves = 0;
         while (left < right) {
             if (arr[left] == arr[right]) {
                 left++;
                 right--;
                 continue;
             }
-            // partner for arr[left], searched from the right
-            int k = right;
+            int k = right;                                        // partner for arr[left]
             while (k > left && arr[k] != arr[left]) k--;
-            // partner for arr[right], searched from the left
-            int m = left;
+            int m = left;                                         // partner for arr[right]
             while (m < right && arr[m] != arr[right]) m++;
 
-            int costRight = (k == left) ? Integer.MAX_VALUE : right - k;   // bubble arr[k] -> right
-            int costLeft  = (m == right) ? Integer.MAX_VALUE : m - left;   // bubble arr[m] -> left
+            int costRight = (k == left) ? Integer.MAX_VALUE : right - k;  // bubble k -> right
+            int costLeft = (m == right) ? Integer.MAX_VALUE : m - left;   // bubble m -> left
 
             if (costRight == Integer.MAX_VALUE && costLeft == Integer.MAX_VALUE) {
-                // arr[left] and arr[right] are both unpaired: impossible unless one is the odd middle char
-                // (guaranteed by the problem). Nudge the left one inward and retry.
-                swap(arr, left, left + 1);
+                swap(arr, left, left + 1);   // arr[left] is the odd middle char
                 moves++;
             } else if (costRight <= costLeft) {
                 for (int t = k; t < right; t++) swap(arr, t, t + 1);
@@ -132,7 +132,39 @@ class MinimumMovesToMakePalindrome {
         return moves;
     }
 
-    // A palindrome allows at most one character with an odd count
+    // ---------- The common wrong attempt, kept as a contrast ----------
+    // Two bugs, both caused by sharing ONE tempLeft/tempRight pair across two searches:
+    //  1. Odd middle char: neither while-loop finds a partner, the chosen for-loop runs
+    //     zero times, yet the pointers advance as if the pair matched.   "aab" -> 0
+    //  2. The second search starts where the first stopped, so it can walk past a real
+    //     partner and undercount.                            "aabb" -> 1, "mamad" -> 0
+    // It also has no feasibility guard, so impossible inputs return a meaningless number.
+    public static int naiveTwoSided(String s) {
+        char[] chars = s.toCharArray();
+        int left = 0, right = chars.length - 1, moves = 0;
+
+        while (left < right) {
+            if (chars[left] == chars[right]) {
+                left++;
+                right--;
+                continue;
+            }
+            int tempLeft = left, tempRight = right;
+            while (tempLeft < tempRight && chars[tempLeft] != chars[right]) tempLeft++;
+            while (tempLeft < tempRight && chars[left] != chars[tempRight]) tempRight--;
+
+            if (tempLeft - left <= right - tempRight) {
+                for (int i = tempLeft; i > left; i--) { swap(chars, i, i - 1); moves++; }
+            } else {
+                for (int i = tempRight; i < right; i++) { swap(chars, i, i + 1); moves++; }
+            }
+            left++;
+            right--;
+        }
+        return moves;
+    }
+
+    /** A palindrome allows at most one character with an odd count. */
     private static boolean canBePalindrome(char[] arr) {
         int[] freq = new int[26];
         for (char c : arr) freq[c - 'a']++;
@@ -147,28 +179,38 @@ class MinimumMovesToMakePalindrome {
         a[y] = tmp;
     }
 
-    private static String mark(int actual, int expected) {
-        return actual + (actual == expected ? "" : "   <-- WRONG");
+    private static void print(String label, Object actual, Object expected) {
+        print(label, actual, expected, "");
+    }
+
+    private static void print(String label, Object actual, Object expected, String note) {
+        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
+        System.out.println(label + ": " + actual + "   expected " + expected
+                + (note.isEmpty() ? "" : "   " + note) + (ok ? "" : "   <-- MISMATCH"));
     }
 
     public static void main(String[] args) {
         String[] inputs = {"zzazz", "letelt", "aabb", "aab", "abcba", "mamad"};
-        int[] expected  = {0, 2, 2, 1, 0, 3};
+        int[] expected = {0, 2, 2, 1, 0, 3};
+
+        System.out.println("--- feasible inputs (both correct methods must agree) ---");
         for (int i = 0; i < inputs.length; i++) {
-            String s = inputs[i];
-            System.out.println("Input: " + s + "  (expected " + expected[i] + ")");
-            System.out.println("  greedyFromRight : " + mark(greedyFromRight(s), expected[i]));
-            System.out.println("  naiveTwoSided   : " + mark(naiveTwoSided(s), expected[i]));
-            System.out.println("  twoSidedFixed   : " + mark(twoSidedFixed(s), expected[i]));
+            print("greedyFromRight(\"" + inputs[i] + "\")",
+                    greedyFromRight(inputs[i]), expected[i]);
+            print("twoSidedFixed  (\"" + inputs[i] + "\")",
+                    twoSidedFixed(inputs[i]), expected[i]);
         }
-        // Impossible inputs (more than one odd-count letter) are not valid LeetCode input.
-        // "mbadm" (b, a, d once each) and "leetcode" -> -1 from the feasibility check;
-        // the naive version has no check and just returns a meaningless number.
-        for (String s : new String[]{"mbadm", "leetcode"}) {
-            System.out.println("Input: " + s + "  (impossible, expected -1)");
-            System.out.println("  greedyFromRight : " + greedyFromRight(s));
-            System.out.println("  naiveTwoSided   : " + naiveTwoSided(s) + "   <-- no check, garbage");
-            System.out.println("  twoSidedFixed   : " + twoSidedFixed(s));
-        }
+
+        System.out.println("--- infeasible inputs (more than one odd-count letter) ---");
+        print("greedyFromRight(\"mbadm\")", greedyFromRight("mbadm"), -1);
+        print("twoSidedFixed  (\"mbadm\")", twoSidedFixed("mbadm"), -1);
+        print("greedyFromRight(\"leetcode\")", greedyFromRight("leetcode"), -1);
+        print("twoSidedFixed  (\"leetcode\")", twoSidedFixed("leetcode"), -1);
+
+        System.out.println("--- the buggy variant: expected value is its KNOWN WRONG output ---");
+        print("naiveTwoSided(\"aab\")", naiveTwoSided("aab"), 0, "(bug: true answer is 1)");
+        print("naiveTwoSided(\"aabb\")", naiveTwoSided("aabb"), 1, "(bug: true answer is 2)");
+        print("naiveTwoSided(\"mamad\")", naiveTwoSided("mamad"), 0, "(bug: true answer is 3)");
+        print("naiveTwoSided(\"mbadm\")", naiveTwoSided("mbadm"), 0, "(no guard: true is -1)");
     }
 }

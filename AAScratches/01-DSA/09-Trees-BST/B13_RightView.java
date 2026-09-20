@@ -1,23 +1,68 @@
-/**
- * Problem:
- *   Given a binary tree, return the list of node values that are visible when
- *   the tree is viewed from its right side (right view). The same file also
- *   provides iterative methods to obtain both right and left views.
+/*
+ * =====================================================================
+ *  Binary Tree Right Side View             LeetCode 199 | Medium   MUST-KNOW
+ * =====================================================================
  *
- * Approach:
- *   1. Recursive: traverse right child first; record the first node encountered
- *      at each depth level.
- *   2. Iterative BFS: process nodes level by level, adding either the last
- *      (right view) or first (left view) node of each level to the result list.
+ * PROBLEM
+ *   Standing to the right of a binary tree, return the values you can see,
+ *   top to bottom - i.e. the rightmost node of every depth. "Rightmost" means
+ *   last in left-to-right order at that depth, NOT "keep taking right children":
+ *   a node reached only through left pointers is visible if nothing sits to its
+ *   right on that level. The tree may be empty.
  *
- * Complexity:
- *   Time: O(n) – every node is visited once in both recursive and iterative
- *          implementations.
- *   Space: O(h) for recursion stack (h = tree height); O(w) for BFS queue,
- *          where w is maximum width of the tree. The result list uses O(h)
- *          space to store one value per level.
+ * EXAMPLE
+ *         1
+ *       /   \
+ *      2     3        right view -> [1, 3, 4]
+ *       \     \       left  view -> [1, 2, 5]
+ *        5     4
+ *
+ *   1 -> left 2 -> left 3 (no right children anywhere)  ->  [1, 2, 3]
+ *   root = null                                         ->  []
+ *
+ * APPROACH A  (DFS, right child first, record once per depth)
+ *   1. Recurse carrying the current depth, starting at 0.
+ *   2. If depth == result.size(), this is the FIRST node seen at that depth,
+ *      so append its value. The list length doubles as "deepest level seen".
+ *   3. Recurse right BEFORE left, which guarantees the first node reached at
+ *      any depth is the rightmost one.
+ *
+ * APPROACH B  (BFS, last node of each level)
+ *   1. Standard queue loop with levelSize = queue.size() frozen per level.
+ *   2. Inside the level loop, record the value when i == levelSize - 1.
+ *   3. Changing that test to i == 0 gives the LEFT view for free - included
+ *      here as leftViewBfs to make the symmetry obvious.
+ *
+ * KEY INSIGHT
+ *   Two different engines, one idea: pick exactly one node per depth. BFS knows
+ *   the depth boundary from the queue size; DFS knows it from comparing depth
+ *   with result.size(). The "depth == result.size()" trick is the reusable one -
+ *   it is how any DFS records a first-per-level fact without a level map.
+ *   Interviewers almost always ask for the second solution after the first, so
+ *   be able to write both.
+ *
+ * COMPLEXITY
+ *   Time  O(n) for both - every node is visited exactly once.
+ *   Space DFS  O(h) recursion stack (h = height; O(n) if skewed).
+ *         BFS  O(w) queue (w = widest level; up to n/2 near the bottom).
+ *         Output is O(h) either way - one value per level.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Left side view: BFS with i == 0, or DFS recursing left before right.
+ *   - Top / bottom view: needs a horizontal-distance coordinate, not depth.
+ *   - Boundary traversal (left boundary + leaves + reversed right boundary).
+ *   - "Why does DFS work here?" - because right-first ordering makes the first
+ *     visit at each depth the rightmost; reversing the order flips the answer.
+ *
+ * RUN
+ *   main() runs 3 cases (typical tree, empty tree, left-skewed tree) through
+ *   BOTH implementations and prints actual vs expected.
  */
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 
 class TreeNode {
     int val;
@@ -28,38 +73,43 @@ class TreeNode {
         this.val = val;
     }
 }
-/*
-       1
-     /   \
-    2     3
-     \     \
-      5     4
 
- */
 class RightView {
-    public static List<Integer> rightSideView(TreeNode root) {
+
+    // ---------- Approach A: DFS, right child first ----------
+
+    public static List<Integer> rightSideViewDfs(TreeNode root) {
         List<Integer> result = new ArrayList<>();
-        rightView(root, result, 0);
+        dfs(root, result, 0);
         return result;
     }
 
-    private static void rightView(TreeNode node, List<Integer> result, int depth) {
-        if (node == null) {
-            return;
-        }
+    private static void dfs(TreeNode node, List<Integer> result, int depth) {
+        if (node == null) return;
 
-        // If this is the first node of this level, add it to the result
+        // result.size() is "how many levels have been recorded so far", so this
+        // is true only for the FIRST node reached at this depth.
         if (depth == result.size()) {
             result.add(node.val);
         }
 
-        // Traverse right first, then left (to ensure rightmost nodes are prioritized)
-        rightView(node.right, result, depth + 1);
-        rightView(node.left, result, depth + 1);
+        // Right before left, so the first node reached at a depth is the rightmost.
+        dfs(node.right, result, depth + 1);
+        dfs(node.left, result, depth + 1);
     }
 
-    // Function to print right view
-    public static List<Integer> rightView(TreeNode root) {
+    // ---------- Approach B: BFS, last node of each level ----------
+
+    public static List<Integer> rightSideViewBfs(TreeNode root) {
+        return bfsView(root, true);
+    }
+
+    public static List<Integer> leftViewBfs(TreeNode root) {
+        return bfsView(root, false);
+    }
+
+    /** One level-order loop; takeLast picks the right view, otherwise the left view. */
+    private static List<Integer> bfsView(TreeNode root, boolean takeLast) {
         List<Integer> result = new ArrayList<>();
         if (root == null) return result;
 
@@ -67,14 +117,12 @@ class RightView {
         queue.add(root);
 
         while (!queue.isEmpty()) {
-            int size = queue.size();
-
-            // Traverse level by level
-            for (int i = 0; i < size; i++) {
+            int levelSize = queue.size(); // freeze the level boundary
+            for (int i = 0; i < levelSize; i++) {
                 TreeNode node = queue.poll();
 
-                // Last node in the current level → right view
-                if (i == size - 1) {
+                boolean visible = takeLast ? (i == levelSize - 1) : (i == 0);
+                if (visible) {
                     result.add(node.val);
                 }
 
@@ -85,45 +133,34 @@ class RightView {
         return result;
     }
 
-    public static List<Integer> leftView(TreeNode root) {
-        List<Integer> result = new ArrayList<>();
-        if (root == null) return result;
-
-        Queue<TreeNode> queue = new LinkedList<>();
-        queue.add(root);
-
-        while (!queue.isEmpty()) {
-            int size = queue.size();
-
-            // Traverse level by level
-            for (int i = 0; i < size; i++) {
-                TreeNode node = queue.poll();
-
-                // First node in the current level → left view
-                if (i == 0) {
-                    result.add(node.val);
-                }
-
-                if (node.left != null) queue.add(node.left);
-                if (node.right != null) queue.add(node.right);
-            }
-        }
-        return result;
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 
     public static void main(String[] args) {
-        // Construct the binary tree
+        //       1
+        //     /   \
+        //    2     3
+        //     \     \
+        //      5     4
         TreeNode root = new TreeNode(1);
         root.left = new TreeNode(2);
         root.right = new TreeNode(3);
         root.left.right = new TreeNode(5);
         root.right.right = new TreeNode(4);
 
-        // Create an instance of RightView and get the right side view of the tree
-        RightView rightView = new RightView();
-        List<Integer> rightSide = rightView.rightSideView(root);
+        print("case 1 right DFS   ", rightSideViewDfs(root), "[1, 3, 4]");
+        print("case 1 right BFS   ", rightSideViewBfs(root), "[1, 3, 4]");
+        print("case 1 left  BFS   ", leftViewBfs(root), "[1, 2, 5]");
 
-        // Print the right side view
-        System.out.println("Right side view of the binary tree: " + rightSide);
+        print("case 2 empty DFS   ", rightSideViewDfs(null), "[]");
+        print("case 2 empty BFS   ", rightSideViewBfs(null), "[]");
+
+        // Tricky: no right children at all, yet every node is visible from the right.
+        TreeNode skewed = new TreeNode(1);
+        skewed.left = new TreeNode(2);
+        skewed.left.left = new TreeNode(3);
+        print("case 3 skewed DFS  ", rightSideViewDfs(skewed), "[1, 2, 3]");
+        print("case 3 skewed BFS  ", rightSideViewBfs(skewed), "[1, 2, 3]");
     }
 }

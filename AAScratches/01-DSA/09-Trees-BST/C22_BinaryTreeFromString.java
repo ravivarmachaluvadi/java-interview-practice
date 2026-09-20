@@ -1,47 +1,73 @@
-/**
- * Problem: Convert a string representation of a binary tree into an actual TreeNode structure.
+/*
+ * =====================================================================
+ *  Construct Binary Tree from String            LeetCode 536 | Medium
+ * =====================================================================
  *
- * The input string follows the format:
- *   value(left_subtree)(right_subtree)
- * where left and right subtrees are optional and recursively defined.
+ * PROBLEM
+ *   Build a binary tree from a string of the form  value(leftSubtree)(rightSubtree),
+ *   where each subtree is written the same way and either or both may be absent.
+ *   Values can be negative. If only one pair of brackets follows a value, it is the
+ *   LEFT child - a right child can never appear without a left one in the input.
  *
- * Approach:
- * 1. Parse the integer at the current index, handling negative signs.
- * 2. Recursively build the left subtree if a '(' follows.
- * 3. Recursively build the right subtree if another '(' follows after the left subtree.
- * The recursion uses an int array as a mutable index pointer.
+ * EXAMPLE
+ *   "4(2(3)(1))(6(5))"  ->        4          preorder: 4 2 3 1 6 5
+ *                                / \
+ *                               2   6
+ *                              / \  /
+ *                             3   1 5
+ *   "42"          ->  a single node 42
+ *   "-4(2(-3))(6)"->  negative values parse the same way   preorder: -4 2 -3 6
+ *   ""            ->  null
  *
- * Time Complexity: O(n) – each character is processed once.
- * Space Complexity: O(h) – recursion depth equals tree height (worst-case O(n)).
+ * APPROACH  (recursive descent parsing with one shared index)
+ *   1. Carry the read position in an int[1] so every recursive call advances the SAME
+ *      cursor - a plain int parameter would only move the local copy.
+ *   2. Read an optional '-' then the digits, and make a node from that number.
+ *   3. If the next character is '(', consume it, parse the LEFT child recursively,
+ *      then consume the matching ')'.
+ *   4. If another '(' follows, do the same for the RIGHT child.
+ *   5. Return the node. A ')' where a value was expected means an empty pair, so
+ *      return null rather than manufacturing a phantom node with value 0.
+ *
+ * KEY INSIGHT
+ *   The grammar is self-similar, so the parser is just the grammar rule written as a
+ *   method: read a token, then recurse for each bracketed group. The only state that
+ *   must be shared across the whole parse is the cursor, and int[] (or a field) is how
+ *   you share it in Java. The same shared-cursor device reappears in deserialize().
+ *
+ * COMPLEXITY
+ *   Time  O(n)  the cursor only moves forward, so each character is read once.
+ *   Space O(h)  recursion depth equals the tree height, O(n) for a degenerate chain.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Write the inverse: tree2str (LC 606), and explain when "()" must be kept.
+ *   - Rewrite the parser iteratively with an explicit stack - where does the ')' pop?
+ *   - How would you report a malformed string instead of silently building a wrong tree?
+ *   - How does this compare with serialize/deserialize using null markers (LC 297)?
+ *
+ * RUN
+ *   main() parses four strings (typical, single node, negatives, empty) and prints the
+ *   preorder of each parsed tree against the expected list.
  */
-class TreeNode {
-    int val;
-    TreeNode left;
-    TreeNode right;
-    TreeNode(int val) {
-        this.val = val;
-    }
-}
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-//         4
-//       / \
-//      2   6
-//     / \  /
-//    3   1 5
 class BinaryTreeFromString {
 
     public static TreeNode str2tree(String s) {
         if (s == null || s.isEmpty()) {
             return null;
         }
-        return buildTree(s, new int[]{0});
+        return buildTree(s, new int[]{0}); // int[] = a cursor every call can advance
     }
 
     private static TreeNode buildTree(String s, int[] index) {
-        if (index[0] >= s.length()) {
-            return null;
+        if (index[0] >= s.length() || s.charAt(index[0]) == ')') {
+            return null; // nothing here, or an empty "()" pair
         }
-        // Read the current number
+
         int sign = 1;
         if (s.charAt(index[0]) == '-') {
             sign = -1;
@@ -52,42 +78,63 @@ class BinaryTreeFromString {
             num = num * 10 + (s.charAt(index[0]) - '0');
             index[0]++;
         }
-        num *= sign;
 
-        TreeNode node = new TreeNode(num);
+        TreeNode node = new TreeNode(num * sign);
 
-        // If there is a left subtree, recursively build it
+        // The first bracketed group after the value is always the LEFT child.
         if (index[0] < s.length() && s.charAt(index[0]) == '(') {
-            index[0]++; // skip '('
+            index[0]++;                        // skip '('
             node.left = buildTree(s, index);
-            index[0]++; // skip ')'
+            index[0]++;                        // skip the matching ')'
         }
 
-        // If there is a right subtree, recursively build it
+        // A second bracketed group is the RIGHT child.
         if (index[0] < s.length() && s.charAt(index[0]) == '(') {
-            index[0]++; // skip '('
+            index[0]++;
             node.right = buildTree(s, index);
-            index[0]++; // skip ')'
+            index[0]++;
         }
 
         return node;
     }
 
-    // Helper method to print the tree in Preorder (for testing)
-    public static void preorder(TreeNode root) {
-        if (root != null) {
-            System.out.print(root.val + " ");
-            preorder(root.left);
-            preorder(root.right);
+    // ---------- test helpers ----------
+
+    private static List<Integer> preorderOf(TreeNode root) {
+        List<Integer> out = new ArrayList<>();
+        collectPreorder(root, out);
+        return out;
+    }
+
+    private static void collectPreorder(TreeNode node, List<Integer> out) {
+        if (node == null) {
+            return;
         }
+        out.add(node.val);
+        collectPreorder(node.left, out);
+        collectPreorder(node.right, out);
+    }
+
+    private static void check(String label, String input, List<Integer> expectedPreorder) {
+        List<Integer> actual = preorderOf(str2tree(input));
+        System.out.println(label + " \"" + input + "\" -> " + actual
+                + "   expected " + expectedPreorder);
     }
 
     public static void main(String[] args) {
-        String s = "4(2(3)(1))(6(5))";
-        TreeNode root = str2tree(s);
+        check("case 1 typical    ", "4(2(3)(1))(6(5))", Arrays.asList(4, 2, 3, 1, 6, 5));
+        check("case 2 single node", "42", Arrays.asList(42));
+        check("case 3 negatives  ", "-4(2(-3))(6)", Arrays.asList(-4, 2, -3, 6));
+        check("case 4 empty      ", "", Collections.<Integer>emptyList());
+    }
+}
 
-        System.out.println("Preorder traversal of the tree:");
-        // 4 2 3 1 6 5
-        preorder(root);
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+
+    TreeNode(int val) {
+        this.val = val;
     }
 }

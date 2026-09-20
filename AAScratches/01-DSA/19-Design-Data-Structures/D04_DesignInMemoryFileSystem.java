@@ -1,119 +1,226 @@
-/**
- * Implements an in‑memory file system that supports creating directories,
- * adding and reading files, and listing directory contents.
+/*
+ * =====================================================================
+ *  Design In-Memory File System                       LeetCode 588 | Hard
+ * =====================================================================
  *
- * The API mirrors typical shell commands:
- * - {@code ls(path)} returns a sorted list of names in the given directory
- *   or the single file name if the path points to a file.
- * - {@code mkdir(path)} creates all intermediate directories along the path.
- * - {@code addContentToFile(filePath, content)} appends text to an existing
- *   file or creates it if absent.
- * - {@code readContentFromFile(filePath)} returns the full contents of a file.
+ * PROBLEM
+ *   Build a file system in memory with four shell-like operations. Paths are absolute,
+ *   use "/" as the separator, and never have a trailing slash; "/" itself is the root.
+ *     ls(path)                        if path is a directory, the sorted names directly
+ *                                     inside it; if path is a file, a list with just that
+ *                                     file's name.
+ *     mkdir(path)                     create the directory and every missing directory
+ *                                     along the way (like mkdir -p).
+ *     addContentToFile(path, content) append to the file, creating it (and any missing
+ *                                     parent directory) if it does not exist yet.
+ *     readContentFromFile(path)       the file's full accumulated content.
  *
- * Internally each directory is represented by a {@link Dir} object that holds
- * maps for subdirectories and files. Traversal follows the path components,
- * creating nodes as needed for {@code mkdir} and file creation.
+ * EXAMPLE
+ *   mkdir("/a/b/c"); addContentToFile("/a/b/c/d.txt", "hello")
+ *   ls("/")          -> [a]
+ *   ls("/a/b/c")     -> [d.txt]
+ *   ls("/a/b/c/d.txt") -> [d.txt]          a file path lists only itself
+ *   addContentToFile("/a/b/c/d.txt", " world"); readContentFromFile(...) -> "hello world"
+ *   ls("/") on a brand-new file system -> []   (the empty-root edge case)
  *
- * Time Complexity:
- * - ls, mkdir, addContentToFile, readContentFromFile: O(L + K log K)
- *   where L is the number of path segments and K is the number of entries
- *   in a directory (for sorting during ls).
+ * DESIGN  (trie of path segments)
+ *   Dir   one node of the tree. Two maps, which is what keeps every case simple:
+ *           dirs  : child directory name -> Dir
+ *           files : file name            -> its content so far
+ *         Keeping files separate from dirs means "is this path a file or a directory?"
+ *         is two O(1) lookups, never a type check on a shared node.
+ *   DesignInMemoryFileSystem holds only the root Dir. Every operation is the same walk
+ *         down the segment list; the operations differ only in what they do at the end
+ *         and whether the walk is allowed to create missing nodes.
  *
- * Space Complexity:
- * - O(N) total, where N is the number of distinct directories and files
- *   stored in memory. Each file's content contributes to this space.
+ * KEY DECISIONS
+ *   1. Split once into segments and drop empty ones, so "/" and "/a/b" go through the
+ *      same code. path.split("/") on "/a/b" yields ["", "a", "b"] -- the leading empty
+ *      string is the classic off-by-one in this problem, so it is filtered out here.
+ *   2. Two walk helpers instead of one flag: walkCreating for mkdir and writes,
+ *      walkExisting (returns null on a missing segment) for ls and reads. Reads then
+ *      degrade to [] or "" instead of throwing NullPointerException.
+ *   3. ls sorts on demand. Sorting on write would cost more overall, because a directory
+ *      is usually written many times and listed rarely.
+ *   4. addContentToFile appends with getOrDefault(name, "") + content, so "create" and
+ *      "append" are one line rather than two branches.
+ *
+ * COMPLEXITY
+ *   Let L be the number of path segments and K the number of entries in a directory.
+ *   Time  ls O(L + K log K) for the sort; mkdir, addContentToFile, readContentFromFile O(L)
+ *         plus the cost of copying the content on append.
+ *   Space O(N) for N directories and files, plus the stored content of every file.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Add rm / rmdir: delete the entry from the parent's map, and decide recursive or not.
+ *   - Make appends cheap: store List<String> or StringBuilder per file instead of String,
+ *     so appending is O(added) rather than O(total).
+ *   - Support relative paths and "." / "..": resolve against a current-directory pointer.
+ *   - Make it concurrent: lock per directory node, or use ConcurrentHashMap children.
+ *   - Persist it: what changes if the tree must survive a restart? (a write-ahead log)
+ *
+ * RUN
+ *   main() runs 3 cases (the LeetCode walkthrough, empty root and a file at root,
+ *   auto-created parents plus missing paths) and prints actual vs expected per line.
  */
-import java.util.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/** One node of the path trie: child directories by name, and files by name. */
 class Dir {
-    HashMap<String, Dir> dirs = new HashMap<>();
-    HashMap<String, String> files = new HashMap<>();
+    Map<String, Dir> dirs = new HashMap<>();
+    Map<String, String> files = new HashMap<>();
 }
 
 class DesignInMemoryFileSystem {
-    Dir root;
 
-    public DesignInMemoryFileSystem() {
-        root = new Dir();
-    }
+    private final Dir root = new Dir();
 
-    // List directory contents or single file name
+    /** Directory listing, or the single file name when path points at a file. */
     public List<String> ls(String path) {
-        Dir t = root;
-        List<String> result = new ArrayList<>();
+        String[] parts = segments(path);
+        Dir cur = walkExisting(parts, parts.length - 1); // stop at the parent of the last segment
+        if (cur == null) {
+            return new ArrayList<>(); // some directory on the way does not exist
+        }
 
-        if (!path.equals("/")) {
-            String[] parts = path.split("/");
-            for (int i = 1; i < parts.length - 1; i++) {
-                t = t.dirs.get(parts[i]);
+        if (parts.length > 0) {
+            String last = parts[parts.length - 1];
+            if (cur.files.containsKey(last)) {
+                return new ArrayList<>(Collections.singletonList(last)); // a file lists only itself
             }
-
-            // If the last part is a file
-            // If path is a file path, returns a list that only contains this file's name.
-            if (t.files.containsKey(parts[parts.length - 1])) {
-                result.add(parts[parts.length - 1]);
-                return result;
-            } else {
-                t = t.dirs.get(parts[parts.length - 1]);
+            cur = cur.dirs.get(last);
+            if (cur == null) {
+                return new ArrayList<>(); // neither a file nor a directory
             }
         }
 
-        // If path is a directory path, returns the list of file and
-        // directory names in this directory.
-        // Add all directory and file names
-        result.addAll(t.dirs.keySet());
-        result.addAll(t.files.keySet());
-        Collections.sort(result);
+        List<String> result = new ArrayList<>(cur.dirs.keySet());
+        result.addAll(cur.files.keySet());
+        Collections.sort(result); // directories and files are listed together, sorted by name
         return result;
     }
 
-    // Create directories as needed
+    /** Create the directory and every missing directory above it (mkdir -p). */
     public void mkdir(String path) {
-        Dir t = root;
-        String[] parts = path.split("/");
-        for (int i = 1; i < parts.length; i++) {
-            t.dirs.putIfAbsent(parts[i], new Dir());
-            t = t.dirs.get(parts[i]);
-        }
+        String[] parts = segments(path);
+        walkCreating(parts, parts.length);
     }
 
-    // Add content to a file (create file if not exists)
+    /** Append to the file, creating the file and any missing parent directory. */
     public void addContentToFile(String filePath, String content) {
-        Dir t = root;
-        String[] parts = filePath.split("/");
-        for (int i = 1; i < parts.length - 1; i++) {
-            t = t.dirs.get(parts[i]);
+        String[] parts = segments(filePath);
+        if (parts.length == 0) {
+            return; // "/" is the root directory, not a file
         }
-        t.files.put(parts[parts.length - 1], t.files.getOrDefault(parts[parts.length - 1], "") + content);
+        Dir parent = walkCreating(parts, parts.length - 1);
+        String name = parts[parts.length - 1];
+        // getOrDefault turns "create" and "append" into the same single statement.
+        parent.files.put(name, parent.files.getOrDefault(name, "") + content);
     }
 
-    // Read file content
+    /** Full content of the file, or "" if no such file exists. */
     public String readContentFromFile(String filePath) {
-        Dir t = root;
-        String[] parts = filePath.split("/");
-        for (int i = 1; i < parts.length - 1; i++) {
-            t = t.dirs.get(parts[i]);
+        String[] parts = segments(filePath);
+        if (parts.length == 0) {
+            return "";
         }
-        return t.files.get(parts[parts.length - 1]);
+        Dir parent = walkExisting(parts, parts.length - 1);
+        if (parent == null) {
+            return "";
+        }
+        return parent.files.getOrDefault(parts[parts.length - 1], "");
     }
 
-    // ---------- Example Demo ----------
+    // ------------------------------------------------------------------
+    // Path helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * "/" -> [], "/a/b/c" -> [a, b, c].
+     * split("/") leaves a leading empty string, which is the usual off-by-one here,
+     * so empty segments are dropped rather than skipped with an index trick.
+     */
+    private static String[] segments(String path) {
+        List<String> parts = new ArrayList<>();
+        for (String part : path.split("/")) {
+            if (!part.isEmpty()) {
+                parts.add(part);
+            }
+        }
+        return parts.toArray(new String[0]);
+    }
+
+    /** Walk the first {@code depth} segments, creating any directory that is missing. */
+    private Dir walkCreating(String[] parts, int depth) {
+        Dir cur = root;
+        for (int i = 0; i < depth; i++) {
+            cur = cur.dirs.computeIfAbsent(parts[i], name -> new Dir());
+        }
+        return cur;
+    }
+
+    /** Walk the first {@code depth} segments, returning null if any is missing. */
+    private Dir walkExisting(String[] parts, int depth) {
+        Dir cur = root;
+        for (int i = 0; i < depth; i++) {
+            cur = cur.dirs.get(parts[i]);
+            if (cur == null) {
+                return null;
+            }
+        }
+        return cur;
+    }
+
+    // ------------------------------------------------------------------
+    // Demo
+    // ------------------------------------------------------------------
+
+    private static void check(String label, Object actual, Object expected) {
+        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
+        System.out.println("  " + label + " -> actual " + actual + "   expected " + expected
+                + (ok ? "   OK" : "   FAIL"));
+    }
+
     public static void main(String[] args) {
+        System.out.println("case 1: the LeetCode walkthrough");
         DesignInMemoryFileSystem fs = new DesignInMemoryFileSystem();
-
-        System.out.println("Create directories: /a/b/c");
         fs.mkdir("/a/b/c");
-
-        System.out.println("Add file: /a/b/c/d.txt with content 'hello'");
+        check("ls(\"/\")", fs.ls("/"), Arrays.asList("a"));
+        check("ls(\"/a/b/c\") empty dir", fs.ls("/a/b/c"), Collections.emptyList());
         fs.addContentToFile("/a/b/c/d.txt", "hello");
+        check("ls(\"/a/b/c\")", fs.ls("/a/b/c"), Arrays.asList("d.txt"));
+        check("ls file path", fs.ls("/a/b/c/d.txt"), Arrays.asList("d.txt"));
+        check("read d.txt", fs.readContentFromFile("/a/b/c/d.txt"), "hello");
+        fs.addContentToFile("/a/b/c/d.txt", " world"); // append, do not overwrite
+        check("read after append", fs.readContentFromFile("/a/b/c/d.txt"), "hello world");
 
-        System.out.println("List / -> " + fs.ls("/"));
-        System.out.println("List /a/b/c -> " + fs.ls("/a/b/c"));
-        System.out.println("Read file /a/b/c/d.txt -> " + fs.readContentFromFile("/a/b/c/d.txt"));
+        System.out.println("case 2: empty root, a file directly at root, mkdir(\"/\")");
+        DesignInMemoryFileSystem fs2 = new DesignInMemoryFileSystem();
+        check("ls(\"/\") on new fs", fs2.ls("/"), Collections.emptyList());
+        fs2.mkdir("/"); // no segments to create, must be a harmless no-op
+        check("ls(\"/\") after mkdir(/)", fs2.ls("/"), Collections.emptyList());
+        fs2.addContentToFile("/top.txt", "T");
+        fs2.mkdir("/zdir");
+        check("ls(\"/\") dirs and files", fs2.ls("/"), Arrays.asList("top.txt", "zdir"));
+        check("ls(\"/top.txt\")", fs2.ls("/top.txt"), Arrays.asList("top.txt"));
+        check("read /top.txt", fs2.readContentFromFile("/top.txt"), "T");
 
-        System.out.println("Append content ' world' to /a/b/c/d.txt");
-        fs.addContentToFile("/a/b/c/d.txt", " world");
-
-        System.out.println("Read file /a/b/c/d.txt -> " + fs.readContentFromFile("/a/b/c/d.txt"));
+        System.out.println("case 3: parents created on write, and missing paths");
+        DesignInMemoryFileSystem fs3 = new DesignInMemoryFileSystem();
+        fs3.addContentToFile("/x/y/z.txt", "deep"); // /x and /x/y never had mkdir called
+        check("ls(\"/\")", fs3.ls("/"), Arrays.asList("x"));
+        check("ls(\"/x/y\")", fs3.ls("/x/y"), Arrays.asList("z.txt"));
+        check("read z.txt", fs3.readContentFromFile("/x/y/z.txt"), "deep");
+        fs3.mkdir("/x/y/sub");
+        fs3.addContentToFile("/x/y/a.txt", "A");
+        check("ls(\"/x/y\") sorted", fs3.ls("/x/y"), Arrays.asList("a.txt", "sub", "z.txt"));
+        check("ls missing dir", fs3.ls("/nope/nope"), Collections.emptyList());
+        check("read missing file", fs3.readContentFromFile("/x/y/missing.txt"), "");
     }
 }

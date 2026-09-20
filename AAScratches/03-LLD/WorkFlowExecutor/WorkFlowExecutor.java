@@ -1,22 +1,52 @@
-/**
- * Executes workflow tasks in a thread‑safe, ordered manner per key.
- * <p>
- * For each unique key (order number) it assigns a single‑threaded executor from a pool,
- * ensuring that tasks with the same key run sequentially while allowing parallelism
- * across different keys. Tasks are queued up to a configurable size; if the queue is full
- * the task is rejected and an exception is thrown.
- * <p>
- * Approach:
- * 1. On initialization, create {@code groupedProcessorCount} single‑threaded executors with bounded queues.
- * 2. When {@link #submitTask(Procedure,String,String)} is called, compute a deterministic executor
- *    index from the key and submit the task to that executor.
- * 3. After execution, decrement the active order counter; if it reaches zero the mapping for that key
- *    is removed, freeing resources.
- * <p>
- * Time Complexity: O(1) per submission (hash map lookup + modulo operation).
- * Space Complexity: O(K) where K is the number of distinct keys in flight; each key holds a reference
- * to its executor and an active counter. The total memory used by queues is bounded by {@code queueSize}
- * per executor.
+/*
+ * =====================================================================
+ *  WorkFlowExecutor - key-affinity ordered execution   Spring @Component | header-only
+ * =====================================================================
+ *
+ * ROLE IN THE PROJECT
+ *   A Spring component giving ordered execution per key: tasks sharing a key (an
+ *   order number) run one at a time and in submission order, while different keys
+ *   run in parallel. It is the concurrency backbone of the grouped stream processor.
+ *
+ *   Moving parts:
+ *     init()      @PostConstruct - N single-thread pools, each on a LimitQueue.
+ *     submitTask  wraps the Procedure in a Runnable that unlinks the key in a
+ *                 finally; invents a random key when the caller supplies none.
+ *     addTask     per-key lock: reuse or pick an executor, bump in-flight count, run.
+ *     unlink      decrement; at zero drop the key from jobMap and activeOrderMap.
+ *     @PreDestroy drains every pool from parallel threads.
+ *
+ * WHAT TO NOTICE
+ *   - Ordering holds only while a key's in-flight count stays above zero. At zero
+ *     the mapping is dropped, so the next task for that key may land on a different
+ *     executor. Affinity for overlapping work, not a permanent per-key serialiser.
+ *
+ *   - synchronized (orderNumber.intern()) is the sharp edge. intern() returns a
+ *     JVM-wide String, so this monitor is shared with any other code locking the
+ *     same literal, and interning caller data grows the string table. The usual fix
+ *     is a ConcurrentHashMap of dedicated lock objects.
+ *
+ *   - handleExecService() picks the least-loaded queue. Only when EVERY queue sits
+ *     at queueSize does it fall back to round-robin via findIndexForExecService().
+ *
+ *   - Latent NPE: handleMapForUnlinkTask() unboxes activeOrderMap.get(key) before
+ *     any null check, so a missing key throws inside the try, the catch swallows it,
+ *     and the jobMap entry is left behind - a slow map leak on error paths.
+ *
+ *   - Shutdown order is inverted: awaitTermination(timeout) runs BEFORE shutdown().
+ *     On a live pool that blocks for the whole shutdownTimeout and returns false,
+ *     then shutdownNow() kills in-flight work. Correct order is shutdown(), then
+ *     awaitTermination(), then shutdownNow().
+ *
+ *   - org.junit Assertions.assertNotNull in production code drags a test dependency
+ *     into main and throws AssertionFailedError, not an argument exception.
+ *
+ *   - Because the queue is a LimitQueue, a full queue BLOCKS the submitting thread
+ *     rather than rejecting the task; the original javadoc claiming rejection with
+ *     an exception was wrong. TaskType.UNLINK is declared but never handled.
+ *
+ *   - Tuning fields are @Value-injected, so they are still zero at construction
+ *     time - that is why the pools are built in @PostConstruct, not a constructor.
  */
 package com.tgt.gom.federator.grouped_processor;
 

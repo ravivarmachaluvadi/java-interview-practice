@@ -1,14 +1,54 @@
-/**
- * Problem: Longest Common Subsequence (LCS) of two strings - LeetCode 1143.
+/*
+ * =====================================================================
+ *  Longest Common Subsequence                          LeetCode 1143 | Medium
+ * =====================================================================
  *
- * Approaches (same problem, four ways, ordered from brute force to optimal):
- *   1. allLcsByBacktracking  - DFS over every common subsequence; collects ALL distinct
- *                              LCS strings, not just the length.           O(2^(m+n)) time
- *   2. lcsRecursive          - plain top-down recursion, length only.      O(2^(m+n)) time
- *   3. lcsMemoized           - same recursion + 2D memo table.             O(m*n) time / O(m*n) space
- *   4. lcsTabulation         - bottom-up 2D dp table, length only.         O(m*n) time / O(m*n) space
- *      reconstructLcs        - walks the dp table backwards to print one actual LCS string.
+ * PROBLEM
+ *   Given two strings, return the length of their longest common subsequence. A subsequence
+ *   keeps the original order but may drop characters; it does not have to be contiguous.
+ *   If there is no common subsequence the answer is 0.
+ *
+ * EXAMPLE
+ *   "abcde", "ace"        ->  3   the LCS is "ace"
+ *   "abc",   "def"        ->  0   nothing in common
+ *   "",      "abc"        ->  0   edge case: one string empty
+ *   "abcbdab", "bdcaba"   ->  4   three distinct LCS: "bcab", "bdab", "bcba"
+ *
+ * APPROACH  (two-pointer recursion over two strings, then the same thing cached and tabulated)
+ *   1. Define f(i, j) = LCS of s1[0..i] and s2[0..j], walking from the BACK of both strings.
+ *   2. Either index below 0 means one string is exhausted, so the answer is 0.
+ *   3. If s1[i] == s2[j] the characters must pair up: 1 + f(i - 1, j - 1).
+ *   4. Otherwise drop one character from one string: max(f(i, j - 1), f(i - 1, j)).
+ *   5. Only (i, j) varies, so cache it in a 2-D memo, or fill the same table bottom-up with
+ *      1-based indices where row 0 and column 0 are the empty prefix.
+ *   6. To recover the string itself, walk the finished table backwards from (m, n): on a match
+ *      emit the character and move diagonally, else follow whichever neighbour holds the value.
+ *   Approach 1 (backtracking) answers a different question - EVERY distinct LCS, not just the
+ *   length - so it is kept for tiny inputs and is exponential by design.
+ *
+ * KEY INSIGHT
+ *   On a match the two characters are consumed together and there is never a reason to pair
+ *   them with anything else; on a mismatch at least one of the two characters is useless, so
+ *   try dropping each. That single "match -> diagonal, mismatch -> max of two neighbours" grid
+ *   is the same table behind edit distance, distinct subsequences and regex matching.
+ *
+ * COMPLEXITY
+ *   Time  O(m * n)   each (i, j) state is solved once
+ *   Space O(m * n)   the table, plus O(m + n) recursion stack for the memoised version
+ *   lcsRecursive and allLcsByBacktracking are O(2^(m+n)) - tiny inputs only.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Reduce the table to two rows, or one row, for O(min(m, n)) space.
+ *   - Print one LCS (done here) versus counting how many distinct LCS exist.
+ *   - Longest common SUBSTRING: same table, but a mismatch resets the cell to 0.
+ *   - Shortest common supersequence = m + n - LCS; minimum insertions/deletions to convert
+ *     s1 into s2 = (m - LCS) + (n - LCS).
+ *
+ * RUN
+ *   main() runs 7 cases (typical, identical, disjoint, empty, multiple distinct LCS) and
+ *   prints all four approaches against the expected length.
  */
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -46,7 +86,7 @@ class CommonSubSequence {
             return;
         }
 
-        // If characters match, include it in the subsequence
+        // If characters match, try including the pair
         if (s1.charAt(i) == s2.charAt(j)) {
             path.add(s1.charAt(i));
             backtrack(s1, s2, i + 1, j + 1, path, lcsSet, maxLength);
@@ -94,7 +134,7 @@ class CommonSubSequence {
     }
 
     private static int memoRecurse(String s1, String s2, int ind1, int ind2, int[][] memo) {
-        if (ind1 < 0 || ind2 < 0) return 0;
+        if (ind1 < 0 || ind2 < 0) return 0;            // checked first, so memo is never indexed at -1
         if (memo[ind1][ind2] != -1) return memo[ind1][ind2];
 
         if (s1.charAt(ind1) == s2.charAt(ind2))
@@ -160,26 +200,34 @@ class CommonSubSequence {
 
     // ------------------------------------------------------------------
 
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + " -> " + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
-        String[][] tests = {
-                {"abcde", "ace"},     // LCS "ace"  -> 3
-                {"abcdef", "ace"},    // LCS "ace"  -> 3
-                {"acd", "ced"},       // LCS "cd"   -> 2
-                {"abc", "abc"},       // identical  -> 3
-                {"abc", "def"},       // nothing in common -> 0
-                {"abcbdab", "bdcaba"} // classic CLRS example: several distinct LCS of length 4
+        // {s1, s2, expected LCS length, expected number of DISTINCT LCS strings}
+        Object[][] tests = {
+                {"abcde", "ace", 3, 1},        // typical
+                {"abcdef", "ace", 3, 1},
+                {"acd", "ced", 2, 1},
+                {"abc", "abc", 3, 1},          // identical strings
+                {"abc", "def", 0, 0},          // nothing in common
+                {"", "abc", 0, 0},             // edge case: empty string
+                {"abcbdab", "bdcaba", 4, 3}    // CLRS example: several distinct LCS of length 4
         };
 
-        for (String[] t : tests) {
-            String s1 = t[0], s2 = t[1];
-            System.out.println("s1 = \"" + s1 + "\", s2 = \"" + s2 + "\"");
+        for (int c = 0; c < tests.length; c++) {
+            String s1 = (String) tests[c][0], s2 = (String) tests[c][1];
+            int expectedLen = (Integer) tests[c][2], expectedCount = (Integer) tests[c][3];
+
+            System.out.println("case " + (c + 1) + ": s1 = \"" + s1 + "\", s2 = \"" + s2 + "\"");
             Set<String> all = allLcsByBacktracking(s1, s2);
-            System.out.println("  backtracking : all distinct LCS = " + all
-                    + " (count " + all.size() + ")");
-            System.out.println("  recursive    : length = " + lcsRecursive(s1, s2));
-            System.out.println("  memoized     : length = " + lcsMemoized(s1, s2));
-            System.out.println("  tabulation   : length = " + lcsTabulation(s1, s2)
-                    + ", one LCS = \"" + reconstructLcs(s1, s2) + "\"");
+            print("  backtracking distinct LCS " + all + ", count", all.size(), expectedCount);
+            print("  recursive length ", lcsRecursive(s1, s2), expectedLen);
+            print("  memoized  length ", lcsMemoized(s1, s2), expectedLen);
+            String one = reconstructLcs(s1, s2);
+            print("  tabulation length", lcsTabulation(s1, s2), expectedLen);
+            print("  one LCS \"" + one + "\", its length", one.length(), expectedLen);
         }
     }
 }

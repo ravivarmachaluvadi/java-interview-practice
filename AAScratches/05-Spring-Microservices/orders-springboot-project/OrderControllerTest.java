@@ -1,15 +1,44 @@
-/**
- * Tests the OrderController REST endpoints for creating and retrieving orders.
+/*
+ * =====================================================================
+ *  OrderControllerTest -- MockMvc slice of the API   Spring Boot: orders service
+ * =====================================================================
  *
- * The test verifies that a POST to /v1/api/orders correctly persists an OrderDTO
- * and returns the same data, while a GET to /v1/api/orders/{id} with a non‑existent ID
- * results in a 4xx client error response.
+ * ROLE IN THE PROJECT
+ *   The only test in the project. It proves the two endpoints behave as advertised
+ *   without ever opening a real socket: MockMvc drives Spring's DispatcherServlet
+ *   directly, so routing, JSON binding, validation and @ControllerAdvice all run,
+ *   but no Tomcat connector is started and no port is bound.
  *
- * Approach: Use Spring's MockMvc to simulate HTTP requests, serialize/deserialize JSON
- * via Jackson ObjectMapper, and assert returned values or status codes.
+ *   Two cases:
+ *     saveOrder() -- POST a full OrderDTO, read the response body back into an
+ *        OrderDTO, and assert all four fields survived the round trip. This is really
+ *        a serialisation test: it catches a renamed JSON property or a missing getter.
+ *     getOrder()  -- GET an id that was never stored and assert a 4xx. That is the
+ *        OrderNotFoundException -> GlobalExceptionHandler -> 404 path, end to end.
  *
- * Time Complexity: O(1) per test case (fixed number of operations).
- * Space Complexity: O(1) additional space beyond the request/response payloads.
+ *   @SpringBootTest boots the whole application context; @AutoConfigureMockMvc adds the
+ *   configured MockMvc bean to it. Together they give a full-context test with a fake
+ *   transport, which is the middle ground between a plain unit test and a live server.
+ *
+ * WHAT TO NOTICE
+ *   - The two tests share OrderController's static map, so they are coupled through
+ *     global state. getOrder() passes only because nothing ever stores id 2. Change
+ *     saveOrder() to use id 2 and the other test fails for reasons unrelated to itself.
+ *     JUnit 5 gives no order guarantee, so this is a latent flake, not a safe shortcut.
+ *   - getOrder() captures contentAsString and never asserts on it. Either assert the
+ *     ErrorResponse body (status, message, path) or drop the variable -- an unused
+ *     capture reads like a forgotten assertion.
+ *   - is4xxClientError() is weaker than the code deserves. The handler promises exactly
+ *     404; isNotFound() would catch a regression that turned it into a 400.
+ *   - ObjectMapper is built by hand instead of being @Autowired. The injected one is the
+ *     Boot-configured instance (modules, naming strategy, date format), so a hand-rolled
+ *     mapper can serialise differently from the server it is testing.
+ *   - There is no test for the 400 validation path, which is the most interesting branch
+ *     in the whole project: POST a body with a blank customerName or a negative amount
+ *     and assert the per-field "customerName : ..." line comes back.
+ *   - @SpringBootTest is heavy. @WebMvcTest(OrderController.class) loads only the web
+ *     layer and is the right slice when there is nothing below the controller to wire.
+ *   - The ErrorResponse import is unused; nothing here deserialises the error body.
  */
 package com.target.orders.controller;
 
@@ -64,7 +93,6 @@ class OrderControllerTest {
     }
 
     @Test
-
     void getOrder() throws Exception {
 
         String contentAsString = mockMvc.perform(

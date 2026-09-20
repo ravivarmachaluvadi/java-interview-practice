@@ -1,17 +1,63 @@
-/**
- * Problem: Everyday Java 8 Stream/Collector recipes, ending with "max salary per department"
- *          done two ways (raw Optional vs collectingAndThen) plus groupingBy + filtering.
+/*
+ * =====================================================================
+ *  Stream and Collector recipes          Java Core | Medium   MUST-KNOW
+ * =====================================================================
  *
- * Approaches:
- *  - countOccurrences      : int[] -> boxed() -> groupingBy(identity, counting())
- *  - filterToArrayAndList  : filter + toArray(String[]::new) and filter + toList + list.toArray(new String[0])
- *  - flattenListOfLists    : flatMap(List::stream)
- *  - maxSalaryWithOptional : groupingBy(dept, maxBy(...)) -> Map<String, Optional<Employee>>  (caller unwraps)
- *  - maxSalaryUnwrapped    : groupingBy(dept, collectingAndThen(maxBy(...), opt -> salary)) -> Map<String, Double>
- *  - highEarnersByDept     : groupingBy(dept, filtering(salary > 7000, toList())) keeps EMPTY groups;
- *                            filter-then-groupingBy drops them - shown side by side.
+ * WHAT THIS DEMONSTRATES
+ *   The six stream pipelines that come up again and again in interviews and in
+ *   real service code: frequency counting, filtering into an array or a list,
+ *   flattening nested lists, "max per group" done two ways, and the difference
+ *   between filtering inside a group and filtering before grouping.
  *
- * Time: O(n) per pipeline. Space: O(k) for each result map/list.
+ * WHAT YOU WILL SEE
+ *   countOccurrences([1,2,3,3,3,4,5])       -> {1=1, 2=1, 3=3, 4=1, 5=1}
+ *   filter "A" from [Abc, Bac, Axy]         -> [Abc, Axy]
+ *   flatten [[Alice,Bob],[Charlie,David]]   -> [Alice, Bob, Charlie, David]
+ *   max salary per dept (Optional form)     -> {Finance=6500.0, HR=4500.0, IT=8000.0}
+ *   max salary per dept (unwrapped form)    -> same numbers, no Optional to peel
+ *   high earners > 7000, Collectors.filtering -> {Finance=[], HR=[], IT=[David]}
+ *   high earners > 7000, filter first        -> {IT=[David]}   empty groups vanish
+ *
+ * HOW IT WORKS
+ *   1. int[] has no stream of objects, so Arrays.stream(...).boxed() turns an
+ *      IntStream into Stream<Integer> before any Collector can be used.
+ *   2. groupingBy(classifier, downstream) buckets elements by the classifier and
+ *      feeds each bucket to the downstream collector - counting(), toList(),
+ *      maxBy(), filtering(), whatever reduces a group to one value.
+ *   3. maxBy returns Optional because a reduction over a group has no identity
+ *      value; collectingAndThen(maxBy(...), finisher) runs the finisher on each
+ *      group's result, so the Optional is unwrapped inside the collector.
+ *   4. flatMap replaces each element with the contents of a stream, so a
+ *      Stream<List<String>> becomes a Stream<String>.
+ *   5. Collectors.filtering (Java 9+) filters AFTER bucketing, so a group with
+ *      no survivors still exists with an empty list. stream.filter before
+ *      groupingBy removes the elements first, so that key never appears.
+ *
+ * KEY INSIGHT
+ *   A stream pipeline is source -> intermediate ops -> one terminal op, and the
+ *   whole shape of the result is decided by the terminal collector. So think
+ *   in terms of the downstream collector: "what do I want each group reduced
+ *   to?" - a count, a list, a max, a filtered list. And remember where the
+ *   filter sits, because that alone decides whether empty groups survive.
+ *
+ * GOTCHAS
+ *   - groupingBy returns a HashMap, so iteration order is unspecified. Wrap in
+ *     a TreeMap (as main does) or pass a map factory when order matters.
+ *   - groupingBy throws NullPointerException if the classifier returns null.
+ *   - Collectors.toList() gives no guarantee of mutability; use toCollection or
+ *     Stream.toList() (Java 16+, unmodifiable) when you care.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - groupingBy vs partitioningBy? (arbitrary keys vs exactly true/false)
+ *   - How do you get a sorted or insertion-ordered result map? (three-arg
+ *     groupingBy with TreeMap::new or LinkedHashMap::new)
+ *   - Why does maxBy return Optional but counting() does not? (no identity)
+ *   - When is parallelStream a win? (big CPU-bound work, splittable source,
+ *     stateless associative reduction)
+ *
+ * RUN
+ *   main() runs the six pipelines on a typical dataset plus an empty-input edge
+ *   case, and prints actual vs expected.
  */
 import java.util.*;
 import java.util.function.Function;
@@ -39,7 +85,9 @@ class Streams {
                 .collect(Collectors.toList());
         String[] fromList = viaList.toArray(new String[0]);   // new String[0] is the idiomatic size hint
 
-        if (!Arrays.equals(direct, fromList)) throw new AssertionError("both routes must agree");
+        if (!Arrays.equals(direct, fromList)) {
+            throw new AssertionError("both routes must agree");
+        }
         return direct;
     }
 
@@ -50,7 +98,7 @@ class Streams {
                 .collect(Collectors.toList());
     }
 
-    // Approach 1: maxBy returns Optional<Employee> (a group could theoretically be empty),
+    // Approach 1: maxBy returns Optional<Employee> (a reduction has no identity value),
     // so the map value is Optional and the caller has to unwrap it.
     static Map<String, Optional<Employee>> maxSalaryWithOptional(List<Employee> employees) {
         return employees.stream()
@@ -75,7 +123,8 @@ class Streams {
 
     // Collectors.filtering (Java 9+) filters INSIDE each group -> departments with no match
     // still appear with an empty list.
-    static Map<String, List<Employee>> highEarnersByDeptKeepEmptyGroups(List<Employee> employees, double threshold) {
+    static Map<String, List<Employee>> highEarnersByDeptKeepEmptyGroups(List<Employee> employees,
+                                                                       double threshold) {
         return employees.stream()
                 .collect(Collectors.groupingBy(
                         Employee::getDepartment,
@@ -84,32 +133,62 @@ class Streams {
     }
 
     // Stream.filter BEFORE groupingBy -> departments with no match are absent from the map.
-    static Map<String, List<Employee>> highEarnersByDeptDropEmptyGroups(List<Employee> employees, double threshold) {
+    static Map<String, List<Employee>> highEarnersByDeptDropEmptyGroups(List<Employee> employees,
+                                                                       double threshold) {
         return employees.stream()
                 .filter(e -> e.getSalary() > threshold)
                 .collect(Collectors.groupingBy(Employee::getDepartment));
     }
 
+    /** groupingBy hands back a HashMap; sort it so the printed output is deterministic. */
+    private static <K, V> Map<K, V> sorted(Map<K, V> map) {
+        return new TreeMap<>(map);
+    }
+
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
-        System.out.println("countOccurrences      : " + countOccurrences(new int[]{1, 2, 3, 3, 3, 4, 5}));
-        System.out.println("filterToArrayAndList  : " + Arrays.toString(filterToArrayAndList(new String[]{"Abc", "Bac", "Axy"}, "A")));
-        System.out.println("flattenListOfLists    : " + flattenListOfLists(Arrays.asList(
-                Arrays.asList("Alice", "Bob"),
-                Arrays.asList("Charlie", "David"),
-                Arrays.asList("Eve", "Frank"))));
+        // ---- typical cases -------------------------------------------------
+        print("countOccurrences        : ", sorted(countOccurrences(new int[]{1, 2, 3, 3, 3, 4, 5})),
+                "{1=1, 2=1, 3=3, 4=1, 5=1}");
+
+        print("filterToArrayAndList    : ",
+                Arrays.toString(filterToArrayAndList(new String[]{"Abc", "Bac", "Axy"}, "A")),
+                "[Abc, Axy]");
+
+        print("flattenListOfLists      : ", flattenListOfLists(Arrays.asList(
+                        Arrays.asList("Alice", "Bob"),
+                        Arrays.asList("Charlie", "David"),
+                        Arrays.asList("Eve", "Frank"))),
+                "[Alice, Bob, Charlie, David, Eve, Frank]");
 
         List<Employee> employees = Employee.sample();
-        System.out.println("employees             : " + employees);
+        System.out.println("employees               : " + employees);
 
-        Map<String, Optional<Employee>> withOptional = maxSalaryWithOptional(employees);
-        withOptional.forEach((dept, opt) ->
-                System.out.println("maxSalaryWithOptional : " + dept + " -> " + opt.map(Employee::getSalary).orElse(0.0)));
+        // Approach 1: the caller peels the Optional off every value.
+        Map<String, Double> peeledByCaller = new TreeMap<>();
+        maxSalaryWithOptional(employees).forEach((dept, best) ->
+                peeledByCaller.put(dept, best.map(Employee::getSalary).orElse(0.0)));
+        print("maxSalaryWithOptional   : ", peeledByCaller,
+                "{Finance=6500.0, HR=4500.0, IT=8000.0}");
 
-        maxSalaryUnwrapped(employees).forEach((dept, salary) ->
-                System.out.println("maxSalaryUnwrapped    : " + dept + " -> " + salary));
+        // Approach 2: same numbers, but the collector already unwrapped them.
+        print("maxSalaryUnwrapped      : ", sorted(maxSalaryUnwrapped(employees)),
+                "{Finance=6500.0, HR=4500.0, IT=8000.0}");
 
-        System.out.println("highEarners keepEmpty : " + highEarnersByDeptKeepEmptyGroups(employees, 7000));
-        System.out.println("highEarners dropEmpty : " + highEarnersByDeptDropEmptyGroups(employees, 7000));
+        // The two filtering positions, side by side. Bob is exactly 7000, so he fails "> 7000".
+        print("highEarners keepEmpty   : ", sorted(highEarnersByDeptKeepEmptyGroups(employees, 7000)),
+                "{Finance=[], HR=[], IT=[David(IT,8000.0)]}");
+        print("highEarners dropEmpty   : ", sorted(highEarnersByDeptDropEmptyGroups(employees, 7000)),
+                "{IT=[David(IT,8000.0)]}");
+
+        // ---- edge case: empty input ---------------------------------------
+        // Every collector still returns an empty container, never null.
+        print("empty countOccurrences  : ", countOccurrences(new int[]{}), "{}");
+        print("empty flatten           : ", flattenListOfLists(new ArrayList<>()), "[]");
+        print("empty maxSalary         : ", maxSalaryUnwrapped(new ArrayList<>()), "{}");
     }
 }
 
@@ -124,12 +203,18 @@ class Employee {
         this.salary = salary;
     }
 
-    String getDepartment() { return department; }
+    String getDepartment() {
+        return department;
+    }
 
-    double getSalary() { return salary; }
+    double getSalary() {
+        return salary;
+    }
 
     @Override
-    public String toString() { return name + "(" + department + "," + salary + ")"; }
+    public String toString() {
+        return name + "(" + department + "," + salary + ")";
+    }
 
     // Salaries chosen so the 7000 threshold splits them: only David passes, Bob is exactly 7000 (not >).
     static List<Employee> sample() {

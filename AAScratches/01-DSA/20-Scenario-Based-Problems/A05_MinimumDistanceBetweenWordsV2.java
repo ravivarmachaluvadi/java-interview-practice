@@ -1,26 +1,70 @@
+/*
+ * =====================================================================
+ *  Shortest Distance Between Two Words      LeetCode 243 | Easy  MUST-KNOW
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Given a document (or a word array) and two distinct words, return the
+ *   shortest distance between an occurrence of the first and an occurrence of
+ *   the second. Matching is case-insensitive on raw text; return -1 when either
+ *   word never appears.
+ *
+ *   "Distance" means two different things in interviews - ALWAYS ask which:
+ *     1. Word-index distance : how many words apart (LeetCode 243).
+ *     2. Character distance  : characters between the MIDPOINTS of the two
+ *                              words (the Karat variant; its published answers
+ *                              6 / 14 / 25 only come out with this meaning).
+ *
+ * EXAMPLE
+ *   ["the","quick","brown","fox","quick","jumps","over","the","lazy","dog"]
+ *       word1 = "quick", word2 = "the"      ->  1    indices 1 and 0 are adjacent
+ *       word1 = "quick", word2 = "missing"  -> -1    edge case main() runs
+ *   DOCUMENT, "and", "graphic"  ->  wordIndex 1,  midpoint distance 6
+ *
+ * APPROACH  (last-seen index, single pass)
+ *   1. Walk the tokens left to right once, remembering only the most recent
+ *      position of word1 and the most recent position of word2.
+ *   2. Whenever either is updated and both have been seen, the gap between the
+ *      two remembered positions is a candidate answer - keep the minimum.
+ *   3. For the character variant the "position" is the word's midpoint:
+ *      real start offset in the document + length / 2.
+ *   4. midpointDistancePairwise() is the naive O(p*q) all-pairs version, kept
+ *      as a second named method so main() can cross-check the one-pass answer.
+ *
+ * KEY INSIGHT
+ *   You never need the full list of occurrences. Positions arrive in increasing
+ *   order, so when you meet an occurrence of word1 the only occurrence of word2
+ *   that can possibly be closer than anything already scored is the LAST one you
+ *   saw. That single observation turns an O(p*q) all-pairs comparison into O(n)
+ *   time and O(1) space. Recognise the shape: "closest pair of two tagged items
+ *   in a sequence" is always last-seen bookkeeping, never a nested loop.
+ *
+ *   Gotcha the earlier drafts got wrong: if you tokenize with split() and
+ *   advance a running offset by "length + 1", the offset drifts by one for every
+ *   multi-character separator such as ", " or ". ". Use a regex Matcher and read
+ *   the real m.start() offset instead.
+ *
+ * COMPLEXITY
+ *   Time  O(n)  one pass over n tokens (pairwise variant is O(n + p*q))
+ *   Space O(1)  two remembered positions (pairwise variant stores O(p + q))
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Many queries on one fixed document (LC 244): pre-index word -> sorted
+ *     positions, then merge the two lists with two pointers per query.
+ *   - word1 equals word2 (LC 245): the else-if collapses, so track the previous
+ *     occurrence of the same word instead of two separate slots.
+ *   - Return the actual pair of offsets, not just the gap.
+ *   - Make it phrase-aware, or ignore stop words - changes only the tokenizer.
+ *
+ * RUN
+ *   main() runs 2 array cases (typical, missing word) and 3 document cases,
+ *   each printing actual vs expected for all three distance methods.
+ */
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Problem: shortest distance between two given words in a text (Karat "shortest distance" question).
- *
- * Two different meanings of "distance" show up in interviews - always ask which one is wanted:
- *   1. Word-index distance   : how many words apart (LeetCode 243 "Shortest Word Distance").
- *   2. Character distance    : characters between the MIDPOINTS of the two words (the Karat variant;
- *                              its sample answers 6 / 14 / 25 only work with this meaning).
- *
- * Approaches:
- *   wordIndexDistance        - one pass over a word array, track last index of each word. O(n) time, O(1) space.
- *   wordIndexDistanceInText  - same idea on a raw paragraph: tokenize, case-insensitive.
- *   midpointDistancePairwise - collect every midpoint of each word, compare all pairs. O(p*q) after O(n) scan.
- *   midpointDistanceOnePass  - track the most recent midpoint of each word. O(n) time, O(1) extra space.
- *
- * Gotcha (this is what the earlier drafts got wrong): if you tokenize with split() and advance a running
- * offset by "length + 1", the offset drifts by one for every multi-character separator such as ", " or ". ".
- * Use a regex Matcher and read the real start offset instead.
- */
 class MinimumDistanceBetweenWordsV2 {
 
     // -------- Approach 1: word-index distance on an array (LeetCode 243 shape) --------
@@ -36,7 +80,7 @@ class MinimumDistanceBetweenWordsV2 {
             } else if (words[i].equals(word2)) {
                 lastPositionWord2 = i;
             } else {
-                continue;
+                continue; // not one of ours, nothing to update
             }
             // Only the most recent occurrence of the other word can improve the answer.
             if (lastPositionWord1 != -1 && lastPositionWord2 != -1) {
@@ -111,20 +155,36 @@ class MinimumDistanceBetweenWordsV2 {
           + " lorem ipsum text has been used in typesetting since the 1960s or earlier, when it was popularized by advertisements"
           + " for Letraset transfer sheets. It was introduced to the Information Age in the mid-1980s by Aldus Corporation, which";
 
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
+    }
+
     public static void main(String[] args) {
         String[] words = {"the", "quick", "brown", "fox", "quick", "jumps", "over", "the", "lazy", "dog"};
-        System.out.println("wordIndexDistance(array, quick, the)     = " + wordIndexDistance(words, "quick", "the") + "  (expected 1)");
-        System.out.println("wordIndexDistance(array, quick, missing) = " + wordIndexDistance(words, "quick", "missing") + " (expected -1)");
+
+        print("case 1 array, quick vs the", wordIndexDistance(words, "quick", "the"), 1);
+        print("case 2 array, quick vs missing word (edge)", wordIndexDistance(words, "quick", "missing"), -1);
         System.out.println();
 
-        // Karat sample: expected 6, 14, 25 - these are CHARACTER distances between midpoints.
-        String[][] cases = {{"and", "graphic", "6"}, {"transfer", "it", "14"}, {"Design", "filler", "25"}};
+        // Karat sample: the published answers 6 / 14 / 25 are CHARACTER distances
+        // between midpoints. The word-index answer for the same pair is different,
+        // which is exactly why you must pin down the definition before coding.
+        String[][] cases = {
+                // word1, word2, expected word-index distance, expected midpoint distance
+                {"and", "graphic", "1", "6"},
+                {"transfer", "it", "2", "14"},
+                {"Design", "filler", "5", "25"},
+        };
+        int caseNumber = 3;
         for (String[] c : cases) {
-            System.out.printf("%-10s %-8s expected %-3s | wordIndex %-3d | midpointPairwise %-3d | midpointOnePass %-3d%n",
-                    c[0], c[1], c[2],
-                    wordIndexDistanceInText(DOCUMENT, c[0], c[1]),
-                    midpointDistancePairwise(DOCUMENT, c[0], c[1]),
-                    midpointDistanceOnePass(DOCUMENT, c[0], c[1]));
+            String pair = c[0] + " vs " + c[1];
+            print("case " + caseNumber + " doc, " + pair + " wordIndex",
+                    wordIndexDistanceInText(DOCUMENT, c[0], c[1]), c[2]);
+            print("case " + caseNumber + " doc, " + pair + " midpoint pairwise",
+                    midpointDistancePairwise(DOCUMENT, c[0], c[1]), c[3]);
+            print("case " + caseNumber + " doc, " + pair + " midpoint one-pass",
+                    midpointDistanceOnePass(DOCUMENT, c[0], c[1]), c[3]);
+            caseNumber++;
         }
     }
 }

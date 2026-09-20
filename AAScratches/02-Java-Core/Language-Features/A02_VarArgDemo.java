@@ -1,41 +1,100 @@
-/**
- * Demonstrates Java's method overloading with variable‑argument (varargs) parameters.
+/*
+ * =====================================================================
+ *  Varargs and overload resolution              Java language | Easy
+ * =====================================================================
  *
- * The program defines two overloaded methods:
- * - {@code varArgDemo(Integer...)} accepts any number of Integer objects.
- * - {@code varArgDemo(String...)} accepts any number of String objects.
+ * WHAT THIS DEMONSTRATES
+ *   A varargs parameter (T... args) is just an array parameter (T[] args) with
+ *   compiler sugar at the call site, and varargs is the LAST resort when the
+ *   compiler picks between overloads.
  *
- * In {@link #main(String...)} it creates an {@link java.util.ArrayList} of Integers,
- * a fixed‑size array of Strings, and then calls the appropriate overloaded method
- * based on the argument type. The last call passes a single empty string literal,
- * which also matches the String vararg overload.
+ * WHAT YOU WILL SEE
+ *   varArgDemo(1, 2, 3)                -> Integer... with 3 args
+ *   varArgDemo(new Integer[]{1,2,3})   -> Integer... with 3 args (array passed as-is)
+ *   varArgDemo(new String[]{"a","b"})  -> String... with 2 args
+ *   varArgDemo("")                     -> String... with 1 arg
+ *   pick(7)                            -> fixed-arity Integer, not the varargs one
  *
- * Approach:
- * 1. Define two varargs methods with distinct parameter types (Integer[] vs String[]).
- * 2. Call them with various arguments to trigger compile‑time resolution of the correct
- *    overload.
+ *   Fixed: the original file called varArgDemo(someList). A List<Integer> is
+ *   not an Integer[], so that did not compile. The fix is to hand over an
+ *   array: list.toArray(new Integer[0]).
  *
- * Time Complexity: O(1) per call – no processing is performed inside the methods.
- * Space Complexity: O(1) – only method parameters are stored; no additional data structures.
+ * HOW IT WORKS
+ *   1. At a call site javac wraps the loose arguments into a new array, so
+ *      varArgDemo(1, 2, 3) becomes varArgDemo(new Integer[]{1, 2, 3}).
+ *   2. If you already pass an array of the right type, no wrapping happens and
+ *      that exact array instance is used.
+ *   3. Overloads are chosen in three phases:
+ *        phase 1 - exact match / widening, no boxing, no varargs
+ *        phase 2 - boxing and unboxing allowed, still no varargs
+ *        phase 3 - varargs considered
+ *      The first phase that finds a match wins, which is why pick(7) picks the
+ *      fixed-arity Integer overload.
+ *
+ * KEY INSIGHT
+ *   Varargs is array sugar resolved at compile time. Two rules cover almost
+ *   every trick question: a varargs method is never chosen while any
+ *   fixed-arity method applies, and passing an array skips the wrapping.
+ *
+ * GOTCHAS
+ *   - varArgDemo() with no arguments would not compile here: both Integer...
+ *     and String... match an empty call and neither is more specific.
+ *   - Passing a single null to T... is ambiguous between "the whole array is
+ *     null" and "one null element"; cast it, e.g. (String) null.
+ *   - A collection is not an array, so a List never satisfies T... directly.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - What does varargs compile down to in the bytecode?
+ *   - Why can varargs only be the last parameter?
+ *   - Why does the compiler warn about generic varargs, and what is @SafeVarargs?
+ *   - What does f(null) resolve to when overloads take String... and Object...?
+ *
+ * RUN
+ *   main() runs 5 cases (loose args, array spread, single literal, list
+ *   converted to an array, fixed-arity vs varargs) and prints actual vs
+ *   expected.
  */
 import java.util.ArrayList;
 import java.util.List;
 
 class VarArgDemo {
-    public static void main(String... args) {
-        List<Integer> list = new ArrayList<>();
-        String[] list1 = new String[10];
 
-        varArgDemo(list);
-        varArgDemo(list1);
-        varArgDemo(list1);
-        varArgDemo("");
+    public static void main(String[] args) {
+        List<Integer> numbers = new ArrayList<>();
+        numbers.add(10);
+        numbers.add(20);
 
+        Integer[] boxed = {1, 2, 3};
+        String[] words = {"a", "b"};
+
+        print("case 1: three loose ints", varArgDemo(1, 2, 3), "Integer... with 3 args");
+        print("case 2: Integer[] passed directly", varArgDemo(boxed), "Integer... with 3 args");
+        print("case 3: String[] passed directly", varArgDemo(words), "String... with 2 args");
+        print("case 4: single empty string", varArgDemo(""), "String... with 1 args");
+        // A List is not an array, so it must be converted first - this was the original bug.
+        print("case 5: list converted to array", varArgDemo(numbers.toArray(new Integer[0])),
+                "Integer... with 2 args");
+        print("case 6: fixed-arity beats varargs", pick(7), "fixed-arity Integer");
     }
 
-    private static void varArgDemo(Integer... list) {
+    private static String varArgDemo(Integer... list) {
+        return "Integer... with " + list.length + " args";
     }
 
-    private static void varArgDemo(String... list) {
+    private static String varArgDemo(String... list) {
+        return "String... with " + list.length + " args";
+    }
+
+    /** Phase 2 (boxing) finds this, so phase 3 (varargs) is never reached. */
+    private static String pick(Integer value) {
+        return "fixed-arity Integer";
+    }
+
+    private static String pick(Integer... values) {
+        return "varargs Integer...";
+    }
+
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

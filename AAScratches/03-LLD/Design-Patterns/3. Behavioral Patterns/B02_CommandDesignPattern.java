@@ -1,53 +1,90 @@
-/**
- * 🧩 What is the Command Pattern?
- * <p>
- * Definition:
- * <p>
- * The Command Pattern turns a request into a standalone object
- * <p>
- * that contains all the information about the request.
- * <p>
- * This allows you to parameterize methods with different requests,
- * <p>
- * queue or log commands, and support undoable operations.
- * <p>
- * In simple terms:
- * <p>
- * You encapsulate an action (command) and its receiver
- * <p>
- * (the object that does the work) inside a class.
- * <p>
- * The caller doesn’t need to know how the command is executed — it just calls execute()
+/*
+ * =====================================================================
+ *  Command Design Pattern                   LLD | Easy  MUST-KNOW
+ * =====================================================================
+ *
+ * PATTERN
+ *   Command - Behavioral family (GoF). Also called Action or Transaction.
+ *
+ * INTENT
+ *   Wrap a request as an object that holds everything needed to perform it: the
+ *   receiver, the method to call, and any arguments. The invoker then triggers work
+ *   through one uniform execute() call without knowing what the work is.
+ *
+ * WHEN TO USE, WHEN NOT
+ *   Use when: requests must be stored, queued, logged, retried, scheduled or undone -
+ *     remote controls, job queues, editor undo stacks, transactional outbox, CQRS
+ *     command handlers, GUI menu items that share an action with a toolbar button.
+ *   Do not use when: the caller can just call the method. One command class per method
+ *     is real ceremony; pay it only for the queue/undo/log capability it unlocks.
+ *
+ * ROLES IN THIS CODE
+ *   Command              -> Command interface (execute)
+ *   TurnOnCommand,
+ *   TurnOffCommand,
+ *   VolumeUpCommand      -> ConcreteCommands: each binds one Television method
+ *   Television           -> Receiver: the object that actually does the work
+ *   Remote               -> Invoker: holds a Command, presses it, knows nothing else
+ *   CommandDesignPattern.main -> Client: builds commands and loads them into the invoker
+ *
+ * KEY INSIGHT
+ *   Command is Strategy with the receiver already bound in. Because the "what to do"
+ *   and the "who to do it to" are captured inside one object, that object can be put
+ *   in a list, sent over a wire, replayed, or paired with an undo() - which is exactly
+ *   what a plain method call can never be. Recognise it whenever a requirement says
+ *   undo, redo, macro, retry or audit log.
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - Add undo: give Command an undo() and have the invoker push executed commands on
+ *     a stack (this is where Command meets Memento for non-invertible state).
+ *   - Macro command: a ConcreteCommand holding a List<Command> - that is Composite.
+ *   - Command vs Strategy: both inject behaviour; Command binds a receiver and is
+ *     designed to be stored and replayed, Strategy is chosen and run immediately.
+ *   - Where in the JDK/Spring? Runnable handed to an ExecutorService is Command;
+ *     so is every @Transactional service method behind a CQRS command handler.
+ *
+ * RUN
+ *   main() runs 3 cases: a single button press, the same remote re-loaded with two more
+ *   commands, and the edge case of pressing a button with no command bound.
  */
 
-// Command
+import java.util.ArrayList;
+import java.util.List;
+
 interface Command {
     void execute();
 }
 
-//Command Receiver
+/** Receiver: knows how to do the real work, knows nothing about commands. */
 class Television {
 
+    private final List<String> actionLog = new ArrayList<>();
+
     public void turnOn() {
-        System.out.println("TV turned on");
+        actionLog.add("TV turned on");
     }
 
     public void turnOff() {
-        System.out.println("TV turned off");
+        actionLog.add("TV turned off");
     }
 
     public void increaseVolume() {
-        System.out.println("TV volume increased");
+        actionLog.add("TV volume increased");
     }
 
     public void decreaseVolume() {
-        System.out.println("TV volume decreased");
+        actionLog.add("TV volume decreased");
+    }
+
+    /** Exposed so main() can assert on what actually reached the receiver. */
+    List<String> getActionLog() {
+        return actionLog;
     }
 }
 
-// 3️⃣ Concrete Commands
 class TurnOnCommand implements Command {
-    Television tv;
+
+    private final Television tv;   // the receiver is bound into the command itself
 
     public TurnOnCommand(Television tv) {
         this.tv = tv;
@@ -60,7 +97,8 @@ class TurnOnCommand implements Command {
 }
 
 class TurnOffCommand implements Command {
-    Television tv;
+
+    private final Television tv;
 
     public TurnOffCommand(Television tv) {
         this.tv = tv;
@@ -72,8 +110,23 @@ class TurnOffCommand implements Command {
     }
 }
 
-//4️⃣ Invoker
+class VolumeUpCommand implements Command {
+
+    private final Television tv;
+
+    public VolumeUpCommand(Television tv) {
+        this.tv = tv;
+    }
+
+    @Override
+    public void execute() {
+        tv.increaseVolume();
+    }
+}
+
+/** Invoker: triggers the request but never learns which receiver or method it hits. */
 class Remote {
+
     private Command command;
 
     public void setCommand(Command command) {
@@ -81,22 +134,47 @@ class Remote {
     }
 
     public void pressButton() {
+        if (command == null) {
+            throw new IllegalStateException("No command bound to this button");
+        }
         command.execute();
     }
 }
 
 class CommandDesignPattern {
+
     public static void main(String[] args) {
         Television tv = new Television();
-        Command turnOn = new TurnOnCommand(tv);
-        Command turnOff = new TurnOffCommand(tv);
-
         Remote remote = new Remote();
-        remote.setCommand(turnOn);
-        remote.pressButton();
 
-        remote.setCommand(turnOff);
+        // Case 1: one command loaded into the invoker and fired.
+        remote.setCommand(new TurnOnCommand(tv));
         remote.pressButton();
+        print("case 1 after turn on", tv.getActionLog(), "[TV turned on]");
 
+        // Case 2: the same invoker driving different requests - only the command changes.
+        remote.setCommand(new VolumeUpCommand(tv));
+        remote.pressButton();
+        remote.setCommand(new TurnOffCommand(tv));
+        remote.pressButton();
+        print("case 2 after volume+off", tv.getActionLog(),
+                "[TV turned on, TV volume increased, TV turned off]");
+
+        // Case 3 (edge): an unbound button must fail loudly instead of NPE-ing.
+        String result;
+        try {
+            new Remote().pressButton();
+            result = "no exception";
+        } catch (IllegalStateException e) {
+            result = "IllegalStateException: " + e.getMessage();
+        }
+        print("case 3 unbound button", result,
+                "IllegalStateException: No command bound to this button");
+    }
+
+    private static void print(String label, Object actual, Object expected) {
+        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
+        System.out.println(label + ": " + actual + "   expected " + expected
+                + "   " + (ok ? "[OK]" : "[FAIL]"));
     }
 }

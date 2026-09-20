@@ -1,51 +1,82 @@
-
-// https://leetcode.com/problems/angle-between-hands-of-a-clock/
-
-/**
- * Constraints:
- * <p>
- * 1 <= hour <= 12
- * 0 <= minutes <= 59
- * <p>
- * We want the positions (in degrees) of the hour hand and minute hand, then take the absolute
- * <p>
- * difference, and finally ensure the result is ≤ 180° (the “smaller” angle).
+/*
+ * =====================================================================
+ *  Angle Between Hands of a Clock                   LeetCode 1344 | Medium
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Given an hour (1..12) and a minute (0..59) on a standard analog clock,
+ *   return the smaller of the two angles formed by the hour hand and the
+ *   minute hand, in degrees. The answer is always in [0, 180].
+ *
+ * EXAMPLE
+ *   hour = 3, minute = 30   ->  75.0    hour hand is at 105, minute hand at 180
+ *   hour = 6, minute = 0    ->  180.0   the two hands point exactly opposite
+ *   hour = 12, minute = 0   ->  0.0     edge case: 12 normalises to 0
+ *   hour = 9, minute = 45   ->  22.5    hour hand has drifted 22.5 past the 9
+ *
+ * APPROACH  (degrees-per-unit, then fold to the smaller arc)
+ *   1. Normalise hour 12 to 0, because the dial repeats every 12 hours.
+ *   2. Minute hand: 360 degrees / 60 minutes = 6 degrees per minute.
+ *   3. Hour hand: 360 / 12 = 30 degrees per hour, PLUS 30/60 = 0.5 degrees
+ *      per minute, because the hour hand creeps forward continuously.
+ *   4. Take the absolute difference of the two positions.
+ *   5. Two hands cut the circle into two arcs that sum to 360, so the answer
+ *      is min(diff, 360 - diff).
+ *
+ * KEY INSIGHT
+ *   The hour hand does NOT jump on the hour - it drifts 0.5 degrees every
+ *   minute. Forgetting that drift is the single most common wrong answer
+ *   (it gives 90 for 3:30 instead of 75). The second half of the pattern,
+ *   folding an angle with min(x, 360 - x), is the same wraparound trick that
+ *   circular-array and minute-of-day problems reuse.
+ *
+ * COMPLEXITY
+ *   Time  O(1)  a handful of arithmetic operations, no loops
+ *   Space O(1)  only scalar locals
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   - At what times of day are the hands exactly overlapping? (22 times/day)
+ *   - Return the angle measured clockwise from the hour hand instead.
+ *   - Why is double safe here? (all values are multiples of 0.5, exact in binary)
+ *   - Extend to a hand-and-second-hand clock, or to a 24-hour dial.
+ *
+ * RUN
+ *   main() runs 4 cases (typical, opposite hands, the 12:00 edge, and a
+ *   tricky one where the hour-hand drift decides the answer) and prints
+ *   actual vs expected.
  */
+
 class AngleBetweenHandsOfClock {
 
+    private static final double DEGREES_PER_MINUTE = 6.0;        // 360 / 60
+    private static final double DEGREES_PER_HOUR = 30.0;         // 360 / 12
+    private static final double HOUR_HAND_DRIFT_PER_MINUTE = 0.5; // 30 / 60
+
     public static double angleBetweenHands(int hour, int minute) {
-        // Normalize the hour to a 12-hour format
-        if (hour >= 12) hour -= 12;
+        // 12 o'clock sits at the same place on the dial as 0 o'clock.
+        if (hour >= 12) {
+            hour -= 12;
+        }
 
-        // Calculate the angle of the minute hand
-        // (6 degrees per minute)
-        double minuteAngle = minute * 6;
+        double minuteAngle = minute * DEGREES_PER_MINUTE;
 
-        // Hour hand
-        // hour angle is 30 degress
-        //The hour hand moves 360° per 12 hours → 30° per hour. But it also moves
-        //continuously as the minutes pass (i.e. it doesn’t jump only at the hour).
-        //In one hour it moves 30°, so in one minute it moves  30/60=0.5 degrees.
-        double hourAngle = (hour * 30) + (minute * 0.5);
+        // The hour hand is partly through its hour, so add the per-minute drift.
+        double hourAngle = (hour * DEGREES_PER_HOUR) + (minute * HOUR_HAND_DRIFT_PER_MINUTE);
 
-        // Calculate the difference between the two angles
-        // from pivot or base of zero angle
         double angle = Math.abs(hourAngle - minuteAngle);
 
-        // The angle should be the smaller of the two possible angles (angle or 360 - angle)
+        // The two arcs between the hands sum to 360; we want the smaller one.
         return Math.min(angle, 360 - angle);
     }
 
-    public static void main(String[] args) {
-        // Test cases
-        int hour1 = 3, minute1 = 30;
-        int hour2 = 6, minute2 = 0;
-        int hour3 = 12, minute3 = 0;
-        int hour4 = 9, minute4 = 45;
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
+    }
 
-        System.out.println("Angle at 3:30 is: " + angleBetweenHands(hour1, minute1) + " degrees"); // 75
-        System.out.println("Angle at 6:00 is: " + angleBetweenHands(hour2, minute2) + " degrees"); // 180
-        System.out.println("Angle at 12:00 is: " + angleBetweenHands(hour3, minute3) + " degrees"); // 0.0
-        System.out.println("Angle at 9:45 is: " + angleBetweenHands(hour4, minute4) + " degrees"); // 22.5
+    public static void main(String[] args) {
+        print("case 1  3:30 (typical)", angleBetweenHands(3, 30), 75.0);
+        print("case 2  6:00 (opposite)", angleBetweenHands(6, 0), 180.0);
+        print("case 3 12:00 (edge, hour wraps)", angleBetweenHands(12, 0), 0.0);
+        print("case 4  9:45 (drift decides)", angleBetweenHands(9, 45), 22.5);
     }
 }
