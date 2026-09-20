@@ -123,19 +123,19 @@ class StrategyDesignPattern {
         PaymentContext context = new PaymentContext();
 
         // Case 1: credit card. Constructor order is (name, cardNumber).
-        context.setPaymentStrategy(new CreditCardPayment("Ravi Varma", "1234-5678-9876-5432"));
+        context.setPaymentStrategy(new CreditCardPayment("A. Customer", "4111-1111-1111-1111"));
         print("case 1 credit card", context.payBill(2500d),
-                "2500.00 paid using Credit Card 1234-5678-9876-5432 (Ravi Varma)");
+                "2500.00 paid using Credit Card 4111-1111-1111-1111 (A. Customer)");
 
         // Case 2: same context, different algorithm - swapped at runtime.
-        context.setPaymentStrategy(new PayPalPayment("ravi.varma@gmail.com"));
+        context.setPaymentStrategy(new PayPalPayment("a.customer@example.com"));
         print("case 2 paypal", context.payBill(1500.0),
-                "1500.00 paid using PayPal account ravi.varma@gmail.com");
+                "1500.00 paid using PayPal account a.customer@example.com");
 
         // Case 3: a third mode; PaymentContext was not edited to add any of them.
-        context.setPaymentStrategy(new UpiPayment("ravi@okicici"));
+        context.setPaymentStrategy(new UpiPayment("a.customer@examplebank"));
         print("case 3 upi", context.payBill(500D),
-                "500.00 paid using UPI ID ravi@okicici");
+                "500.00 paid using UPI ID a.customer@examplebank");
 
         // Case 4 (edge): a fresh context with no strategy injected must fail loudly.
         String result;
