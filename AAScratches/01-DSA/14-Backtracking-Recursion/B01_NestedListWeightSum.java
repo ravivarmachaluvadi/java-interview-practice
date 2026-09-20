@@ -29,8 +29,10 @@
  *   whenever a problem says "weight by how deeply nested it is".
  *
  * COMPLEXITY
- *   Time  O(n)  every integer and every list node is visited exactly once
- *   Space O(d)  recursion stack, where d is the maximum nesting depth
+ *   Time  O(n) for both - every integer and every list node is visited once
+ *   Space depthSum    O(d) recursion stack, d = the maximum nesting depth
+ *         depthSumBfs O(w) queue, w = the widest level - up to O(n) for a
+ *                     flat list such as [1,2,...,n], whose depth is only 1
  *
  * INTERVIEW FOLLOW-UPS
  *   - Nested List Weight Sum II (LC 364): weight by inverse depth, deepest = 1.

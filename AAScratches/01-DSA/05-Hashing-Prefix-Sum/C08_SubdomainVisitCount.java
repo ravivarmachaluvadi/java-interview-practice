@@ -12,8 +12,7 @@
  *   ["9001 discuss.leetcode.com","50 yahoo.com","1 intel.mail.com","5 wiki.org"]
  *     -> 1 intel.mail.com, 1 mail.com, 5 org, 5 wiki.org, 50 yahoo.com,
  *        9001 discuss.leetcode.com, 9001 leetcode.com, 9052 com
- *   []  ->  []
- *   ["900 google.mail.com","50 yahoo.com","1 intel.mail.com","5 wiki.org"]
+ *   []  ->  [] ["900 google.mail.com","50 yahoo.com","1 intel.mail.com","5 wiki.org"]
  *     -> ... 900 google.mail.com, 901 mail.com, 951 com    (two rows share mail.com)
  *
  * APPROACH  (map accumulation over derived keys)
@@ -29,7 +28,8 @@
  *   Building suffixes right to left avoids substring/indexOf juggling.
  *
  * COMPLEXITY
- *   Time  O(n * L)  n rows, each split and re-joined over its L labels
+ *   Time  O(n * L^2)  n rows; each of the L suffixes is rebuilt by concatenation, copying a
+ *                     growing string, so a row costs O(L^2) characters. L is tiny in practice.
  *   Space O(n * L)  one map entry per distinct suffix across all rows
  *
  * INTERVIEW FOLLOW-UPS

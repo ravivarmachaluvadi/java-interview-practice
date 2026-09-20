@@ -35,7 +35,7 @@
  *   product can never be constructed half-filled, and it can never be
  *   changed afterwards. Remember the exact combination - private
  *   constructor + static nested class + `return this` + build() - because
- *   Singleton (D01) reuses the same static-nested-class trick for a
+ *   Singleton (D01_Singleton) reuses the same static-nested-class trick for a
  *   completely different reason.
  *
  * INTERVIEW FOLLOW-UPS

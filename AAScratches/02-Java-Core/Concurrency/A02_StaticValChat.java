@@ -20,7 +20,8 @@
  *   2. In run 1 both methods use synchronized (StaticValChat.class), so the static and the
  *      instance work are mutually exclusive.
  *   3. In run 2 the instance method locks OTHER_LOCK instead. Two threads can then be inside
- *      the two critical sections at the same time and a ++ gets lost, exactly as in A01.
+ *      the two critical sections at the same time and a ++ gets lost, exactly as in
+ *      A01_TwoThreadsToSingleValue.
  *   4. The pool is shut down with shutdown() + awaitTermination() instead of spinning on
  *      isTerminated(), which is a busy-wait that burns a whole core for nothing.
  *

@@ -32,9 +32,6 @@
  *   power of three an int holds, and a prime's power has no divisors except
  *   smaller powers of that same prime - so 1162261467 % n == 0 is conclusive.
  *
- *   Fixed: isPowerOfThree was an instance method but main called it statically,
- *   so the file did not compile. It is static now.
- *
  * COMPLEXITY
  *   Time  O(log n) base 3 for the loop, O(1) for the divisor trick
  *   Space O(1)     a single int

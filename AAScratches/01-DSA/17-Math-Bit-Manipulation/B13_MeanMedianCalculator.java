@@ -10,7 +10,7 @@
  *   values, so the median can be a fraction even for integer input.
  *
  * EXAMPLE
- *   [5, 3, 8, 1, 2]  ->  mean 3.8,  median 3.0   (sorted: 1 2 [3] 8 -> 1 2 3 5 8)
+ *   [5, 3, 8, 1, 2]  ->  mean 3.8,  median 3.0   (sorted: 1 2 [3] 5 8)
  *   [5, 3, 8, 1]     ->  mean 4.25, median 4.0   (sorted: 1 [3 5] 8 -> (3+5)/2)
  *   [7]              ->  mean 7.0,  median 7.0   (single element)
  *

@@ -11,8 +11,9 @@
  *   [1,2,3,4,5,null,6]           ->  true    every node's children differ in height by <= 1
  *   [1,2,null,3,null,4]          ->  false   left chain of depth 3, right side empty
  *   []                           ->  true    empty tree is balanced by definition
- *   [1,2,2,3,null,null,3,4,null,null,4]  ->  false   both subtrees of the root are balanced
- *                                                     on their own, but node 2 (left) has
+ *   [1,2,2,3,null,null,3,4,null,null,4]  ->  false   the root's two subtrees have equal
+ *                                                     height (3), so a root-only check
+ *                                                     passes, but node 2 on the left has
  *                                                     heights 2 vs 0
  *
  * APPROACH  (height recursion with a -1 failure sentinel)
@@ -38,7 +39,8 @@
  *   - Why is the top-down "height(left) vs height(right) at each node" version O(n^2)?
  *   - Can you do it without the sentinel (e.g. return a small Pair(height, balanced))?
  *   - Iterative version: postorder with an explicit stack and a height map.
- *   - Related: Diameter of Binary Tree (B09) uses the same return-height skeleton.
+ *   - Related: Diameter of Binary Tree (B09_DiameterOfBinaryTree) uses the same return-height
+ *   skeleton.
  *
  * RUN
  *   main() runs 4 cases (balanced, skewed, empty, subtrees-balanced-but-root-not) and prints

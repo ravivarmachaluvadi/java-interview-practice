@@ -29,8 +29,8 @@
  * KEY INSIGHT
  *   Undirected cycle detection = "visited neighbour that is not my parent".
  *   Compare with a DIRECTED graph, where visited is not enough and you need a
- *   recursion-stack array (pathVis) instead - see A03. Recognising which of the
- *   two rules applies is the whole question.
+ *   recursion-stack array (pathVis) instead - see A03_CycleCheckInDirectedGraph. Recognising which
+ *   of the two rules applies is the whole question.
  *
  * COMPLEXITY
  *   Time  O(V + E)  every vertex is pushed once, every edge is scanned twice.

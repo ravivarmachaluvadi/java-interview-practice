@@ -43,7 +43,7 @@
  *     equal characters at the same depth, or use a HashSet per level: LeetCode 47)
  *   - Produce them in lexicographic order. (use the used[] + sorted-input template, or
  *     repeatedly apply next-permutation)
- *   - Return only the k-th permutation without generating the rest. (D02, factorial
+ *   - Return only the k-th permutation without generating the rest. (D02_KthPermutation, factorial
  *     number system - counting beats generating)
  *   - Why does swapping i with index work, and what breaks if you forget the swap back?
  *

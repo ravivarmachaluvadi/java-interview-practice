@@ -21,8 +21,7 @@
  *
  * ROLES IN THIS CODE
  *   DispenseChain             Handler         - holds nextChain, declares
- *                                               dispense(), and owns the
- *                                               shared forward() step.
+ *                                               dispense(), and owns the shared forward() step.
  *   Rupee2000/500/200/100     ConcreteHandler - each knows one denomination:
  *   Dispenser                                   take what it can, pass the
  *                                               remainder down.
@@ -183,7 +182,8 @@ class ChainOfResponsibilityExample {
     public static void main(String[] args) {
         ChainOfResponsibilityExample atm = new ChainOfResponsibilityExample();
 
-        // Case 1: typical - every link in the chain contributes something.
+        // Case 1: typical - three of the four links contribute, and the chain stops
+        // early once the remainder hits 0, so the 100 link is never reached.
         System.out.println("case 1: 8700");
         print("  actual", atm.dispenseCash(8700), "[4 x 2000, 1 x 500, 1 x 200]");
 

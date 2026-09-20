@@ -34,9 +34,9 @@
  *     is ever read - parking the debt there means exactly one element ever reads it.
  *   - Fixed arrays rather than an ArrayList: maxSize is given, and the parallel array
  *     inc has to be index-aligned with stack anyway.
- *   - Fixed: the author's trailing comment claimed the last pop prints 101. It is 201
- *     (1 + 100 from increment(5,100) + 100 from increment(2,100)). The code was right,
- *     the comment was wrong; main() now asserts 201.
+ *   - Watch the final pop: it is 201, not 101. The bottom element collects the debt
+ *     from BOTH increments (1 + 100 from increment(5,100) + 100 from increment(2,100)),
+ *     because every increment covers position 0.
  *
  * COMPLEXITY
  *   Time  O(1) for push, pop and increment - each touches a constant number of cells

@@ -49,8 +49,8 @@
  *   copy - otherwise case 2 would be answering a question about case 1's leftovers.
  *
  * RUN
- *   main() runs 4 cases (kth smallest, kth largest, single element, duplicates)
- *   and prints actual vs expected.
+ *   main() runs 5 cases (kth smallest, kth largest, single element, duplicates,
+ *   input array left intact) and prints actual vs expected.
  */
 import java.util.Arrays;
 

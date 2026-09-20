@@ -6,8 +6,10 @@
  * PROBLEM
  *   Given a string s, decide whether it is a valid number: an optional sign, then an integer
  *   ("12") or a decimal ("1.", ".5", "1.5"), optionally followed by 'e'/'E', an optional sign
- *   and a mandatory integer exponent. Leading and trailing spaces are trimmed. Anything else
- *   (a letter, a second dot, a dot inside the exponent, a sign mid-number) makes it invalid.
+ *   and a mandatory integer exponent. Anything else (a letter, a second dot, a dot inside the
+ *   exponent, a sign mid-number) makes it invalid.
+ *   Both methods here also trim leading/trailing spaces. That is the LEGACY LC 65 rule: the
+ *   current judge restricts s to letters, digits, '+', '-' and '.', so spaces never appear.
  *
  * EXAMPLE
  *   "0.1"   -> true      "3e+7"  -> true      "-1."   -> true       "46.e3"  -> true
@@ -17,8 +19,8 @@
  * APPROACH  (single pass with three flags: seenDigit, seenDot, seenE)
  *   1. trim; empty -> false.
  *   2. For each character decide by its class:
- *        digit -> seenDigit = true
- *        '.'   -> invalid if a dot or an 'e' was already seen (no dot inside the exponent)
+ *        digit -> seenDigit = true '.'   -> invalid if a dot or an 'e' was already seen (no dot
+ *        inside the exponent)
  *        'e'   -> invalid if no digit yet, or a second 'e'; then RESET seenDigit because the
  *                 exponent must contain its own digit ("1e" and "1e+" are invalid)
  *        sign  -> legal only at index 0 or directly after 'e'/'E'
@@ -119,7 +121,7 @@ class ValidNumber {
         check("0.1", true);
         check("3e+7", true);
         check("-1.", true);
-        check(" 46.e3 ", true);
+        check(" 46.e3 ", true);           // legacy variant: spaces trimmed
         // edge
         check("", false);
         check(".", false);

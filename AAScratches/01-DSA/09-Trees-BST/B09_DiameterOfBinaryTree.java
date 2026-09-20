@@ -7,8 +7,6 @@
  *   Given the root of a binary tree, return the length of the longest path between any
  *   two nodes. Length is counted in EDGES, not nodes, and the path does not have to
  *   pass through the root. An empty tree and a single node both have diameter 0.
- *   Note: the old comment on this file said "number of nodes"; the code always counted
- *   edges, which is what LeetCode 543 asks for. The header is now correct.
  *
  * EXAMPLE
  *          1
@@ -35,11 +33,11 @@
  *   4. The answer is the global maximum, not the value returned from the root.
  *
  * KEY INSIGHT
- *   What you return up is NOT what you are answering. The recursion returns height
- *   (one arm) so the parent can build its own path; the answer (two arms joined) is
- *   written to a side field. Once this split is automatic, Balanced Tree (B10) and
- *   Max Path Sum (D01) are the same skeleton with a different combine step, and the
- *   naive O(n^2) "height at every node" solution never tempts you again.
+ *   What you return up is NOT what you are answering. The recursion returns height (one arm) so the
+ *   parent can build its own path; the answer (two arms joined) is written to a side field. Once
+ *   this split is automatic, Balanced Tree (B10_IsBalancedBinaryTree) and Max Path Sum
+ *   (D01_BinaryTreeMaxPathSum) are the same skeleton with a different combine step, and the naive
+ *   O(n^2) "height at every node" solution never tempts you again.
  *
  * COMPLEXITY
  *   Time  O(n)  each node visited once; height is not recomputed

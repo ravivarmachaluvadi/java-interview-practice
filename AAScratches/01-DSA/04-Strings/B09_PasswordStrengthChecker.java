@@ -25,7 +25,7 @@
  * KEY INSIGHT
  *   Accumulate facts in one pass, decide at the end. A flag is "sticky": once
  *   true it never goes back, so the scan never needs to look backwards.
- *   The same shape scales to ValidNumber (D02), where flags become states.
+ *   The same shape scales to ValidNumber (D01_ValidNumber), where flags become states.
  *
  * Fixed: the special-character set was "!@#$%^&*(" and silently dropped ')',
  *   so a password whose only special char was ')' was rated Weak.

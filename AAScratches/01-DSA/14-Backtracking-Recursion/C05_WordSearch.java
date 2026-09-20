@@ -10,7 +10,7 @@
  *   appear elsewhere in the grid and be reused by a different path.
  *
  * EXAMPLE
- *   board = A B C E        word = "ABCCED" -> true   (A,B,C then down, down-left, left)
+ *   board = A B C E        word = "ABCCED" -> true   (top row A,B,C then down, down, left)
  *           S F C S        word = "SEE"    -> true
  *           A D E E        word = "ABCB"   -> false  (the only B would have to be reused)
  *   board = [['A']],       word = "A"      -> true   (edge: 1x1 grid)

@@ -17,8 +17,7 @@
  * APPROACH  (non-adjacent 1D DP, then the O(1) rolling form)
  *   1. dp[i] = the best total achievable considering only houses 0..i.
  *   2. At house i there are exactly two choices:
- *        skip it  -> dp[i - 1]
- *        take it  -> nums[i] + dp[i - 2]   (i - 1 is now off limits)
+ *        skip it  -> dp[i - 1] take it  -> nums[i] + dp[i - 2]   (i - 1 is now off limits)
  *      so dp[i] = max(dp[i - 1], nums[i] + dp[i - 2]).
  *   3. Seed dp[0] = nums[0] and dp[1] = max(nums[0], nums[1]).
  *   4. The transition only ever looks two steps back, so the whole array collapses

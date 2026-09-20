@@ -1,6 +1,6 @@
 /*
  * =====================================================================
- *  BST to Sorted Doubly Linked List (in place)     LeetCode 426 (premium) | Medium
+ *  BST to Sorted Doubly Linked List (in place)   LeetCode 426 variant (non-circular) | Medium
  * =====================================================================
  *
  * PROBLEM
@@ -127,7 +127,8 @@ class BSTtoDLLInPlace {
 
     private static void check(String label, TreeNode head,
                               String expectedForward, String expectedBackward) {
-        System.out.println(label + " forward: " + forward(head) + "   expected " + expectedForward);
+        System.out.println(label + " forward: " + forward(head)
+                + "   expected " + expectedForward);
         System.out.println(label + " backward: " + backward(head)
                 + "   expected " + expectedBackward);
     }

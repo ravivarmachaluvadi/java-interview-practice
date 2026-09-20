@@ -27,8 +27,7 @@
  *   Pattern to recognise: "count subarrays with property P" -> count by right endpoint.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two counters
+ *   Time  O(n)  one pass Space O(1)  two counters
  *
  * INTERVIEW FOLLOW-UPS
  *   - Count subarrays made of one repeated value (reset when nums[i] != nums[i-1]).

@@ -19,7 +19,7 @@
  *     UI widget sets (Windows/Mac button + checkbox), cloud SDK clients.
  *   Use when the variant is chosen once at startup (config, profile) and
  *     everything downstream must follow that choice.
- *   Do NOT use for a single product type - that is plain Factory (A01) and
+ *   Do NOT use for a single product type - that is plain Factory (A01_FactoryDesignPattern) and
  *     the extra interface buys nothing.
  *   Do NOT use when new PRODUCT TYPES appear often: adding createMigrator()
  *     forces a change in every concrete factory. Abstract Factory makes

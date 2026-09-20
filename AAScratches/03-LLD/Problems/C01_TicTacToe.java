@@ -10,10 +10,9 @@
  *   row, column, main diagonal or anti-diagonal, and 0 otherwise.
  *
  * EXAMPLE
- *   n = 3
- *   move(0,0,1) -> 0   move(0,2,2) -> 0   move(2,2,1) -> 0   move(1,1,2) -> 0
+ *   n = 3 move(0,0,1) -> 0   move(0,2,2) -> 0   move(2,2,1) -> 0   move(1,1,2) -> 0
  *   move(2,0,1) -> 0   move(1,0,2) -> 0   move(2,1,1) -> 1   (row 2 is all 1s)
- *   move(2,1,1) again  -> IllegalArgumentException (cell already taken)
+ *   move(2,1,2) on the taken cell -> IllegalArgumentException (cell already taken)
  *
  * DESIGN  (grid state behind one validated move() API)
  *   TicTacToe   owns the only mutable state: an int[n][n] where 0 = empty.

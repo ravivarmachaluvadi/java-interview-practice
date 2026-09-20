@@ -37,7 +37,7 @@
  *   - Group cells by diagonal using a HashMap keyed on i - j (needed when you must
  *     report WHICH diagonal broke, not just a boolean).
  *   - Anti-diagonals use i + j instead - the same idea with the other sign.
- *   - Rotate/transpose questions (see A01) lean on the same index arithmetic.
+ *   - Rotate/transpose questions (see A01_MatrixRotate90Degree) lean on the same index arithmetic.
  *
  * RUN
  *   main() runs 4 cases (true, false, single row edge, single column edge) and prints

@@ -35,9 +35,12 @@
  *   Space O(1)  extra, beyond the output list; the input is reordered in place
  *
  * INTERVIEW FOLLOW-UPS
- *   - Same problem without swapping: negate nums[|v| - 1] as a "seen" mark (see C14).
- *   - Input must not be modified: HashSet costs O(n) space; Floyd's cycle finds ONE dup (C17).
- *   - Find the missing numbers instead (C14), or the one-missing-one-duplicate pair (C15).
+ *   - Same problem without swapping: negate nums[|v| - 1] as a "seen" mark; landing on an
+ *     already-negative slot means that value repeats. Restore the signs before returning.
+ *   - Input must not be modified: a HashSet costs O(n) space; Floyd's cycle detection
+ *     (C15_FindDuplicate) finds ONE duplicate without touching the input.
+ *   - Find the missing numbers instead (B10_FindAllMissedNumbers), or the
+ *     one-missing-one-duplicate pair (B11_FindCorruptPair).
  *   - A value appearing three times: the final scan reports it twice (once per extra copy).
  *
  * RUN

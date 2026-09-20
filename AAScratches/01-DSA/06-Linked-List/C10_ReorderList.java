@@ -15,13 +15,15 @@
  *
  * APPROACH  (middle, reverse second half, interleave)
  *   1. Slow/fast walk to the middle. For odd length slow lands on the exact middle; for
- *      even length it lands on the last node of the first half. Either way the first half
- *      is the longer (or equal) one, which is what the interleave needs.
+ *      even length it lands on the FIRST node of the second half. Either way, cutting at
+ *      slow.next leaves the first half longer than the reversed second half by one node
+ *      (odd length) or two (even length), which is what the interleave needs.
  *   2. Cut after slow: secondHalf = slow.next; slow.next = null. Reverse secondHalf in place.
  *   3. Interleave: take one node from the first half, one from the reversed second half,
  *      appending to a dummy-headed result. Save both .next pointers BEFORE overwriting
  *      either, because appending a node destroys its old link.
- *   4. Whatever is left (at most one node from the first half) is appended as the tail.
+ *   4. The leftover first-half chain (one node for odd length, two for even) is appended
+ *      as the tail.
  *
  * KEY INSIGHT
  *   The target order is "first half forwards" zipped with "second half backwards". A
@@ -34,11 +36,11 @@
  *   Space O(1)  only pointer variables; the dummy is a single extra node
  *
  * INTERVIEW FOLLOW-UPS
- *   - Same trick family: palindrome check (C10) and max twin sum (C09) reverse a half too.
+ *   - Same trick family: B03_PalindromeLinkedList and C09_MaximumTwinSum reverse a half too.
  *   - Can you do it without a dummy node? Yes: zip in place starting from head, but the
  *     dummy makes the "append and advance" loop symmetric and harder to get wrong.
- *   - Why cut at slow and not slow.next? For even length both halves are equal; for odd
- *     length the extra node must be in the first half so it ends up last.
+ *   - Why cut AFTER slow (secondHalf = slow.next) and not before it? The node slow sits
+ *     on must stay in the first half, so for odd length the true middle ends up last.
  *
  * RUN
  *   main() runs 3 cases (odd length, even length, single node) and prints actual vs expected.
@@ -54,7 +56,7 @@ class ReorderList {
     static ListNode reorderList(ListNode head) {
         if (head == null || head.next == null) return head;
 
-        // Step 1: slow stops on the middle (odd) or the last node of the first half (even)
+        // Step 1: slow stops on the middle (odd) or the first node of the second half (even)
         ListNode slow = head, fast = head;
         while (fast != null && fast.next != null) {
             slow = slow.next;
@@ -83,7 +85,7 @@ class ReorderList {
             secondHalf = nextSecond;
         }
 
-        // Step 4: first half can be one node longer (odd length); it becomes the last node
+        // Step 4: the leftover first-half chain (one or two nodes) becomes the tail
         tail.next = (first != null) ? first : secondHalf;
 
         return dummy.next;

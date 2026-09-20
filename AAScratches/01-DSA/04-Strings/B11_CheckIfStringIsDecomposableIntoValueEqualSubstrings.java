@@ -30,7 +30,7 @@
  *
  * KEY INSIGHT
  *   Reduce a run's length to a remainder mod 3, then track a single boolean
- *   "already used the 2". The run scan (A07 run-length encoding) here feeds a
+ *   "already used the 2". The run scan (A07_RunLengthEncodingW4A3-length encoding) here feeds a
  *   constraint instead of building an output string.
  *
  * COMPLEXITY

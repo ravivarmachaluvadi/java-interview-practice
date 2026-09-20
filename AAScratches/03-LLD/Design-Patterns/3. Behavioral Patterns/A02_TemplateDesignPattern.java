@@ -26,8 +26,7 @@
  *   validateData          -> hook (concrete default, subclass MAY override)
  *   needsValidation       -> boolean hook that lets a subclass switch a step off
  *   saveData              -> invariant step, private, not overridable at all
- *   CSVDataProcessor,
- *   XMLDataProcessor,
+ *   CSVDataProcessor, XMLDataProcessor,
  *   JSONDataProcessor     -> ConcreteClass
  *
  * KEY INSIGHT

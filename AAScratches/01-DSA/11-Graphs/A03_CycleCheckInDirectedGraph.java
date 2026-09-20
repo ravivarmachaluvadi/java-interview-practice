@@ -30,8 +30,8 @@
  *   0->2->3 revisits 3 with no cycle anywhere. Only a node still ON the current
  *   recursion stack proves a cycle. That is the whole reason for the second
  *   array, and unsetting pathVis on the way back up is what makes it correct.
- *   Contrast with UNDIRECTED graphs (A02), where the rule is "visited and not
- *   my parent". Same shape of question, different test.
+ *   Contrast with UNDIRECTED graphs (A02_CheckForCycleInUnDirected), where the rule
+ *   is "visited and not my parent". Same shape of question, different test.
  *
  * COMPLEXITY
  *   Time  O(V + E)  each vertex entered once, each edge examined once.
@@ -40,9 +40,11 @@
  * INTERVIEW FOLLOW-UPS
  *   - Return the cycle itself, not just true/false (record the parent of each node).
  *   - Do it iteratively with Kahn's algorithm: if the topological order is shorter
- *     than V, a cycle exists (see A04).
- *   - Course Schedule (LC 207) is literally this question in disguise (see B11).
- *   - Eventual Safe Nodes (LC 802) reuses vis + pathVis with a third result array (C07).
+ *     than V, a cycle exists (see A04_ToposortDFS).
+ *   - Course Schedule (LC 207) is literally this question in disguise
+ *     (see B10_CourseSchedule).
+ *   - Eventual Safe Nodes (LC 802) reuses vis + pathVis with a third result array
+ *     (see C06_EventualSafeNodesByDFS).
  *
  * RUN
  *   main() runs 4 cases: the cycle-in-a-far-component graph, the same graph as a

@@ -31,7 +31,7 @@
  *   ([1, 2, 3, 4, 3] meets after 4 steps although the cycle has length 2). So a second,
  *   separate lap around the cycle is required. Pattern: any "array of indices" or
  *   "array of values in 1..n" is a linked list in disguise, so Floyd applies with no
- *   extra memory. C17 (Find the Duplicate) is exactly this machinery plus phase 3.
+ *   extra memory. C15_FindDuplicate is exactly this machinery plus phase 3.
  *
  * COMPLEXITY
  *   Time  O(mu + lambda)  tail length plus cycle length; the validation scan adds O(n)
@@ -39,7 +39,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Find the cycle START (mu): reset one pointer to 'start', advance both one step at a
- *     time until they meet. That is LeetCode 142 and the engine of LeetCode 287 (C17).
+ *     time until they meet. That is LeetCode 142 and the engine of 287 (C15_FindDuplicate).
  *   - Why does fast catch slow at all? Inside the cycle the gap shrinks by exactly 1 per step.
  *   - Values in 1..n instead of 0..n-1: use nums[i] - 1 as the pointer, or start at index 0.
  *   - Nodes may have no next (nums[i] == -1): stop when fast reaches -1, meaning no cycle.

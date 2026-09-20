@@ -36,8 +36,8 @@
  *   Space O(n + E)    parent/rank arrays plus the sorted copy of the edges
  *
  * INTERVIEW FOLLOW-UPS
- *   - Kruskal vs Prim (A11): Kruskal wins on sparse or pre-sorted edges and
- *     handles disconnected input for free; Prim wins on dense graphs.
+ *   - Kruskal vs Prim (A09_PrimsAlgo): Kruskal wins on sparse or pre-sorted
+ *     edges and handles disconnected input for free; Prim wins on dense graphs.
  *   - Detect disconnection: the MST has n-1 edges if and only if it is connected.
  *   - Maximum spanning tree: sort descending, everything else is identical.
  *   - Why union by rank AND path compression? Either alone is O(log n);

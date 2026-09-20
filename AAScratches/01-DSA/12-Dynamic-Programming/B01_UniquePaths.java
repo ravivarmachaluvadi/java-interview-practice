@@ -11,8 +11,8 @@
  *
  * EXAMPLE
  *   m = 3, n = 2  ->  3   RDD, DDR, DRD
- *   m = 3, n = 7  ->  28
- *   m = 1, n = 1  ->  1   edge case: already at the destination, the empty path counts
+ *   m = 3, n = 7  ->  28 m = 1, n = 1  ->  1   edge case: already at the destination, the empty
+ *   path counts
  *   m = 1, n = 10 ->  1   edge case: a single row leaves no choice at all
  *
  * APPROACH  (grid counting DP)
@@ -27,10 +27,8 @@
  *   row's left neighbour, so "dp[j] += dp[j-1]" is exactly the 2-D transition.
  *
  *   3 x 3 table:
- *   |   | 0 | 1 | 2 |
- *   | 0 | 1 | 1 | 1 |
- *   | 1 | 1 | 2 | 3 |
- *   | 2 | 1 | 3 | 6 |
+ *   |   | 0 | 1 | 2 | | 0 | 1 | 1 | 1 |
+ *   | 1 | 1 | 2 | 3 | | 2 | 1 | 3 | 6 |
  *
  * KEY INSIGHT
  *   Count paths by their LAST move. Every path into a cell ends with either a down step or a

@@ -13,10 +13,10 @@
  *   [2, 2, 2]             ->  12    6 subarrays, every min is 2 (tie-break must not double count)
  *   [5]                   ->  5
  *
- * APPROACH  (previous smaller + next smaller-or-equal, then count contributions)
- *   1. prev[i]: index of the nearest element to the LEFT that is strictly smaller (-1 if none).
+ * APPROACH  (previous smaller-or-equal + next strictly smaller, count contributions)
+ *   1. prev[i]: index of the nearest element to the LEFT that is smaller OR EQUAL (-1 if none).
  *      Left-to-right monotonic increasing stack, pop while arr[top] > arr[i].
- *   2. next[i]: index of the nearest element to the RIGHT that is smaller OR EQUAL (n if none).
+ *   2. next[i]: index of the nearest element to the RIGHT that is STRICTLY smaller (n if none).
  *      Right-to-left stack, pop while arr[top] >= arr[i].
  *   3. arr[i] is the minimum of every subarray that starts in (prev[i], i] and ends in
  *      [i, next[i]). That is (i - prev[i]) * (next[i] - i) subarrays.
@@ -53,20 +53,20 @@ class SumOfSubarrayMinimums {
 
     public static int sumSubarrayMins(int[] arr) {
         int n = arr.length;
-        int[] prevSmaller = previousStrictlySmaller(arr);
-        int[] nextSmallerOrEqual = nextSmallerOrEqual(arr);
+        int[] prevSmallerOrEqual = previousSmallerOrEqual(arr);
+        int[] nextStrictlySmaller = nextStrictlySmaller(arr);
 
         long total = 0;
         for (int i = 0; i < n; i++) {
-            long leftChoices = i - prevSmaller[i];          // valid start indices
-            long rightChoices = nextSmallerOrEqual[i] - i;  // valid end indices
+            long leftChoices = i - prevSmallerOrEqual[i];      // valid start indices
+            long rightChoices = nextStrictlySmaller[i] - i;   // valid end indices
             total = (total + arr[i] * leftChoices % MOD * rightChoices % MOD) % MOD;
         }
         return (int) total;
     }
 
-    /** prev[i] = nearest index on the left with arr[j] < arr[i], or -1. Strict. */
-    private static int[] previousStrictlySmaller(int[] arr) {
+    /** prev[i] = nearest index on the left with arr[j] <= arr[i], or -1. Non-strict. */
+    private static int[] previousSmallerOrEqual(int[] arr) {
         int n = arr.length;
         int[] prev = new int[n];
         Deque<Integer> stack = new ArrayDeque<>();
@@ -80,8 +80,8 @@ class SumOfSubarrayMinimums {
         return prev;
     }
 
-    /** next[i] = nearest index on the right with arr[j] <= arr[i], or n. Non-strict on purpose. */
-    private static int[] nextSmallerOrEqual(int[] arr) {
+    /** next[i] = nearest index on the right with arr[j] < arr[i], or n. Strict on purpose. */
+    private static int[] nextStrictlySmaller(int[] arr) {
         int n = arr.length;
         int[] next = new int[n];
         Deque<Integer> stack = new ArrayDeque<>();

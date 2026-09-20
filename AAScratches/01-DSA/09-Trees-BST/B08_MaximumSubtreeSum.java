@@ -27,7 +27,8 @@
  *   Two different things happen at each node: what you RETURN upward (this subtree's
  *   sum, which the parent needs) and what you RECORD globally (the best answer so far).
  *   They are not the same number. This is the gentlest version of the pattern that
- *   Diameter (B09) and MaxPathSum (D01) use, so make sure the split feels natural here.
+ *   Diameter (B09_DiameterOfBinaryTree) and MaxPathSum (D01_BinaryTreeMaxPathSum) use, so make sure
+ *   the split feels natural here.
  *
  * COMPLEXITY
  *   Time  O(n)  each node visited once

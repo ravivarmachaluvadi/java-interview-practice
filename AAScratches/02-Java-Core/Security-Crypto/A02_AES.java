@@ -52,7 +52,7 @@
  *   - AES-GCM vs AES-CBC + HMAC: what does GCM give you for free?
  *   - Where does the key live in production, and how do you rotate it?
  *   - Encrypting a column so you can still search it - why is that hard?
- *   - Symmetric vs asymmetric: when do you need RSA instead? (see C01_RSAExample)
+ *   - Symmetric vs asymmetric: when do you need RSA instead? (see C01_RSA)
  *
  * RUN
  *   main() runs 5 cases (ECB round trip, ECB determinism, GCM round trip,

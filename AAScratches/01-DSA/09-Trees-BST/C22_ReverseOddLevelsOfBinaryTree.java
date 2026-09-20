@@ -43,7 +43,8 @@
  *     values back reversed. O(n) time but O(n) space for the widest level.
  *   - What if the tree is NOT perfect? The mirrored pairing breaks down (pairs can be missing),
  *     so the BFS version is the safe answer - it reverses whatever nodes the level actually has.
- *   - Reverse even levels instead: change the depth test from level % 2 == 0 to != 0.
+ *   - Reverse even levels instead: in swapMirroredPairs change depth % 2 == 0 to
+ *     depth % 2 != 0 (the recursion parameter is depth, not the tree level).
  *   - Compare with Symmetric Tree (LeetCode 101), which uses the identical pairing to compare.
  *
  * RUN

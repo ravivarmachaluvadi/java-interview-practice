@@ -40,7 +40,8 @@
  * INTERVIEW FOLLOW-UPS
  *   - Return all occurrences, not just the first (on a hit set j = lps[m - 1]).
  *   - Use lps to find the shortest repeating unit: m - lps[m-1] divides m.
- *   - KMP vs Rabin-Karp (C03): worst-case guarantee vs expected-case simplicity.
+ *   - KMP vs Rabin-Karp (C02_RabinKarpAlgorithm): worst-case guarantee vs
+ *     expected-case simplicity.
  *   - What does the naive O(n * m) scan actually cost on "aaaa...a" + "aaab"?
  *
  * RUN

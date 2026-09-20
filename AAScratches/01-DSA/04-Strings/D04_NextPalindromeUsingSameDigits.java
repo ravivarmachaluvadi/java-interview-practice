@@ -51,7 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class NextPermutationUsingSameDigits {
+class NextPalindromeUsingSameDigits {
 
     /** Standard next-permutation (LeetCode 31) on a list; false when already the largest. */
     static boolean nextPermutation(List<Character> digits) {

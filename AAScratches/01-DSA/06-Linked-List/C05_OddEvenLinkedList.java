@@ -11,8 +11,7 @@
  * EXAMPLE
  *   [1,2,3,4,5]      ->  [1,3,5,2,4]
  *   [2,1,3,5,6,4,7]  ->  [2,3,6,7,1,5,4]   odd positions: 2,3,6,7  even positions: 1,5,4
- *   []               ->  []
- *   [1]              ->  [1]
+ *   []               ->  [] [1]              ->  [1]
  *   [1,2]            ->  [1,2]
  *
  * APPROACH  (weave two chains in place, no sentinels)
@@ -36,10 +35,10 @@
  * INTERVIEW FOLLOW-UPS
  *   - Why guard on even and not odd? With an odd-length list odd reaches the tail last; guarding
  *     on even.next handles both parities without a special case.
- *   - Group by VALUE parity instead of position: that becomes Partition List (C03) with the
+ *   - Group by VALUE parity instead of position: that becomes C03_PartitionList with the
  *     predicate val % 2 == 0.
- *   - Copy List with Random Pointer (C13) uses the same interleave-then-split weave in O(1)
- *     space.
+ *   - Copy List with Random Pointer (C12_CopyRandomList) uses the same interleave-then-split
+ *     weave in O(1) space.
  *
  * RUN
  *   main() runs 5 cases (odd length, LeetCode sample, empty, single, two nodes) and prints

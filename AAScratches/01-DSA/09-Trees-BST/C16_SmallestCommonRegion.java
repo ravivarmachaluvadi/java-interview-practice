@@ -14,19 +14,26 @@
  *   regions = [[Earth, North America, South America],
  *              [North America, United States, Canada],
  *              [United States, New York, Boston],
- *              [Canada, Ontario, Quebec],
- *              [South America, Brazil]]
+ *              [Canada, Ontario, Quebec], [South America, Brazil]]
  *   ("Quebec", "New York")  ->  "North America"   both sit under it, nothing smaller does
  *   ("Earth",  "Quebec")    ->  "Earth"           an ancestor is its own answer
  *   ("Quebec", "Quebec")    ->  "Quebec"          a region contains itself
  *   ("Quebec", "Brazil")    ->  "Earth"           only the top region covers both
  *
- * APPROACH  (LCA over a child -> parent map)
+ * APPROACH A  findSmallestRegion  (LCA over a child -> parent map)
  *   1. Walk every input row once and record child -> parent for each sub-region.
  *      The top region never appears as a child, so map.get(top) is null: that is our stop mark.
  *   2. Climb from region1 to the top, putting region1 and every ancestor into a HashSet.
  *   3. Climb from region2 to the top. The FIRST name already in that set is the answer,
  *      because we meet the set at the deepest point where the two upward paths join.
+ *
+ * APPROACH B  findSmallestRegionNoSet  (same map, depth alignment instead of a set)
+ *   1. Build the same child -> parent map.
+ *   2. Measure both depths with depthOf, counting the steps from each name up to the top.
+ *   3. Pull the deeper name up one parent at a time until the two sit at the same depth.
+ *   4. Climb both in lockstep; the first name they agree on is the answer.
+ *      This drops the ancestor set, but the parent map is still O(n), so it is not
+ *      truly O(1) space overall - only O(1) on top of the map.
  *
  * KEY INSIGHT
  *   There is no tree object here at all - only names. Build the parent map and the problem
@@ -34,13 +41,17 @@
  *   same as finding where two linked lists merge. Recognise the pattern: whenever a hierarchy
  *   is given as edges or rows, a child -> parent map plus one upward walk usually solves it.
  *
- * COMPLEXITY
- *   Time  O(n + h)  n = total names across all rows to build the map, h = height of the walks
- *   Space O(n)      the parent map, plus the ancestor set which is at most h entries
+ * COMPLEXITY   n = total names across all rows, h = height of the hierarchy
+ *   A  findSmallestRegion
+ *      Time  O(n + h)  one pass to build the map, then two upward walks
+ *      Space O(n)      the parent map, plus the ancestor set which is at most h entries
+ *   B  findSmallestRegionNoSet
+ *      Time  O(n + h)  map build, two depth measurements, one lockstep climb
+ *      Space O(n)      the parent map; O(1) beyond it, since no ancestor set is kept
  *
  * INTERVIEW FOLLOW-UPS
  *   - Answer many queries on the same hierarchy: precompute depths, or binary lifting O(log h).
- *   - Solve it in O(1) extra space: measure both depths, drop the deeper one, then walk together.
+ *   - Solve it without the ancestor set: findSmallestRegionNoSet below does exactly that.
  *   - What if the two regions are in disconnected hierarchies? Both walks end at different tops,
  *     the set is never hit, and the method returns null.
  *   - Same trick on LeetCode 1650 (LCA III) where nodes carry real parent pointers.

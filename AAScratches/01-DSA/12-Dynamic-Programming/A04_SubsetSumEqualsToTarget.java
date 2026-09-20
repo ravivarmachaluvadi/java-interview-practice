@@ -32,12 +32,13 @@
  *   single-element case fall out of the general rule.
  *
  * KEY INSIGHT
- *   This is A05 with the transition swapped: counting used +, deciding uses OR.
- *   The state, the branching and the base cases are identical. That is the
- *   lesson to carry - once you own the (index, remaining) skeleton, a new
- *   problem usually only changes what you combine the two branches WITH: sum
- *   for counts, OR for feasibility, max for value, min for cost. Recognise the
- *   skeleton and you have already written most of the answer.
+ *   This is A03_CountSubsequenceWithTargetSum with the transition swapped:
+ *   counting used +, deciding uses OR. The state, the branching and the base
+ *   cases are identical. That is the lesson to carry - once you own the
+ *   (index, remaining) skeleton, a new problem usually only changes what you
+ *   combine the two branches WITH: sum for counts, OR for feasibility, max for
+ *   value, min for cost. Recognise the skeleton and you have already written
+ *   most of the answer.
  *
  * COMPLEXITY
  *   Time  O(2^n) as written - each index branches twice.

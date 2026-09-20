@@ -17,8 +17,7 @@
  *
  * EXAMPLE
  *   mkdir("/a/b/c"); addContentToFile("/a/b/c/d.txt", "hello")
- *   ls("/")          -> [a]
- *   ls("/a/b/c")     -> [d.txt]
+ *   ls("/")          -> [a] ls("/a/b/c")     -> [d.txt]
  *   ls("/a/b/c/d.txt") -> [d.txt]          a file path lists only itself
  *   addContentToFile("/a/b/c/d.txt", " world"); readContentFromFile(...) -> "hello world"
  *   ls("/") on a brand-new file system -> []   (the empty-root edge case)

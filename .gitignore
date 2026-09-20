@@ -17,6 +17,7 @@
 !/.gitignore
 !/*.md
 !/tools/*.py
+!/tools/mustknow.json
 !/tools/runjava
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---

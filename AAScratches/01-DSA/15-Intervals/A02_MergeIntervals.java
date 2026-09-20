@@ -38,7 +38,7 @@
  *   Space O(n)        output list (plus O(n) for the sort's own scratch space)
  *
  * INTERVIEW FOLLOW-UPS
- *   - The list is already sorted and you insert one new interval: LeetCode 57 (C01).
+ *   - The list is already sorted and you insert one new interval: LeetCode 57 (C01_InsertInterval).
  *   - Return the total covered length, or the gaps between the merged blocks.
  *   - Intervals arrive as a stream: keep a TreeMap keyed by start and merge the
  *     floor and ceiling neighbours on each insert.

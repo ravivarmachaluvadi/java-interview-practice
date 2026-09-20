@@ -11,7 +11,7 @@
  * EXAMPLE
  *   pos [5,4,3,2,1] hp [2,17,9,15,10] "RRRRR"  ->  [2, 17, 9, 15, 10]   same direction, no hits
  *   pos [3,5,2,6]   hp [10,10,15,12]  "RLRL"   ->  [14]  by position: 2R15 3R10 5L10 6L12
- *                                                        5L ties 3R (both die); 6L beats 2R -> 14
+ *                                     5L ties 3R (both die); 6L (12) loses to 2R (15) -> 14
  *   pos [1,2,5,6]   hp [10,10,11,11]  "RLRL"   ->  []    two equal-health pairs, all die
  *
  * APPROACH  (collision simulation with state and reindexing)

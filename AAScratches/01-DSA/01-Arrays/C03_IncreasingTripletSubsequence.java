@@ -35,8 +35,8 @@
  *   LIS "tails" (patience sorting) with k = 3 collapsed into two scalars.
  *
  * COMPLEXITY
- *   Time  O(n)  single pass
- *   Space O(1)  two ints; only existence is reported, indices are not recoverable
+ *   Time  O(n)  single pass Space O(1)  two ints; only existence is reported, indices are not
+ *   recoverable
  *
  * INTERVIEW FOLLOW-UPS
  *   - Return the actual indices: remember the index of first that produced second,

@@ -4,7 +4,7 @@
  * =====================================================================
  *
  * WHAT THIS DEMONSTRATES
- *   The same Cipher pipeline as A02_AESExample, but with two different keys:
+ *   The same Cipher pipeline as A02_AES, but with two different keys:
  *   anyone holding the public key can encrypt, only the private key can
  *   decrypt. It then shows the constraint nobody expects - RSA can only
  *   encrypt a few hundred bytes - and the standard way around it: hybrid

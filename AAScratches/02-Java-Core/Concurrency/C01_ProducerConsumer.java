@@ -13,7 +13,11 @@
  *   1. NaiveIfGuard      - guards wait() with `if`, has no explicit capacity, and sleeps
  *                          while holding the monitor. This is WHAT NOT TO DO.
  *   2. CorrectWhileGuard - guards wait() with `while`, bounds the queue with CAPACITY,
- *                          and sleeps after the state change. This is the answer to give.
+ *                          and moves the sleep AFTER the add/poll + notifyAll. This is
+ *                          the answer to give for bugs 1 and 2. It still holds the
+ *                          monitor while sleeping, because the methods themselves are
+ *                          synchronized - the real fix for that is to synchronize only
+ *                          the queue operations, or to use ArrayBlockingQueue.
  *
  * APPROACH  (monitor + condition loop)
  *   1. Every read or write of the queue happens while holding the same monitor (`this`).
@@ -31,7 +35,8 @@
  *
  * COMPLEXITY
  *   Time  O(n)          n items, each enqueue/dequeue is O(1); the sleeps are demo pacing
- *   Space O(CAPACITY)   the bounded buffer (the naive version is an implicit 1-slot buffer)
+ *   Space O(CAPACITY)   the bounded buffer, an implicit 1-slot one in the naive
+ *                       version (the consumed list is test-only, O(n))
  *
  * INTERVIEW FOLLOW-UPS
  *   - Why notifyAll() and not notify()? (with mixed waiters, notify can wake the wrong
@@ -51,7 +56,7 @@ import java.util.Queue;
 
 class ProducerConsumer {
 
-    /** Bounded so the demo terminates; the original versions looped forever. */
+    /** Pacing only, so the interleaving is visible in the output. */
     static final int SLEEP_MS = 20;
 
     public static void main(String[] args) throws InterruptedException {
@@ -78,6 +83,7 @@ class ProducerConsumer {
     static class NaiveIfGuard {
         final Queue<Integer> queue = new LinkedList<>();
         final List<Integer> consumedItems = new ArrayList<>();
+        /** Bounded so the demo terminates; the original version looped forever. */
         final int items;
         int val = 0;
         int consumed = 0;
@@ -101,8 +107,8 @@ class ProducerConsumer {
                 if (queue.isEmpty()) {      // BUG 1: `if` -> not re-tested after a wakeup
                     int e = val++;          // BUG 2: no CAPACITY; "isEmpty" makes it 1 slot
                     System.out.println("  Produced : " + e);
-                    sleep();                // BUG 3: sleeping INSIDE the monitor blocks the
-                    queue.add(e);           //        consumer for no reason at all
+                    sleep();                // BUG 3: sleeps BEFORE the item is even
+                    queue.add(e);           //        visible, still inside the monitor
                     notifyAll();
                 } else {
                     await();
@@ -117,7 +123,7 @@ class ProducerConsumer {
                     consumedItems.add(item);
                     consumed++;
                     System.out.println("  Consumed : " + item);
-                    sleep();                // BUG 3 again
+                    sleep();                // BUG 3 again: sleeps before notifyAll()
                     notifyAll();
                 } else {
                     await();
@@ -142,6 +148,7 @@ class ProducerConsumer {
 
         final Queue<Integer> queue = new LinkedList<>();
         final List<Integer> consumedItems = new ArrayList<>();
+        /** Bounded so the demo terminates; the original version looped forever. */
         final int items;
         int val = 0;
         int consumed = 0;
@@ -171,6 +178,7 @@ class ProducerConsumer {
                 System.out.println("  Produced : " + e);
                 notifyAll();
                 sleep();                    // FIX 3: pace AFTER the state change + notifyAll
+                                            // (still inside the monitor - see the NOTE below)
             }
         }
 

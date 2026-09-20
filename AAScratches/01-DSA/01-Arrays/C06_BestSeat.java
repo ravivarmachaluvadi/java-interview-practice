@@ -30,8 +30,7 @@
  *   Pattern: prefix/suffix passes over distances, same skeleton as product except self.
  *
  * COMPLEXITY
- *   Time  O(n)  three passes
- *   Space O(n)  two distance arrays (a gap-scan variant does it in O(1))
+ *   Time  O(n)  three passes Space O(n)  two distance arrays (a gap-scan variant does it in O(1))
  *
  * INTERVIEW FOLLOW-UPS
  *   - Do it in O(1) space: scan gaps between consecutive 1s (best = gap/2) and

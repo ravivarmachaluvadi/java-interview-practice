@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   [[0, 1,-1],          down/right there and back collects 1+1+1+1+1
- *    [1, 0,-1],   ->  5
- *    [1, 1, 1]]
+ *    [1, 0,-1],   ->  5 [1, 1, 1]]
  *   [[1, 1,-1],[1,-1, 1],[-1, 1, 1]]  ->  0   (thorns block every path to the corner)
  *   [[1]]      ->  1   (single cell, start == end)
  *   [[1,1],[1,1]] -> 4 (both trips together cover all four cells)

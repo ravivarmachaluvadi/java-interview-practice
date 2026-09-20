@@ -14,8 +14,8 @@
  *       2   5      ->         2 -> 3 -> 4 -> 5 -> 6   (all left pointers null)
  *      / \   \
  *     3   4   6
- *   single node 1  ->  1
- *   left-only chain 1 -> 2 -> 3 (as left children)  ->  1 -> 2 -> 3 (as right children)
+ *   single node 1  ->  1 left-only chain 1 -> 2 -> 3 (as left children)  ->  1 -> 2 -> 3 (as right
+ *   children)
  *
  * APPROACH  (postorder rewiring; the recursion returns the TAIL of what it flattened)
  *   1. Flatten the left subtree and the right subtree first, each returning its last node.

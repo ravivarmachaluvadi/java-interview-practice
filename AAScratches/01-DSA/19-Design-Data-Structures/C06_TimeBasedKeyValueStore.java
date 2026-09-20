@@ -10,11 +10,9 @@
  *   Timestamps passed to set are strictly increasing per key.
  *
  * EXAMPLE
- *   set("foo", "bar", 1)
- *   get("foo", 1) -> "bar"    exact hit
+ *   set("foo", "bar", 1) get("foo", 1) -> "bar"    exact hit
  *   get("foo", 3) -> "bar"    nothing newer than 1 yet, so the value at 1 still holds
- *   set("foo", "bar2", 4)
- *   get("foo", 5) -> "bar2"   largest stamp <= 5 is 4
+ *   set("foo", "bar2", 4) get("foo", 5) -> "bar2"   largest stamp <= 5 is 4
  *   get("foo", 0) -> ""       every stored stamp is newer than the query
  *
  * DESIGN  (TreeMap floorKey per key)
@@ -33,7 +31,8 @@
  *   - A timeline per key, not one global sorted map: a single map would force get to
  *     skip past other keys' entries, turning an O(log n) read into a scan.
  *   - Because set's timestamps increase per key, the timeline is append-only. That is
- *     what makes the array-plus-binary-search variant below equivalent and O(1) to add.
+ *     what makes the array-plus-binary-search variant (see the follow-ups, and
+ *     C07_SnapshotArray) equivalent and O(1) to add.
  *
  * COMPLEXITY
  *   Time  set O(log m), get O(log m), where m is the number of writes for that key

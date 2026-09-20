@@ -13,8 +13,7 @@
  *
  * OPTIONS
  *   A. Compile error: main() is already defined in Tricky6
- *   B. Prints "String Main"
- *   C. Prints "Character Main"
+ *   B. Prints "String Main" C. Prints "Character Main"
  *   D. Prints both lines, in declaration order
  *
  * ---------------------------------------------------------------------

@@ -9,7 +9,7 @@
  *   a new one (the pieces on either side join up), which is why it is repeated.
  *
  * EXAMPLE
- *   s = "daabcbaabcbc", part = "abc"  ->  "dab"   remove at 2, at 4, then at 2 again
+ *   s = "daabcbaabcbc", part = "abc"  ->  "dab"   remove at 2, at 4, then at 3
  *   s = "axxxxyyyyb",   part = "xy"   ->  "ab"    each removal exposes the next "xy"
  *   s = "abc",          part = "abc"  ->  ""      whole string removed
  *   s = "hello",        part = "xyz"  ->  "hello" nothing to remove

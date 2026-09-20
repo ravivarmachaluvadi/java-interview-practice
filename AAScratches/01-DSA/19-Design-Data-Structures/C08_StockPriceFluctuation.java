@@ -28,8 +28,10 @@
  *     over a stale top.
  *   - Validity test on peek: (ts, p) is live only if timestampToPrice.get(ts).price == p.
  *     Anything else was superseded -- poll it and look again.
- *   - A stale entry can never win, since the live entry for the same timestamp is also
- *     in the heap and compares at least as well.
+ *   - A stale entry can sit right at the top: in maxHeap a superseded higher price
+ *     outranks its own correction, so maximum() peeks it first. Only the map check
+ *     stops it being returned. Correctness = that check plus the fact that the true
+ *     extreme is always present as a live entry, with the stale ones polled off above it.
  *
  * KEY INSIGHT
  *   You cannot cheaply remove an arbitrary element from a binary heap, so do not try.

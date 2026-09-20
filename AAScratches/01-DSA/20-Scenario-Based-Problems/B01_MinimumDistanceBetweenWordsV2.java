@@ -46,7 +46,10 @@
  *
  * COMPLEXITY
  *   Time  O(n)  one pass over n tokens (pairwise variant is O(n + p*q))
- *   Space O(1)  two remembered positions (pairwise variant stores O(p + q))
+ *   Space O(1)  two remembered positions (pairwise variant stores O(p + q));
+ *               the text wrapper wordIndexDistanceInText adds O(n) for the
+ *               lowercased copy and the token array split() builds, while the
+ *               Matcher-based midpoint one-pass avoids both
  *
  * INTERVIEW FOLLOW-UPS
  *   - Many queries on one fixed document (LC 244): pre-index word -> sorted
@@ -120,7 +123,8 @@ class MinimumDistanceBetweenWordsV2 {
     // -------- Approach 3: character distance between midpoints, all pairs --------
 
     public static int midpointDistancePairwise(String document, String word1, String word2) {
-        List<Integer>[] mids = collectMidpoints(document, word1.toLowerCase(), word2.toLowerCase());
+        List<Integer>[] mids =
+                collectMidpoints(document, word1.toLowerCase(), word2.toLowerCase());
         int shortest = Integer.MAX_VALUE;
         for (int pos1 : mids[0]) {
             for (int pos2 : mids[1]) {

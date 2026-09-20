@@ -33,14 +33,16 @@
  *
  * COMPLEXITY
  *   Brute force   Time O(n*m)                 Space O(1)
- *   Two pointers  Time O(n log n + m log m)   Space O(1) beyond the in-place sorts
+ *   Two pointers  Time O(n log n + m log m)   Space O(n + m) for the two defensive clones
+ *                 (O(1) if you are allowed to sort the caller's arrays in place)
  *
  * INTERVIEW FOLLOW-UPS
  *   - AlgoExpert's original: one array, negatives are sweet, positives savory, sum must not
  *     exceed K (split into two arrays first, then the same walk with a "<= K" guard)
  *   - Return all pairs tied for closest, not just one
- *   - Inputs cannot be sorted in place: sort copies, or binary search the second array per
- *     element of the first, O(n log m)
+ *   - Dropping the two clones: this code already sorts copies so the caller's arrays stay
+ *     untouched; to avoid the extra arrays entirely, sort one array and binary search it
+ *     per element of the other, O(n log m) time and O(1) extra space
  *   - Tie-breaking: both methods keep the first pair found; they can differ on which tie wins
  *
  * RUN

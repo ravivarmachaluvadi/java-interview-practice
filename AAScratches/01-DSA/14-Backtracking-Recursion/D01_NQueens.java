@@ -10,9 +10,7 @@
  *
  * EXAMPLE
  *   n = 4 -> 2 boards, the first being   ..Q.
- *                                        Q...
- *                                        ...Q
- *                                        .Q..
+ *                                        Q... ...Q .Q..
  *   n = 1 -> 1 board ["Q"]      edge case
  *   n = 2 and n = 3 -> 0 boards, no placement exists
  *   n = 8 -> 92 boards, the classic answer

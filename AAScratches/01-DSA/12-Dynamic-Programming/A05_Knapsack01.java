@@ -14,8 +14,8 @@
  *                                                         (weight 1 + 4 = 5,
  *                                                          value 5 + 8 = 13)
  *   wt = [3, 4, 5], val = [30, 50, 60], W = 8     ->  90   take 3 and 5;
- *                                                         greedy by value/weight
- *                                                         takes 4 first and gets 80
+ *                                                         greedy by value/weight takes 4 first and
+ *                                                         gets 80
  *   W = 0                                         ->  0    edge case in main()
  *
  * APPROACH  (pick / not-pick on the state (index, capacity))

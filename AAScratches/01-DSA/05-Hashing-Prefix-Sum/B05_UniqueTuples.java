@@ -23,14 +23,16 @@
  * KEY INSIGHT
  *   Fixed-length windows are counted by n - k + 1, not n - k; off-by-one here drops the last
  *   window. The Set does the deduplication, the loop does the enumeration - keep the two jobs
- *   separate and this generalises to k-mers, n-grams and DNA sequences (see B06).
+ *   separate and this generalises to k-mers, n-grams and DNA sequences (see
+ *   C04_RepeatedDnaSequences).
  *
  * COMPLEXITY
  *   Time  O(n * k)  n - k + 1 windows, each substring copy and hash costs O(k)
  *   Space O(n * k)  worst case every window is distinct and stored
  *
  * INTERVIEW FOLLOW-UPS
- *   - Which windows repeat, not which exist: use the boolean return of Set.add (B06).
+ *   - Which windows repeat, not which exist: use the boolean return of Set.add
+ *     (see C04_RepeatedDnaSequences).
  *   - Make it O(n): rolling hash (Rabin-Karp) so each window's hash comes from the previous.
  *   - Count occurrences of each window: Map<String, Integer> instead of Set.
  *   - Preserve first-seen order: LinkedHashSet.

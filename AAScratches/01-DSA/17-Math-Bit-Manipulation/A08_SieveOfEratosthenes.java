@@ -43,8 +43,8 @@
  *   - Store the smallest prime factor instead of a boolean: O(log n) factorization.
  *
  * RUN
- *   main() runs 4 cases (typical, boundary n = 2, n = 1, n = 0) and prints
- *   actual vs expected.
+ *   main() runs 5 cases (typical, boundary n = 2, n = 1, n = 0, and a
+ *   prime-count check for n = 100) and prints actual vs expected.
  */
 
 import java.util.ArrayList;

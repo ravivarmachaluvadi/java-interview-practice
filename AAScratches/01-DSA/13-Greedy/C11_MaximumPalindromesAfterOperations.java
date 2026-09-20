@@ -49,8 +49,10 @@
  *   - What if the alphabet were Unicode instead of 26 letters? (HashMap parity)
  *
  * RUN
- *   main() runs 5 cases (typical, no pairs available, single word, and a mixed
- *   case that exhausts the pool exactly) and prints actual vs expected.
+ *   main() runs 5 cases (typical, odd middle slot, no pairs available, single
+ *   word, and a mixed case that exhausts the pool exactly) and prints actual vs
+ *   expected, plus a sixth check that the caller's input array comes back in its
+ *   original order.
  *
  * Fixed: the method used to sort the caller's array in place, so the input was
  * reordered as a side effect. It now sorts a local copy.

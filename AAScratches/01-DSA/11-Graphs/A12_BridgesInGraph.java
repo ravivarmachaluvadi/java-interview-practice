@@ -36,7 +36,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Articulation points (cut vertices): same pass, use low[v] >= tin[u] plus a
- *     root special case - see A15_ArticulationPointInGraph.
+ *     root special case - see A13_ArticulationPointInGraph.
  *   - Parallel edges break the "skip the parent" rule; track the edge id instead.
  *   - Recursion depth is O(V); rewrite iteratively for very deep graphs.
  *   - Bridges partition the graph into 2-edge-connected components.

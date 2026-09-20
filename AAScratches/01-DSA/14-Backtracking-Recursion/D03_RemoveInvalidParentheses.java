@@ -26,13 +26,11 @@
  *      level is still in the queue and those strings are equally good answers.
  *
  * KEY INSIGHT
- *   "Minimum number of removals" is a shortest-path question, and BFS finds
- *   shortest paths - so the level where the first valid string appears is the
- *   whole answer set. Stopping expansion instead of stopping the loop is the
- *   detail people get wrong.
- *   Why nothing deeper can sneak in: a valid string has equal '(' and ')', so at
- *   the winning level the paren count is even; one level deeper it is odd and can
- *   never balance. Parity, not luck, makes the early exit safe.
+ *   "Minimum number of removals" is a shortest-path question, and BFS finds shortest paths - so the
+ *   level where the first valid string appears is the whole answer set. Stopping expansion instead
+ *   of stopping the loop is the detail people get wrong. Why nothing deeper can sneak in: a valid
+ *   string has equal '(' and ')', so at the winning level the paren count is even; one level deeper
+ *   it is odd and can never balance. Parity, not luck, makes the early exit safe.
  *
  * COMPLEXITY
  *   Time  O(2^n * n)  worst case every subset of n parens is generated, and each

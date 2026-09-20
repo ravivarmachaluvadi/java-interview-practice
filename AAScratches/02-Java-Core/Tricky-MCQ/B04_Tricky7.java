@@ -9,8 +9,7 @@
  *
  * QUESTION
  *   public static void main(String[] args) {
- *       int x = 9;
- *       if (x == 9) {
+ *       int x = 9; if (x == 9) {
  *           int x = 10;          // <-- this line
  *           System.out.println(x);
  *       }

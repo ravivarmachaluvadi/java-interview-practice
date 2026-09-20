@@ -29,8 +29,9 @@
  *   "ab" and get "aab", but taking from the larger suffix "ab" first gives "aba", which
  *   is bigger. The larger remaining suffix should always go first, because its
  *   characters will be laid down ahead of the other word's. This is the alternate-merge
- *   skeleton from MergeStringsAlternately (B14) with the fixed turn order replaced by a
- *   suffix comparison. Recognise it as a greedy exchange argument on suffixes.
+ *   skeleton from MergeStringsAlternately (B12_MergeStringsAlternately) with the fixed
+ *   turn order replaced by a suffix comparison. Recognise it as a greedy exchange argument on
+ *   suffixes.
  *
  * COMPLEXITY
  *   Time  O((n + m) * max(n, m))   each of the n + m steps does a suffix compare that can

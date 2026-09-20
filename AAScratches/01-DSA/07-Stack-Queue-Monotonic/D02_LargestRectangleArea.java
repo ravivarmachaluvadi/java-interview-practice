@@ -12,8 +12,7 @@
  *   [2, 1, 5, 6, 2, 3]  ->  10   bars 5 and 6, height 5 x width 2
  *   [2, 2, 2]           ->  6    all equal, height 2 x width 3
  *   [5, 4, 3, 2, 1]     ->  9    height 3 x width 3 (bars 5,4,3)
- *   []                  ->  0
- *   [1]                 ->  1
+ *   []                  ->  0 [1]                 ->  1
  *
  * APPROACH  (monotonic increasing stack of indices)
  *   1. Walk i from 0 to n inclusive; treat i == n as a bar of height 0 so

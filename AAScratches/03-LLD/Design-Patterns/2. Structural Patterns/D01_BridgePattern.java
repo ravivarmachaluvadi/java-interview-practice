@@ -22,12 +22,10 @@
  *
  * ROLES IN THIS CODE
  *   PaymentMethod        Implementor. The "how" side of the bridge.
- *   CreditCardPayment,
- *   UpiPayment           ConcreteImplementor. One settlement channel each.
+ *   CreditCardPayment, UpiPayment           ConcreteImplementor. One settlement channel each.
  *   Payment              Abstraction. Holds the PaymentMethod reference - that
  *                        field IS the bridge - and defines makePayment.
- *   OnlinePayment,
- *   InstorePayment       RefinedAbstraction. The "where" side; each adds its
+ *   OnlinePayment, InstorePayment       RefinedAbstraction. The "where" side; each adds its
  *                        own step, then delegates settlement across the bridge.
  *   BridgePatternExample Client. Picks one from each hierarchy and pairs them.
  *

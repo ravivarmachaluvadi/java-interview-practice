@@ -23,7 +23,7 @@
  * KEY INSIGHT
  *   Doubling the string turns "is a rotation of" into "is a substring of". The
  *   length check is not optional: without it "" or a shorter goal would be found
- *   inside s + s. This doubling trick is reused in C06_GreatestCommonDivisorOfStrings.
+ *   inside s + s. This doubling trick is reused in B16_GreatestCommonDivisorOfStrings.
  *
  * COMPLEXITY
  *   Time  O(n^2) worst case for String.contains (naive search); O(n) with KMP

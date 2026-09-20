@@ -14,7 +14,7 @@
  *   topics/ links to {news.yahoo.com, .../news, .../us, http://news.google.com}
  *   -> [http://news.yahoo.com/news/topics/, http://news.yahoo.com,
  *       http://news.yahoo.com/news, http://news.yahoo.com/us]   google.com is a different host
- *   Edge: a page with no links at all -> [startUrl]
+ *   Edge: a page whose only link is to itself -> [startUrl]
  *   Tricky: a -> b -> c -> a (cycle, slow parser) -> the 3 pages, exactly once each
  *
  * APPROACH  (concurrent BFS: fixed thread pool + shared queue + shared visited set)
@@ -52,8 +52,8 @@
  *   - Politeness: per-host rate limit, robots.txt, retry with backoff, depth cap.
  *
  * RUN
- *   main() runs 3 cases (typical fan-out, single page with no links, slow cyclic web)
- *   and prints actual vs expected for both the concurrent and the sequential crawl.
+ *   main() runs 3 cases (typical fan-out, a page linking only to itself, slow cyclic
+ *   web) and prints actual vs expected for both the concurrent and the sequential crawl.
  */
 
 import java.util.ArrayList;
@@ -216,7 +216,8 @@ class HtmlParserMain {
         print("case 1 concurrent", sorted(sol.crawl(start1, p1)), expect1);
         print("case 1 sequential", sorted(sol.crawlSequential(start1, p1)), expect1);
 
-        // Case 2 - edge: a page with no links, plus a link to itself that must not loop.
+        // Case 2 - edge: the only link on the page points back at itself, so the
+        // dedup has to stop it looping.
         Map<String, List<String>> lonely = new HashMap<>();
         lonely.put("http://a.com/", Arrays.asList("http://a.com/"));
         HtmlParser p2 = mockParser(lonely, 0);

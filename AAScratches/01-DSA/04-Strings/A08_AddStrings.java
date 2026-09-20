@@ -9,10 +9,9 @@
  *   holds, and BigInteger / parseInt are not allowed.
  *
  * EXAMPLE
- *   "456"  + "77"   ->  "533"
- *   "999"  + "1"    ->  "1000"    a carry survives past the last digit of both inputs
- *   "0"    + "0"    ->  "0"
- *   "123"  + "987"  ->  "1110"
+ *   "456"  + "77"   ->  "533" "999"  + "1"    ->  "1000"    a carry survives past the last digit of
+ *   both inputs
+ *   "0"    + "0"    ->  "0" "123"  + "987"  ->  "1110"
  *
  * APPROACH  (digit carry simulation)
  *   1. Point i and j at the LAST character of each string, carry = 0.

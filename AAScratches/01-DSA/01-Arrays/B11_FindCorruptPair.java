@@ -42,7 +42,8 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Input is read-only? Use xorPartition, or sum / sum-of-squares algebra (watch overflow).
- *   - Only the duplicate is needed, read-only, O(1) space: Floyd's cycle detection (C17).
+ *   - Only the duplicate is needed, read-only, O(1) space: Floyd's cycle detection
+ *     (C15_FindDuplicate).
  *   - Several duplicates and several missing: cyclic sort still works; collect every bad slot.
  *   - Why does the equality guard (not an index guard) stop the swap loop from spinning?
  *

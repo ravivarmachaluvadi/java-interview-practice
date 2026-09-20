@@ -34,7 +34,8 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Just detect a cycle (LeetCode 141): stop after phase 1.
- *   - Length of the cycle: count steps from the meeting node back to itself (C08).
+ *   - Length of the cycle: count steps from the meeting node back to itself
+ *   (C08_LinkedListLoopLength).
  *   - Remove the cycle: walk from the entry to the node whose next is the entry, null it.
  *   - HashSet of visited nodes is O(n) space; say why Floyd is preferred.
  *

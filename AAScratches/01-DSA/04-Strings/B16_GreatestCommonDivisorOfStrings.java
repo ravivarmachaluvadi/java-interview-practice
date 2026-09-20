@@ -25,7 +25,7 @@
  * KEY INSIGHT
  *   Two strings share a repeating unit if and only if str1+str2 equals str2+str1. Once
  *   that holds, every common divisor of both lengths is a valid unit, so the largest is
- *   the gcd of the lengths. Same doubling idea as RotateString (B17): concatenation
+ *   the gcd of the lengths. Same doubling idea as RotateString (B15_RotateString): concatenation
  *   exposes periodicity. Pattern: "is X built from repeats of Y" -> compare concats.
  *
  * COMPLEXITY

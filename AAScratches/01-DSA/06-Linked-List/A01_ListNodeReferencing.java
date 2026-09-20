@@ -13,7 +13,8 @@
  * WHAT YOU WILL SEE
  *   case 1: temp = a; a = new node(13)   -> temp.val still 10, a.val 13
  *   case 2: alias = b; alias.val = 99    -> b.val is 99 (same object)
- *   case 3: walker = head; walker.next = null  -> head's chain is cut too
+ *   case 3: walker = head; walker = walker.next; walker.next = null
+ *           -> head prints [1, 2]: the chain is cut at node 2
  *   case 4: method reassigns its parameter -> caller's handle unchanged;
  *           method mutates param.val       -> caller sees the new value
  *
@@ -21,8 +22,9 @@
  *   1. `ListNode temp = a` copies the reference; both now point to node(10).
  *   2. `a = new ListNode(13)` rebinds only `a`. temp still holds node(10).
  *   3. `alias.val = 99` writes through the handle into the shared object.
- *   4. `walker.next = null` mutates the node that head also reaches, so the
- *      cut is visible from head even though head itself never changed.
+ *   4. `walker = walker.next` first moves the handle to node(2); only then does
+ *      `walker.next = null` mutate node(2), which head still reaches, so head
+ *      now prints [1, 2] even though the head handle itself never changed.
  *   5. Java passes references BY VALUE: a callee can mutate the object, but
  *      reassigning its parameter is invisible to the caller.
  *

@@ -30,9 +30,9 @@
  *
  * KEY INSIGHT
  *   A row-major matrix with ordered row boundaries IS a sorted array with a different
- *   addressing scheme. The only new idea over A01 is the div/mod mapping k -> (k / cols,
- *   k % cols). Whenever a structure is "sorted if you read it in some fixed order", you can
- *   binary search the reading order and translate indices on the fly.
+ *   addressing scheme. The only new idea over A01_LowerAndUpperBounds is the div/mod mapping k ->
+ *   (k / cols, k % cols). Whenever a structure is "sorted if you read it in some fixed order", you
+ *   can binary search the reading order and translate indices on the fly.
  *
  * COMPLEXITY
  *   Time  O(log(m * n))  binary search  |  O(m + n) staircase

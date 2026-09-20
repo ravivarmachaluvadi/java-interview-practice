@@ -55,8 +55,8 @@
  *   - Report EVERY offending window instead of only the first per employee.
  *
  * RUN
- *   main() runs 3 datasets (two LeetCode examples, the full Karat example) through
- *   both implementations and prints actual vs expected on each line.
+ *   main() runs 4 datasets (two LeetCode examples, a nobody-qualifies edge case, the
+ *   full Karat example) through both implementations, printing actual vs expected.
  */
 
 import java.util.ArrayList;
@@ -172,7 +172,8 @@ class HighAccessEmployees {
 
         // case 1 - LeetCode example 1
         sol.check("case 1", toList(new String[][]{
-                        {"a", "0549"}, {"b", "0457"}, {"a", "0532"}, {"a", "0621"}, {"b", "0540"}}),
+                        {"a", "0549"}, {"b", "0457"}, {"a", "0532"},
+                        {"a", "0621"}, {"b", "0540"}}),
                 "[a]",
                 "{a=[0532, 0549, 0621]}");
 

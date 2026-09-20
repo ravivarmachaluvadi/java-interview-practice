@@ -27,7 +27,7 @@
  * KEY INSIGHT
  *   Sortedness means the intervals touching the new one form ONE contiguous run,
  *   so the list splits cleanly into three phases and each element is visited once.
- *   The merge itself is the same fold as Merge Intervals (A02); the only new idea
+ *   The merge itself is the same fold as Merge Intervals (A02_MergeIntervals); the only new idea
  *   is that the accumulator is the new interval rather than the last output. The
  *   overlap test is intervals[i].start <= newEnd and the "strictly before" test is
  *   intervals[i].end < newStart, so touching endpoints merge, matching LeetCode.
@@ -37,7 +37,7 @@
  *   Space O(n)  the output list; O(1) beyond what the answer itself needs
  *
  * INTERVIEW FOLLOW-UPS
- *   - The input is NOT sorted: that is Merge Intervals (A02), O(n log n).
+ *   - The input is NOT sorted: that is Merge Intervals (A02_MergeIntervals), O(n log n).
  *   - Find the insertion point with binary search: still O(n) because the merged
  *     run can be long, but it helps when few intervals overlap.
  *   - Remove an interval (LeetCode 1272) instead of inserting one.

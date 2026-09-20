@@ -34,8 +34,12 @@
  *   the ONLY thing that separates "finished" from "stuck in a cycle".
  *
  * COMPLEXITY
- *   Time  O(n + E)  every course dequeued once, every relation relaxed once
- *   Space O(n + E)  adjacency list, in-degree array, queue
+ *   minimumSemesters and minSemestersGreedyLimit (Kahn's, level by level)
+ *     Time  O(n + E)  every course dequeued once, every relation relaxed once
+ *     Space O(n + E)  adjacency list, in-degree array, queue
+ *   minSemestersOptimalLimit (LeetCode 1494, bitmask DP)
+ *     Time  O(3^n + 2^n * n)  every subset of every mask, plus the per-mask scan
+ *     Space O(2^n)            the dp table - only viable because n <= 15 there
  *
  * THE k-LIMITED VARIANT  (Parallel Courses II, LeetCode 1494 | Hard)
  *   If you may take AT MOST k courses per semester, the level trick breaks: it

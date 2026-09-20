@@ -12,8 +12,7 @@
  *   "0100"        ->  1    flip the last char: "0101"
  *   "10"          ->  0    already alternating
  *   "1111"        ->  2    "1010" or "0101" both need two flips
- *   "0001010111"  ->  2
- *   "0"           ->  0    single char is trivially alternating
+ *   "0001010111"  ->  2 "0"           ->  0    single char is trivially alternating
  *   ""            ->  0    nothing to flip
  *
  * APPROACH  (two hypotheses counted in one pass)
@@ -30,8 +29,7 @@
  *   Bonus: cost1 == n - cost0, so you could count one and derive the other.
  *
  * COMPLEXITY
- *   Time  O(n)  one scan
- *   Space O(1)  two counters
+ *   Time  O(n)  one scan Space O(1)  two counters
  *
  * INTERVIEW FOLLOW-UPS
  *   - Why is cost1 = n - cost0? Every position mismatches exactly one target.

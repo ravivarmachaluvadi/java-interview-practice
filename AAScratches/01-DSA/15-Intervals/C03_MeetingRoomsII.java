@@ -28,7 +28,7 @@
  *   6. After all n starts are consumed, rooms is the peak concurrency.
  *
  * KEY INSIGHT
- *   This is Minimum Platforms (A03) wearing a different name - rooms, platforms,
+ *   This is Minimum Platforms (A03_MinimumPlatforms) wearing a different name - rooms, platforms,
  *   groups and "max overlap depth" are all the same count. Decoupling starts from
  *   ends is the trick: once sorted separately, time can be walked forward and the
  *   running count of open intervals IS the answer. Because rooms only ever goes

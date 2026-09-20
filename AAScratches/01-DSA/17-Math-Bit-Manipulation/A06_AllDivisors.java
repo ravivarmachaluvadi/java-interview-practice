@@ -43,8 +43,8 @@
  *     the overflow-free loop condition i <= n / i.
  *
  * RUN
- *   main() runs 4 cases (typical, perfect square, n = 1, prime) and prints
- *   actual vs expected.
+ *   main() runs 6 cases (typical, perfect square, n = 1, prime, sorted output,
+ *   n = 0) and prints actual vs expected.
  */
 
 import java.util.ArrayList;

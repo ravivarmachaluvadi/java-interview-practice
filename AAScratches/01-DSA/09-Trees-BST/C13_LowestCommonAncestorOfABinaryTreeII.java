@@ -9,9 +9,9 @@
  *   return null. All node values are unique.
  *
  * EXAMPLE
- *   tree = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 4      ->  5     (5 is an ancestor of 4)
- *   tree = [3,5,1,6,2,0,8,null,null,7,4], p = 7, q = 8      ->  3
- *   tree = [3,5,1,6,2,0,8,null,null,7,4], p = 5, q = 42     ->  null  (42 is not in the tree)
+ *   tree = [3,5,1,6,2,null,8,null,null,7,4], p = 5, q = 4      ->  5     (5 is an ancestor of 4)
+ *   tree = [3,5,1,6,2,null,8,null,null,7,4], p = 7, q = 8      ->  3
+ *   tree = [3,5,1,6,2,null,8,null,null,7,4], p = 5, q = 42     ->  null  (42 is not in the tree)
  *
  * APPROACH  (LC236 postorder recursion + existence flags)
  *   1. Run the classic LC236 recursion: return the node if it is p or q, else combine the

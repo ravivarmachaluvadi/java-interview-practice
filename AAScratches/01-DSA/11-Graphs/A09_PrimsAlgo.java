@@ -39,8 +39,8 @@
  * INTERVIEW FOLLOW-UPS
  *   - Return the edges, not just the sum? Push the parent alongside and record
  *     (parent, node) whenever a node is first marked visited.
- *   - Prim vs Kruskal (A12): Prim is better on dense graphs, Kruskal on sparse
- *     ones and when the edges arrive already sorted.
+ *   - Prim vs Kruskal (A10_KruskalAlgorithm): Prim is better on dense graphs,
+ *     Kruskal on sparse ones and when the edges arrive already sorted.
  *   - Disconnected input: restart from every unvisited node for a spanning FOREST.
  *   - Is the MST unique? Yes if and only if all edge weights are distinct.
  *   - Maximum spanning tree: flip the comparator (or negate the weights).

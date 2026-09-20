@@ -49,8 +49,9 @@
  *   - Modular inverse via Fermat: a^(m-2) mod m when m is prime.
  *
  * RUN
- *   main() runs 6 cases (typical, exponent 0, base 1, long boundary, and two
- *   modular cases) and prints actual vs expected.
+ *   main() runs 8 cases (typical, exponent 0, base 1, a non-power-of-two
+ *   exponent, the long boundary, and three modular cases including m = 1)
+ *   and prints actual vs expected.
  */
 
 class BinaryExponentiation {

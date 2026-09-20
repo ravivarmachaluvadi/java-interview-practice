@@ -19,9 +19,10 @@
  *   3. Append word + " " to a result builder, then trim() the one trailing space.
  *      (trim() would also eat leading spaces, so this version does not preserve them.)
  *
- *   Second method, reverseWordsInPlace: the O(1)-extra-space answer interviewers ask for next.
+ *   Second method, reverseWordsInPlace: the two-pointer answer interviewers ask for next.
  *   Work on a char[]; scan for the end of each word and reverse that segment with two
- *   pointers. No split, no extra strings.
+ *   pointers. No split, no per-word strings, so the only allocation is the one char[]
+ *   copy that Java's immutable strings force on you.
  *
  * KEY INSIGHT
  *   "Reverse" is the third primitive after split and join. Once you can reverse a segment with

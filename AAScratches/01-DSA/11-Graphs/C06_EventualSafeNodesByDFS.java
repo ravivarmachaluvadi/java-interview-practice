@@ -18,8 +18,8 @@
  *   graph = [[],[],[]]                       ->  [0, 1, 2]  (all terminal)
  *
  * APPROACH  (directed cycle detection, reused as a safety test)
- *   This is A03's vis + pathVis cycle detector with one extra output array.
- *   Two equivalent implementations are shown and both are run from main().
+ *   This is A03_CycleCheckInDirectedGraph's vis + pathVis cycle detector with one extra output
+ *   array. Two equivalent implementations are shown and both are run from main().
  *
  *   threeArrays (Striver style)
  *     1. DFS every unvisited node, setting vis[node] and pathVis[node] on entry.

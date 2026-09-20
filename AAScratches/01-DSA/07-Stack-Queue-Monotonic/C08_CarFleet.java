@@ -21,9 +21,8 @@
  *   2. Sort cars by start position, closest to the target first. The front car can never be
  *      caught by anything ahead of it, so it is always the head of a fleet.
  *   3. Walk the sorted list keeping lastFleetTime, the arrival time of the fleet in front.
- *      If this car's time is LARGER, it can never catch that fleet: count a new fleet and
- *      remember its time.
- *      If its time is smaller or equal, it would reach the target no later than the fleet
+ *      If this car's time is LARGER, it can never catch that fleet: count a new fleet and remember
+ *      its time. If its time is smaller or equal, it would reach the target no later than the fleet
  *      ahead, so it catches up and merges; it inherits the slower fleet's time (no update).
  *
  * KEY INSIGHT

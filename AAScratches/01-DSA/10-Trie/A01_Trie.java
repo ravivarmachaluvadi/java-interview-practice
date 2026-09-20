@@ -45,8 +45,9 @@
  *     way to enumerate completions in sorted order.
  *
  * RUN
- *   main() inserts four words sharing the "stri" prefix and runs 6 cases
- *   (hit, miss, prefix-only word, empty string, prefix of nothing) actual vs expected.
+ *   main() inserts four words sharing the "stri" prefix and runs 6 cases (exact hit,
+ *   miss, live prefix via startsWith, that same prefix via search, empty-string
+ *   prefix, empty-string search) actual vs expected.
  */
 class TrieNode {
 

@@ -4,18 +4,13 @@
  * =====================================================================
  *
  * QUESTION
- *   String a = "abc";
- *   String b = "abc";
- *   a.concat(b);
- *   System.out.println(a);
+ *   String a = "abc"; String b = "abc";
+ *   a.concat(b); System.out.println(a);
  *
  *   What is printed?
  *
  * OPTIONS
- *   A. abcabc
- *   B. abc
- *   C. Compile error: result of concat() is unused
- *   D. null
+ *   A. abcabc B. abc C. Compile error: result of concat() is unused D. null
  *
  * ---------------------------------------------------------------------
  *  ANSWER  ->  B.  It prints "abc".

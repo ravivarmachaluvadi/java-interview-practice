@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   [[1,0,0,0,1],
- *    [0,0,0,0,0],
- *    [0,0,1,0,0]]  -> 6    meet at (0,2): 2 + 2 + 2
+ *    [0,0,0,0,0], [0,0,1,0,0]]  -> 6    meet at (0,2): 2 + 2 + 2
  *   [[1,0,0,0,1]]  -> 4    one row, two people: any cell between them
  *   [[1]]          -> 0    a single person is already at the meeting point
  *   [[0,0],[0,0]]  -> 0    nobody to meet

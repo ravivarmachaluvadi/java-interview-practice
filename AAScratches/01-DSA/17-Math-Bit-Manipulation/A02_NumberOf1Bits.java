@@ -27,8 +27,7 @@
  *   Use >>> (logical shift), never >> (arithmetic shift). On a negative
  *   number >> copies the sign bit back in, so -1 >> 1 is still -1 and
  *   the loop never ends. Fixed: the original used >> and hung on any
- *   negative input.
- *   Second idea worth reciting: subtracting 1 flips the lowest 1 to 0
+ *   negative input. Second idea worth reciting: subtracting 1 flips the lowest 1 to 0
  *   and turns every 0 below it into 1, so n & (n - 1) clears exactly
  *   that lowest set bit.
  *

@@ -20,8 +20,7 @@
  *
  * ROLES IN THIS CODE
  *   Command              -> Command interface (execute)
- *   TurnOnCommand,
- *   TurnOffCommand,
+ *   TurnOnCommand, TurnOffCommand,
  *   VolumeUpCommand      -> ConcreteCommands: each binds one Television method
  *   Television           -> Receiver: the object that actually does the work
  *   Remote               -> Invoker: holds a Command, presses it, knows nothing else

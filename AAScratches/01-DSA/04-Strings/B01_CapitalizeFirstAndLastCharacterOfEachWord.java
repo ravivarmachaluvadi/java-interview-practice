@@ -37,7 +37,8 @@
  *   - Do it in one pass over a char[] without split: a char is "first" if i == 0 or
  *     s[i-1] == ' ', and "last" if i == n-1 or s[i+1] == ' '.
  *   - Split on any whitespace (\\s+) and collapse spacing, or keep tabs and newlines intact.
- *   - Title Case only the first letter (see A02) or the whole word (toUpperCase).
+ *   - Title Case only the first letter (see A02_FirstCharToUpperCase) or the whole word
+ *   (toUpperCase).
  *
  * RUN
  *   main() runs 4 cases (typical, one-letter word, empty, double space) and prints actual

@@ -21,8 +21,8 @@
  *
  * KEY INSIGHT
  *   The meeting point does not tell you WHERE the loop starts (that needs the second
- *   phase from C07), but any node inside a ring is enough to measure the ring: walk
- *   around once and count. Recognise which question is asked - entry node vs length -
+ *   phase from C07_LinkedListLoopDetection), but any node inside a ring is enough to measure the
+ *   ring: walk around once and count. Recognise which question is asked - entry node vs length -
  *   because the follow-up after "detect" is always one of those two.
  *
  * COMPLEXITY
@@ -30,7 +30,7 @@
  *   Space O(1)  two pointers and a counter
  *
  * INTERVIEW FOLLOW-UPS
- *   - Return the entry node instead (LeetCode 142, C07).
+ *   - Return the entry node instead (LeetCode 142, C07_LinkedListLoopDetection).
  *   - Number of nodes NOT in the loop: total length - loop length, once the entry is known.
  *   - Break the loop: find the entry, walk to the node whose next is the entry, set null.
  *   - Explain why slow and fast are guaranteed to meet (the gap shrinks by 1 each step).

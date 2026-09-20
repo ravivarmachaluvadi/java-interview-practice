@@ -32,7 +32,8 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Unsorted input: HashSet of the smaller array, scan the larger; O(n + m) time.
- *   - Duplicates must be kept: count map, or two pointers emitting on every match (see B04).
+ *   - Duplicates must be kept: count map, or two pointers emitting on every match (see
+ *   B04_IntersectionOfTwoArraysII).
  *   - One array is tiny and the other is huge and sorted: binary-search each small element.
  *   - Union instead of intersection: same walk, but emit on every branch.
  *

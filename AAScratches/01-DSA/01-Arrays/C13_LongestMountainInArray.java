@@ -28,7 +28,8 @@
  *   one peak, so each mountain is measured exactly once and the inner while-loops never
  *   re-scan a slope for a different peak. Pattern to recognise: when a shape has a
  *   unique "centre", find the centre and expand (same trick as expand-around-centre
- *   for palindromes). Compare C11, which scans the same shape left to right instead.
+ *   for palindromes). Compare C12_LongestBitonicSubarrayProblem, which scans the same
+ *   shape left to right instead.
  *
  * COMPLEXITY
  *   Time  O(n)  each element is crossed by at most two expansions (one per adjacent peak)
@@ -37,7 +38,8 @@
  * INTERVIEW FOLLOW-UPS
  *   - Non-strict slopes (plateaus allowed): change < to <= and decide how a flat peak counts.
  *   - Return the mountain's indices, not just its length: record left/right at the max.
- *   - Single-pass alternative: track up-run and down-run lengths from the left (C11 bitonic).
+ *   - Single-pass alternative: track up-run and down-run lengths from the left, the way
+ *     C12_LongestBitonicSubarrayProblem does.
  *   - Count all mountains instead of the longest: increment a counter per peak.
  *
  * RUN

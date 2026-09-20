@@ -9,8 +9,8 @@
  *   valid. Length up to 10^4.
  *
  * EXAMPLE
- *   "()[]{}"  ->  true
- *   "([)]"    ->  false   because ']' arrives while '(' is still the innermost open bracket
+ *   "()[]{}"  ->  true "([)]"    ->  false   because ']' arrives while '(' is still the innermost
+ *   open bracket
  *   "(]"      ->  false   wrong type
  *   ""        ->  true    nothing to mismatch
  *   "("       ->  false   opener never closed
@@ -42,8 +42,9 @@
  *   - Streaming input with no upper bound on nesting: the stack is still the answer.
  *
  * RUN
- *   main() runs 9 cases (multi-type valid, wrong order, wrong type, empty, unclosed, closer
- *   first, and three single-type cases through both methods) and prints actual vs expected.
+ *   main() runs 9 cases (multi-type valid, wrong order, wrong type, empty, unclosed and
+ *   closer-first through the stack; three single-type cases through the counter only), plus
+ *   one extra demo line showing where the counter breaks, and prints actual vs expected.
  */
 import java.util.Stack;
 

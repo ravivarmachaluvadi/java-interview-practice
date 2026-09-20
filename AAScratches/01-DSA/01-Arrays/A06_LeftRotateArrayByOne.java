@@ -24,7 +24,7 @@
  *   value ever lost is the first one; a single temp is enough to save it.
  *   Direction matters: a LEFT shift walks left-to-right so each slot is read
  *   before it is overwritten (a RIGHT shift must walk right-to-left).
- *   This is the naive baseline that rotate-by-k (C08, triple reversal) beats.
+ *   This is the naive baseline that rotate-by-k beats (C09_RotateArray, triple reversal).
  *
  * COMPLEXITY
  *   Time  O(n)  every element moves exactly once

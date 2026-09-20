@@ -38,7 +38,8 @@
  *   - What breaks if nums can contain 0 or negatives? Monotonicity; need a different method.
  *   - Product <= k instead of < k: change one comparison.
  *   - Count subarrays with sum < k (positives): identical structure with + and -.
- *   - Why long for the product? The window can hold up to 1000 in the largest valid state.
+ *   - Why long for the product? The multiply happens before the shrink loop, so the
+ *     transient value can reach about (k - 1) * max(nums[i]), right at the edge of int.
  *
  * RUN
  *   main() runs 5 cases (typical, edge, tricky) and prints actual vs expected.

@@ -37,8 +37,8 @@
  *   Space O(1)  a few ints
  *
  * INTERVIEW FOLLOW-UPS
- *   - Longest Mountain (LeetCode 845, C12): same shape but both phases must be non-empty
- *     and length >= 3; solved from the peak outward instead of from the left.
+ *   - Longest Mountain (LeetCode 845, C13_LongestMountainInArray): same shape but both
+ *     phases must be non-empty and length >= 3; solved from the peak outward, not the left.
  *   - Longest bitonic SUBSEQUENCE (non-contiguous): O(n^2) LIS from both sides.
  *   - Allow non-strict (plateaus inside a run): change < and > to <= and >=.
  *

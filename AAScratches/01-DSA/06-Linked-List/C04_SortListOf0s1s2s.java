@@ -24,9 +24,9 @@
  *   connect straight to the 2s, and if there are no 0s, zeroHead.next is set by that same line.
  *
  * KEY INSIGHT
- *   This is Partition List (C03) with three buckets instead of two. All the new difficulty is
- *   in the join: each chain's tail must point to the head of the NEXT NON-EMPTY chain, and the
- *   last chain must be null-terminated to cut any stale link back into the old list.
+ *   This is Partition List (C03_PartitionList) with three buckets instead of two. All the new
+ *   difficulty is in the join: each chain's tail must point to the head of the NEXT NON-EMPTY
+ *   chain, and the last chain must be null-terminated to cut any stale link back into the old list.
  *
  *   A second method, sortByCounting, shows the simpler two-pass answer: count 0s/1s/2s, then
  *   overwrite values. Interviewers usually accept it, then ask for the relink version because
@@ -41,7 +41,7 @@
  *     backward move or index swap; the chain approach is the list-native equivalent.
  *   - Generalise to k distinct values: k sentinels, or a bucket array of (head, tail) pairs.
  *   - What if the values were arbitrary, not 0/1/2? Then you need merge sort on the list
- *     (C12 in this folder), O(n log n).
+ *     (C11_SortList in this folder), O(n log n).
  *
  * RUN
  *   main() runs 4 cases for the relink method and the same 4 for the counting method, printing

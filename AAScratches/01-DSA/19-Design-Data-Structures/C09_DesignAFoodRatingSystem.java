@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   foods = [kimchi, miso, sushi, ramen], cuisines = [korean, japanese x3],
- *   ratings = [9, 12, 8, 15]
- *   highestRated("japanese")          ->  ramen   (15 is the best)
+ *   ratings = [9, 12, 8, 15] highestRated("japanese")          ->  ramen   (15 is the best)
  *   changeRating("ramen", 10)         ->  miso now leads with 12
  *   miso and sushi both 16            ->  miso, because "miso" < "sushi"
  *

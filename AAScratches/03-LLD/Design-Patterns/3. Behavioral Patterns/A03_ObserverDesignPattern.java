@@ -23,8 +23,7 @@
  *   WeatherStation   -> ConcreteSubject: holds temperature + humidity and the observer
  *                       list; updateMeasurements() is the state change that triggers notify
  *   Observer         -> Observer interface (update(temperature, humidity))
- *   MobileDisplay,
- *   WebDisplay       -> ConcreteObservers; each stores what it last received
+ *   MobileDisplay, WebDisplay       -> ConcreteObservers; each stores what it last received
  *   ObserverDesignPattern.main -> Client: wires observers to the subject
  *
  * KEY INSIGHT

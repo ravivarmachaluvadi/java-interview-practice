@@ -7,15 +7,13 @@
  *   class Animal { void makeSound() { print("Animal makes a sound"); } }
  *   class Dog extends Animal { }            // empty body, no override
  *
- *   Animal a = new Dog();
- *   a.makeSound();
+ *   Animal a = new Dog(); a.makeSound();
  *
  *   What does this print, and does it even compile?
  *
  * OPTIONS
  *   A. Compilation error: Dog has no makeSound()
- *   B. "Animal makes a sound"
- *   C. "Dog barks"
+ *   B. "Animal makes a sound" C. "Dog barks"
  *   D. Runtime error: AbstractMethodError
  *
  * WHY IT LOOKS TRICKY
@@ -60,25 +58,28 @@
  *   main() runs 2 cases (the puzzle, then the overriding contrast) and prints
  *   actual vs expected.
  */
-class Animal {
-    void makeSound() {
-        System.out.println("Animal makes a sound");
-    }
-}
-
-/** No override at all: Dog inherits Animal.makeSound() unchanged. */
-class Dog extends Animal {
-}
-
-/** The contrast case: a real override, so the dynamic type wins. */
-class Cat extends Animal {
-    @Override
-    void makeSound() {
-        System.out.println("Cat meows");
-    }
-}
-
 class Tricky4 {
+
+    // Animal/Dog/Cat are nested here on purpose: B01_Tricky2 declares its own
+    // top-level Animal and Dog, and two top-level classes with the same name in
+    // one folder overwrite each other's .class files.
+    static class Animal {
+        void makeSound() {
+            System.out.println("Animal makes a sound");
+        }
+    }
+
+    /** No override at all: Dog inherits Animal.makeSound() unchanged. */
+    static class Dog extends Animal {
+    }
+
+    /** The contrast case: a real override, so the dynamic type wins. */
+    static class Cat extends Animal {
+        @Override
+        void makeSound() {
+            System.out.println("Cat meows");
+        }
+    }
 
     public static void main(String[] args) {
         // Case 1 - the puzzle itself. Static type Animal, dynamic type Dog,

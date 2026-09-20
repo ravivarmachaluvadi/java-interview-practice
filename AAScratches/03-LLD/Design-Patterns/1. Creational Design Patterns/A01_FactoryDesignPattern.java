@@ -39,7 +39,8 @@
  * INTERVIEW FOLLOW-UPS
  *   - Simple Factory vs Factory Method vs Abstract Factory? Simple Factory
  *     is one class with a switch; Factory Method puts the choice in a
- *     subclass override; Abstract Factory returns a matched family (see C01).
+ *     subclass override; Abstract Factory returns a matched family (see
+ *     C01_AbstractFactoryDatabase).
  *   - Unknown key: return null, throw, or Optional? Returning null (as here)
  *     pushes an NPE onto the caller; throwing IllegalArgumentException fails
  *     at the real fault line.

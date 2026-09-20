@@ -43,10 +43,13 @@
  *   Space O(V)      stack/queue + visited or in-degree array (+ O(V) recursion in DFS).
  *
  * INTERVIEW FOLLOW-UPS
- *   - Course Schedule I / II (LC 207 / 210): the same sort with a cycle check (B11).
+ *   - Course Schedule I / II (LC 207 / 210): the same sort with a cycle check
+ *     (B10_CourseSchedule).
  *   - Return the lexicographically smallest valid order: use a PriorityQueue in Kahn's.
- *   - Minimum semesters / Parallel Courses: process Kahn's level by level (C09).
- *   - Alien Dictionary (LC 269): derive the edges from word pairs, then run this (C10).
+ *   - Minimum semesters / Parallel Courses: process Kahn's level by level
+ *     (C07_ParallelCourses).
+ *   - Alien Dictionary (LC 269): derive the edges from word pairs, then run this
+ *     (D02_AlienDictionaryOrder).
  *
  * RUN
  *   main() runs 3 cases (a 6-vertex DAG, an edge-free graph, the same DAG made

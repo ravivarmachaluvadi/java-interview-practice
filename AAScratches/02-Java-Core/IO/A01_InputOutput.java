@@ -17,7 +17,7 @@
  *   1. A Scanner splits its source into tokens on whitespace (spaces, tabs, newlines).
  *   2. nextInt() takes the next token and parses it as an int. It does NOT consume
  *      the newline that follows the token - that matters the moment you mix it with
- *      nextLine() (see A02_ScannerMain).
+ *      nextLine() (see A02_Scanner).
  *   3. hasNextInt() peeks: it reports whether the NEXT token would parse as an int,
  *      without consuming anything. That is the only safe way to handle junk input.
  *

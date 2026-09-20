@@ -29,11 +29,11 @@
  *   5. The answer is the running maximum, not what the root returned.
  *
  * KEY INSIGHT
- *   What you return up is not what you are answering: you return one arm so the parent can
- *   build its own path, and you record two arms joined in a side field. This is the Diameter
- *   (B09) skeleton with two extra moves - clamp negative arms to zero, and add node values
- *   instead of counting edges. Seeing that equivalence turns LC 124 from a hard problem into
- *   a variation you already own. Seeding the maximum with Integer.MIN_VALUE, not 0, is what
+ *   What you return up is not what you are answering: you return one arm so the parent can build
+ *   its own path, and you record two arms joined in a side field. This is the Diameter
+ *   (B09_DiameterOfBinaryTree) skeleton with two extra moves - clamp negative arms to zero, and add
+ *   node values instead of counting edges. Seeing that equivalence turns LC 124 from a hard problem
+ *   into a variation you already own. Seeding the maximum with Integer.MIN_VALUE, not 0, is what
  *   keeps the all-negative tree correct.
  *
  * COMPLEXITY

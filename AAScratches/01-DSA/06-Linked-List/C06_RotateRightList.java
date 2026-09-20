@@ -35,9 +35,9 @@
  * INTERVIEW FOLLOW-UPS
  *   - Rotate LEFT by k: same ring, but cut after node k instead of length - k.
  *   - Why normalise k before walking? k can be 2 * 10^9 while length is 500.
- *   - Do it in one pass without counting: keep a k-gap pair like DeleteNthFromEnd
+ *   - Do it in one pass without counting: keep a k-gap pair like C02_DeleteNthNodefromEnd
  *     (but k must still be reduced, so the length pass is usually unavoidable).
- *   - Same problem on an array is C08_RotateArray in 01-Arrays (three reversals).
+ *   - Same problem on an array is C09_RotateArray in 01-Arrays (three reversals).
  *
  * RUN
  *   main() runs 5 cases (typical, k > length, single node, k == length, empty)

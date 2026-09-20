@@ -45,7 +45,8 @@
  *     or negative edges. n * Dijkstra is O(n * E log V) and needs no negatives.
  *   - Reconstruct the path: keep next[i][j] and update it inside the min.
  *   - Transitive closure: same loops with OR/AND instead of min/plus (Warshall).
- *   - Applied straight to a problem: LeetCode 1334, Find the City (see C16).
+ *   - Applied straight to a problem: LeetCode 1334, Find the City
+ *     (see C13_FindTheCity).
  *
  * RUN
  *   main() runs 4 cases (the classic 4x4, single node, a negative edge,

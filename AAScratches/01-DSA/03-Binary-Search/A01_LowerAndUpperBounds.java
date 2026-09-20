@@ -28,9 +28,10 @@
  * KEY INSIGHT
  *   The predicate "arr[i] >= target" is false...false, true...true over a sorted array.
  *   Binary search finds the first true. Keep the best candidate seen so far and shrink the
- *   window toward it; never return -1 from inside the loop. Every other file in this folder
- *   (first/last occurrence, floor/ceil, Koko, ship capacity) is this template with a different
- *   predicate.
+ *   window toward it; never return -1 from inside the loop. Several files in this folder
+ *   (first/last occurrence, floor/ceil, Koko, ship capacity) are this template with a
+ *   different predicate; the rotated-array and two-array-median files use a different
+ *   binary-search shape.
  *
  * COMPLEXITY
  *   Time  O(log n)  each search halves the window

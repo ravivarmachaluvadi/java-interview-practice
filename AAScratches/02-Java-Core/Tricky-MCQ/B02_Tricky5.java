@@ -7,8 +7,7 @@
  *   class Animal { }                                  // empty
  *   class Dog extends Animal { void makeSound() { print("Dog barks"); } }
  *
- *   Animal a = new Dog();
- *   a.makeSound();            // line 1
+ *   Animal a = new Dog(); a.makeSound();            // line 1
  *   ((Dog) a).makeSound();    // line 2
  *
  *   Which of these two lines compiles, and what happens at runtime?

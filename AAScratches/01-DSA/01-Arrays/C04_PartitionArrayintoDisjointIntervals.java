@@ -34,8 +34,7 @@
  *   (leftMax) the moment the boundary is forced to move.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  three ints
+ *   Time  O(n)  one pass Space O(1)  three ints
  *
  * INTERVIEW FOLLOW-UPS
  *   - Derive the two-array version first (prefix max, suffix min), then collapse it.

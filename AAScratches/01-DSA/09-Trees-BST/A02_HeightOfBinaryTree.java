@@ -33,7 +33,9 @@
  *
  * COMPLEXITY
  *   Time  O(n)  each node is visited once
- *   Space O(h)  recursion stack depth is the tree height; O(n) for a skewed tree
+ *   Space O(h)  recursion stack depth is the tree height; O(n) for a skewed tree.
+ *               maxDepthBfs instead holds one whole level, O(w), which is about
+ *               n/2 for a complete tree even though h is only log n
  *
  * INTERVIEW FOLLOW-UPS
  *   - Minimum depth (LC 111): the trap is that a node with ONE child is not a leaf.

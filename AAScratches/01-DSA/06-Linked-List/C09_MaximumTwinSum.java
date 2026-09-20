@@ -24,8 +24,8 @@
  * KEY INSIGHT
  *   You cannot index a linked list, so "pair node i with node n-1-i" is done by
  *   reversing the second half and walking both halves forward. This is the same
- *   primitive as palindrome (C10) and reorder (C11); twin sum is the gentlest version
- *   because n is even (clean split) and the list does not need to be restored.
+ *   primitive as B03_PalindromeLinkedList and C10_ReorderList; twin sum is the gentlest
+ *   version because n is even (clean split) and the list does not need to be restored.
  *
  * COMPLEXITY
  *   Time  O(n)  one pass to find the middle, one to reverse, one to pair up
@@ -33,7 +33,8 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - O(n) space alternative: push the first half on a stack, then pop while walking on.
- *   - Restore the list afterwards: reverse the second half again (see C10).
+ *   - Restore the list afterwards: reverse the second half again (see
+ *     B03_PalindromeLinkedList, which always restores before returning).
  *   - Odd-length variant: define what happens to the lone middle node first.
  *   - Return the twin pair itself, not just the sum: track the pair when the max updates.
  *
@@ -75,7 +76,7 @@ class MaximumTwinSum {
         return maxSum;
     }
 
-    // Standard iterative reversal (A02) applied from the middle onward.
+    // Standard iterative reversal (A02_ReverseLinkedList) applied from the middle onward.
     private static ListNode reverseList(ListNode head) {
         ListNode prev = null;
         while (head != null) {

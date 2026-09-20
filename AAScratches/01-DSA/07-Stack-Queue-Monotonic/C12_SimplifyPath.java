@@ -19,8 +19,7 @@
  *   1. Split on "/" to get segments. Empty strings appear for "//" and the leading "/".
  *   2. For each segment:
  *        ".."         -> pop the stack if it is non-empty (root absorbs extra "..")
- *        "." or ""    -> skip
- *        anything else -> push (it is a directory name)
+ *        "." or ""    -> skip anything else -> push (it is a directory name)
  *   3. Empty stack means root: return "/".
  *   4. Otherwise join the stack bottom-to-top with "/" in front of each name.
  *

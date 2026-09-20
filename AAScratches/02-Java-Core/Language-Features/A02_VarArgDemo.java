@@ -13,6 +13,7 @@
  *   varArgDemo(new Integer[]{1,2,3})   -> Integer... with 3 args (array passed as-is)
  *   varArgDemo(new String[]{"a","b"})  -> String... with 2 args
  *   varArgDemo("")                     -> String... with 1 arg
+ *   varArgDemo(list.toArray(new Integer[0])) -> Integer... with 2 args
  *   pick(7)                            -> fixed-arity Integer, not the varargs one
  *
  *   Fixed: the original file called varArgDemo(someList). A List<Integer> is
@@ -50,9 +51,9 @@
  *   - What does f(null) resolve to when overloads take String... and Object...?
  *
  * RUN
- *   main() runs 5 cases (loose args, array spread, single literal, list
- *   converted to an array, fixed-arity vs varargs) and prints actual vs
- *   expected.
+ *   main() runs 6 cases (loose args, an Integer[] passed directly, a String[]
+ *   passed directly, a single literal, a list converted to an array, and
+ *   fixed-arity vs varargs) and prints actual vs expected.
  */
 import java.util.ArrayList;
 import java.util.List;

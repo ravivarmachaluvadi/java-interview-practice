@@ -10,8 +10,7 @@
  *
  * EXAMPLE
  *   "bbbab"  ->  4    "bbbb" (drop the 'a')
- *   "cbbd"   ->  2    "bb"
- *   "abcde"  ->  1    no character repeats, so any single letter is the best
+ *   "cbbd"   ->  2    "bb" "abcde"  ->  1    no character repeats, so any single letter is the best
  *   ""       ->  0    edge case main() runs
  *
  * APPROACH  (interval recursion on [start, end], then memo, then LCS view)

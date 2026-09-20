@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   [[2,3,1,2],                robot 1: 2 -> 4 -> 6   robot 2: 2 -> 2 -> 5
- *    [3,4,2,2],        ->  21
- *    [5,6,3,5]]
+ *    [3,4,2,2],        ->  21 [5,6,3,5]]
  *   [[3,1,1],[2,5,1],[1,5,5],[2,1,1]]  ->  24
  *   [[5],[3]]  ->  8   (one column: both robots are forced onto the same cells, no double count)
  *

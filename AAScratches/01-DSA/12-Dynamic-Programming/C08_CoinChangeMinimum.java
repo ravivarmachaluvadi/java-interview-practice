@@ -42,7 +42,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Coin Change II (LeetCode 518): count the ways instead of minimising - same
- *     recursion with sum instead of min (see C10 in this folder).
+ *     recursion with sum instead of min (see C09_CoinChangeII in this folder).
  *   - Return the actual coins used, not just how many (store the winning choice).
  *   - Why is greedy wrong here but right for real currency systems?
  *   - Space-optimise the table to two rows, then to one.

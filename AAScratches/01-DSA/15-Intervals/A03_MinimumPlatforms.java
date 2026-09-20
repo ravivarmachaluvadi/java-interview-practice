@@ -39,15 +39,16 @@
  *   Space O(1) extra  both sorts are in place, the sweep keeps two counters
  *
  * INTERVIEW FOLLOW-UPS
- *   - Same problem under the interview name Meeting Rooms II (C03).
+ *   - Same problem under the interview name Meeting Rooms II
+ *     (C03_MeetingRoomsII).
  *   - Report the busiest time window, not just the count.
  *   - Each train carries a different number of coaches: weight the deltas
- *     (Car Pooling, C05).
+ *     (C05_CarPooling).
  *   - Times are unbounded or arrive as a stream: use a TreeMap difference map.
  *
  * RUN
- *   main() runs 4 cases (typical, single train, total overlap, empty) and prints
- *   actual vs expected.
+ *   main() runs 5 cases (typical, single train, total overlap, empty, handover
+ *   at the same minute) and prints actual vs expected.
  */
 
 import java.util.Arrays;

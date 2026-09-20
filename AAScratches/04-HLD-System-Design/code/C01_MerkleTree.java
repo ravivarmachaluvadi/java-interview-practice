@@ -12,8 +12,8 @@
  * SHAPE
  *   leaves: h(block0) h(block1) h(block2) h(block3)
  *   level1:   h(h0+h1)           h(h2+h3)
- *   root:            h(l0 + l1)
- *   Equal roots -> the two replicas are identical, proven in ONE hash comparison.
+ *   root:            h(l0 + l1) Equal roots -> the two replicas are identical, proven in ONE hash
+ *   comparison.
  *   Different roots -> descend only into children that disagree; each step halves the
  *   search space, so one bad block costs ~log2(N) comparisons instead of N.
  *
@@ -38,7 +38,9 @@
  *
  * COMPLEXITY
  *   Time  O(N) to build (each level halves: N + N/2 + N/4 ... = 2N hashes).
- *   Time  O(d * log N) to locate d differing leaves - the whole point of the structure.
+ *   Time  O(N) per findDifferingLeaves() call here - it rebuilds both trees first.
+ *         The descent itself is only O(d * log N) for d differing leaves, which is what
+ *         a real system pays because it keeps the trees built and warm.
  *   Space O(N) for the stored levels.
  *
  * INTERVIEW FOLLOW-UPS

@@ -23,8 +23,7 @@
  *
  *   findUPar(x) walks up to the root, then PATH COMPRESSION rewires every node
  *   on that walk to point straight at the root, so the next find on any of them
- *   is one hop.
- *   unionBySize(u, v) attaches the SMALLER tree under the larger root, so no
+ *   is one hop. unionBySize(u, v) attaches the SMALLER tree under the larger root, so no
  *   element's depth grows unnecessarily. unionByRank does the same using height
  *   instead of element count, bumping the rank only when both ranks are equal.
  *
@@ -45,9 +44,11 @@
  *   Space O(n) for parent, size and rank.
  *
  * INTERVIEW FOLLOW-UPS
- *   - Kruskal's MST: sort edges, union each one whose roots differ (A12).
+ *   - Kruskal's MST: sort edges, union each one whose roots differ
+ *     (A10_KruskalAlgorithm).
  *   - Number of connected components / redundant connection - count roots.
- *   - Accounts Merge (C12): map strings to indices first, then this is unchanged.
+ *   - Accounts Merge (C09_AccountsMerge): map strings to indices first, then
+ *     this is unchanged.
  *   - Why can DSU not undo a union, and what do you use when you must (rollback
  *     DSU without path compression, or an offline / small-to-large approach)?
  *

@@ -51,8 +51,8 @@
  *     first, then result) is the only thing to get right.
  *
  * RUN
- *   main() runs 6 cases (typical, nested, unary minus, sign flip, single number)
- *   and prints actual vs expected.
+ *   main() runs 6 cases (typical, spaces, nested, unary minus, sign flip,
+ *   single number) and prints actual vs expected.
  */
 import java.util.Stack;
 

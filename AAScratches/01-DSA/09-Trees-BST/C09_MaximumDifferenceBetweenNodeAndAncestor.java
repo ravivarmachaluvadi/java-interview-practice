@@ -34,10 +34,11 @@
  *   5. Seed the recursion with min = max = root.val so the root scores 0 against itself.
  *
  * KEY INSIGHT
- *   Count Good Nodes (C09) carries one value down; this carries two, and the cost is the
- *   same. That is the lesson: widening the downward state is free, so ask "what is the
- *   smallest summary of the path above me that answers the question?" Here the answer is
- *   the extremes, because |x - val| is maximised at an endpoint of the ancestor range.
+ *   Count Good Nodes (C08_CountGoodNodes) carries one value down; this carries two, and
+ *   the cost is the same. That is the lesson: widening the downward state is free, so
+ *   ask "what is the smallest summary of the path above me that answers the question?"
+ *   Here the answer is the extremes, because |x - val| is maximised at an endpoint of
+ *   the ancestor range.
  *
  * COMPLEXITY
  *   Time  O(n)  one visit per node, O(1) work each

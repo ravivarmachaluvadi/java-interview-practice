@@ -51,7 +51,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class Scratch {
+class OddEvenPrinter {
 
     public static void main(String[] args) throws InterruptedException {
         print("case 1", printUpTo(6), "[Even 0, Odd 1, Even 2, Odd 3, Even 4, Odd 5]");
@@ -128,7 +128,7 @@ class EvenPrinter {
     }
 
     public void run() {
-        Scratch.takeTurns(value, lock, limit, 0, "Even", log);
+        OddEvenPrinter.takeTurns(value, lock, limit, 0, "Even", log);
     }
 }
 
@@ -146,6 +146,6 @@ class OddPrinter {
     }
 
     public void run() {
-        Scratch.takeTurns(value, lock, limit, 1, "Odd", log);
+        OddEvenPrinter.takeTurns(value, lock, limit, 1, "Odd", log);
     }
 }

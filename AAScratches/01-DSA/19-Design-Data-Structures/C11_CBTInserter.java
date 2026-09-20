@@ -10,8 +10,7 @@
  *   get_root(), which returns the root.
  *
  * EXAMPLE
- *   start [1, 2, 3]
- *   insert(4) -> 2    4 becomes the left child of 2
+ *   start [1, 2, 3] insert(4) -> 2    4 becomes the left child of 2
  *   insert(5) -> 2    5 becomes the right child of 2
  *   insert(6) -> 3    tree is now [1, 2, 3, 4, 5, 6]
  *   edge case: start [1]; insert(2) -> 1, insert(3) -> 1, insert(4) -> 2

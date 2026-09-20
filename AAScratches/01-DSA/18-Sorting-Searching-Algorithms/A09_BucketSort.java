@@ -33,9 +33,12 @@
  *   formula - Maximum Gap (LeetCode 164) is this formula plus a pigeonhole argument.
  *
  * COMPLEXITY
- *   Time  O(n + k log k) average, where k is the load of a bucket; with uniform
- *         keys k is about 1, so this is O(n). O(n log n) worst, when all n values
- *         fall into one bucket and Arrays.sort does all the work.
+ *   Time  O(n^2) as written: `new float[n][n]` allocates and zero-fills n arrays of
+ *         n floats before a single element is placed, and that dominates the rest.
+ *         The three real passes cost O(n + k log k) average, where k is the load of
+ *         a bucket; with uniform keys k is about 1, so the List<Float>[] or two-pass
+ *         version is the one that actually runs in O(n), degrading to O(n log n)
+ *         when all n values fall into one bucket and Arrays.sort does all the work.
  *   Space O(n^2) as written, because each of the n buckets is preallocated to
  *         length n. ArrayList buckets or a counting pass would make it O(n).
  *

@@ -41,10 +41,14 @@
  *   product set is queried over and over.
  *
  * COMPLEXITY
- *   Time  A: O(N*L log N) to sort, then O(N + K) for the sweep, K = searchWord length
+ *   N = product count, L = longest product, K = searchWord length
+ *   Time  A: O(N*L log N) to sort, then O((N + K) * L) for the sweep - every
+ *            startsWith test and every substring(0, i+1) costs O(L), and the left
+ *            pointer performs N such tests in total across all keystrokes
  *         B: O(N*L) to build (each character visited once, top-3 append is O(1)),
  *            then O(K) to answer - build cost is amortised over many searches
- *   Space A: O(1) beyond the output (sort is in place)
+ *   Space A: O(N) auxiliary - Arrays.sort on an object array is TimSort, not an
+ *            in-place sort - plus the O(L) substring per keystroke, beyond the output
  *         B: O(N*L) trie nodes, each holding at most 3 cached strings
  *
  * INTERVIEW FOLLOW-UPS

@@ -30,15 +30,19 @@
  *   surviving balloon must still be open at that point. That is the classic activity-selection
  *   exchange argument. Recognise the pattern: "minimum number of stabbing points" and
  *   "maximum non-overlapping intervals" are the SAME sort-by-end greedy; LeetCode 435
- *   (Non-overlapping Intervals) just reports removals instead of groups. Sort by start answers
- *   union questions (Merge Intervals); sort by end answers selection questions.
+ *   (C06_NonOverlappingIntervals) reports removals instead of groups, with one comparison
+ *   flipped for touching intervals. Sort by start answers union questions (Merge
+ *   Intervals); sort by end answers selection questions.
  *
  * COMPLEXITY
  *   Time  O(n log n)  the sort dominates; the sweep afterwards is a single O(n) pass
- *   Space O(log n)    only the sort's recursion stack; the scan uses two variables
+ *   Space O(n)        Arrays.sort on an object array is TimSort, which allocates a temp
+ *                     buffer of up to n/2; the scan itself uses only two variables
  *
  * INTERVIEW FOLLOW-UPS
- *   - LeetCode 435: how many intervals must be REMOVED so none overlap? (= n - arrows)
+ *   - LeetCode 435 (C06_NonOverlappingIntervals): the same sort-by-end greedy, but touching
+ *     intervals do NOT overlap there, so the test is start >= lastEnd instead of start > end,
+ *     and the counts are NOT related by n - arrows.
  *   - Why sort by end and not by start? Give a counterexample where sort-by-start greedy fails.
  *   - Print the actual arrow coordinates, not just the count.
  *   - What if arrows had a horizontal width w, bursting [x, x + w]?

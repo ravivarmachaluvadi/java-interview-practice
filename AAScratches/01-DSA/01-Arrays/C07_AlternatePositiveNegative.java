@@ -27,7 +27,8 @@
  * KEY INSIGHT
  *   Two independent write cursors let one read pass split the input into two interleaved
  *   streams with no swapping at all. Pattern to recognise: "one cursor per bucket, each on
- *   its own schedule". It is the warm-up for in-place partitions such as Dutch flag (C07).
+ *   its own schedule". It is the warm-up for in-place partitions such as the Dutch
+ *   national flag partition in C08_Sort012.
  *
  * COMPLEXITY
  *   Time  O(n)  one pass (general version: one bucketing pass plus one write pass)

@@ -25,10 +25,9 @@
  *   5. Loop until the stack is empty; the three lists are complete.
  *
  * KEY INSIGHT
- *   Recursion "remembers where it was" through the call stack; the state number is that memory
- *   made explicit. Pre/in/post are simply "which of the three visits do you record on". Any
- *   recursive DFS can be de-recursed this way, which matters when the depth could overflow the
- *   JVM stack.
+ *   Recursion "remembers where it was" through the call stack; the state number is that memory made
+ *   explicit. Pre/in/post are simply "which of the three visits do you record on". Any recursive
+ *   DFS can be de-recursed this way, which matters when the depth could overflow the JVM stack.
  *   Fixed: the author returned [in, pre, post] while main() labelled index 0 as preorder, so the
  *   printed "preorder" was really the inorder. Now returns [pre, in, post] in every branch.
  *

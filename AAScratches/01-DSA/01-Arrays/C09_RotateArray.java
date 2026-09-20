@@ -24,8 +24,8 @@
  *   A right rotation by k moves the last k elements to the front, in their original
  *   order. Reversing everything puts them at the front but backwards; reversing each
  *   block separately restores the order inside each block.
- *   Pattern: reverse(range) is a reusable in-place primitive. Next Permutation (C09)
- *   uses the same helper to reverse a suffix.
+ *   Pattern: reverse(range) is a reusable in-place primitive.
+ *   C10_NextGreaterPermutation uses the same helper to reverse a suffix.
  *
  * COMPLEXITY
  *   Time  O(n)  three reversals, each element touched at most twice

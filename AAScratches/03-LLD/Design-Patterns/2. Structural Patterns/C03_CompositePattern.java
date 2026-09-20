@@ -36,7 +36,9 @@
  *   NoSuchElementException on an empty bundle. It now sums with identity 0.0.
  *
  * COMPLEXITY
- *   Time  O(n) per getPrice()/showDetails() over the whole subtree, n = nodes.
+ *   Time  O(n) per getPrice() over the whole subtree, n = nodes. showDetails()
+ *         is O(n*h) for depth h, because every bundle recomputes getPrice()
+ *         over its own subtree while printing its total.
  *   Space O(h) call-stack for depth h (plus O(n) for the tree itself).
  *
  * INTERVIEW FOLLOW-UPS

@@ -28,7 +28,7 @@
  *   2. Walk both with two pointers, handling the earlier event first: a birth
  *      strictly before the next death increments, otherwise a death decrements.
  *   3. Record the year whenever the live count sets a new maximum.
- *   This is exactly the Minimum Platforms sweep (A03) with the years as times.
+ *   This is exactly the Minimum Platforms sweep (A03_MinimumPlatforms) with the years as times.
  *
  * KEY INSIGHT
  *   A person alive over [birth, death) is a +1 at birth and a -1 at death, so the
@@ -45,7 +45,7 @@
  * INTERVIEW FOLLOW-UPS
  *   - Years unbounded (say any long): use approach 2, or a TreeMap of deltas.
  *   - Return the whole peak range, not just the first year of it.
- *   - Each log carries a household size: weight the deltas (Car Pooling, C05).
+ *   - Each log carries a household size: weight the deltas (Car Pooling, C05_CarPooling).
  *   - Answer many "population in year Y" queries: precompute the prefix sums once.
  *
  * RUN

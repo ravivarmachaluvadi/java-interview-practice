@@ -35,7 +35,8 @@
  *   its neighbours rather than on a single index.
  *
  * COMPLEXITY
- *   Plain recursion: Time O(2^N) - every split re-explores both halves from scratch.
+ *   Plain recursion: Time O(4^N / N^1.5) - Catalan-many bracketings, and every
+ *                    split re-explores both halves from scratch.
  *   Memoised:  Time  O(N^3)  O(N^2) intervals, each scanning O(N) split points.
  *              Space O(N^2)  the memo table, plus O(N) recursion depth.
  *

@@ -35,7 +35,7 @@
  *   Space O(1) extra  the sort is in place (O(log n) recursion stack)
  *
  * INTERVIEW FOLLOW-UPS
- *   - How many rooms are needed instead of yes/no? (Meeting Rooms II, C03)
+ *   - How many rooms are needed instead of yes/no? (Meeting Rooms II, C03_MeetingRoomsII)
  *   - What if intervals were closed so [1,2] and [2,3] clash? (use >=)
  *   - Meetings arrive one at a time: keep a TreeMap and check floor/ceiling keys.
  *   - Return the first colliding pair instead of a boolean.

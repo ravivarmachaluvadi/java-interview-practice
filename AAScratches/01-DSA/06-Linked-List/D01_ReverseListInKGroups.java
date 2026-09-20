@@ -19,7 +19,7 @@
  *   1. From the current group head, walk k-1 steps to find the k-th node. If it is null,
  *      the group is partial: reattach it unchanged to the previous group's tail and stop.
  *   2. Remember nextGroupHead = kth.next, then cut kth.next = null so the plain iterative
- *      reversal (A02) sees exactly this window and nothing after it.
+ *      reversal (A02_ReverseLinkedList) sees exactly this window and nothing after it.
  *   3. Reverse the window. After reversing, kth is the window's new head and the old group
  *      head is its new tail.
  *   4. Relink: if this was the first window, the overall head becomes kth; otherwise the

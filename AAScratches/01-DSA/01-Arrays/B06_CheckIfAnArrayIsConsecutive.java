@@ -33,11 +33,12 @@
  * COMPLEXITY
  *   Time  O(n)       one pass with O(1) set operations
  *   Space O(n)       the set of seen values
- *   (sorting variant: O(n log n) time, O(1) extra space)
+ *   (sorting variant: O(n log n) time, O(n) extra space for the defensive clone)
  *
  * INTERVIEW FOLLOW-UPS
- *   - O(1) extra space? Sort, then check every adjacent pair differs by exactly 1
- *     (isConsecutiveBySorting below). Trades time for space.
+ *   - Drop the set? Sort, then check every adjacent pair differs by exactly 1
+ *     (isConsecutiveBySorting below). It clones first, so it is still O(n) extra space;
+ *     sorting the caller's array in place would drop that to O(log n) for the sort stack.
  *   - O(n) time AND O(1) space without sorting? Use the array itself: mark visited
  *     slots at index v - min by negating (needs positive values or a copy).
  *   - Why is the set needed at all? [1, 1, 3] has span 3 and length 3 but is not
@@ -74,7 +75,7 @@ class CheckIfAnArrayIsConsecutive {
         return (long) max - min + 1 == nums.length;   // long guards int overflow
     }
 
-    /** Follow-up variant: O(n log n) time, O(1) extra space (mutates a copy). */
+    /** Follow-up variant: O(n log n) time, O(n) extra space for the defensive clone. */
     public static boolean isConsecutiveBySorting(int[] nums) {
         if (nums == null || nums.length == 0) {
             return false;

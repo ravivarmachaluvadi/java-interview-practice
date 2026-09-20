@@ -9,8 +9,7 @@
  *   Titles in the LeetCode constraints stay within the range of a signed 32-bit int.
  *
  * EXAMPLE
- *   "A"       ->  1
- *   "AB"      ->  28           1 * 26 + 2
+ *   "A"       ->  1 "AB"      ->  28           1 * 26 + 2
  *   "ZY"      ->  701          26 * 26 + 25
  *   "Z"       ->  26           last single-letter column
  *   "AA"      ->  27           the roll-over right after Z
@@ -33,7 +32,8 @@
  *
  * COMPLEXITY
  *   Time  O(n)   one pass over the n letters of the title
- *   Space O(1)   a single accumulator (toCharArray copies, a charAt loop avoids even that)
+ *   Space O(1)   a single accumulator; the loop uses charAt(i), so nothing is copied
+ *                (a `for (char ch : title.toCharArray())` loop would cost O(n) instead)
  *
  * INTERVIEW FOLLOW-UPS
  *   - The inverse, LeetCode 168: number to title. Because there is no zero digit you must do
@@ -53,7 +53,8 @@ class ExcelSheetColumnNumber {
     /** Parse an Excel column title as a bijective base-26 number ('A' = 1 ... 'Z' = 26). */
     public static int titleToNumber(String columnTitle) {
         int result = 0;
-        for (char ch : columnTitle.toCharArray()) {
+        for (int i = 0; i < columnTitle.length(); i++) {
+            char ch = columnTitle.charAt(i); // charAt keeps this O(1) space: no array copy
             int value = ch - 'A' + 1;        // 1-indexed: there is no digit worth zero
             result = result * 26 + value;    // Horner: shift one base-26 place, then add
         }

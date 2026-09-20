@@ -28,7 +28,7 @@
  *   cycle) but destroys every one-way bridge BETWEEN components. So on the
  *   transpose a DFS cannot leak out of its own SCC - and the finish-time
  *   stack guarantees you start in the right place, the "source" SCC of the
- *   condensed DAG. Same stack idea as topological sort (A04), new purpose.
+ *   condensed DAG. Same stack idea as topological sort (A04_ToposortDFS), new purpose.
  *
  * COMPLEXITY
  *   Time  O(V + E)  two full DFS traversals plus one pass to build the transpose
@@ -36,7 +36,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Tarjan's algorithm does the same job in ONE pass with tin/low links
- *     (the same machinery as bridges, A14) - know that it exists and why.
+ *     (the same machinery as A12_BridgesInGraph) - know that it exists and why.
  *   - Condensation graph: collapse each SCC to a node and you get a DAG, which
  *     you can then topologically sort - the usual second half of the question.
  *   - 2-SAT is solved by exactly this: x and NOT x in one SCC means unsatisfiable.

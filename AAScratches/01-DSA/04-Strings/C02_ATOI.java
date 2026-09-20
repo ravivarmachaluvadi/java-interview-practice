@@ -9,8 +9,8 @@
  *   would fall outside [-2^31, 2^31 - 1] is clamped to the nearer boundary.
  *
  * EXAMPLE
- *   "42"               ->  42
- *   "   -042"          ->  -42            leading spaces and zeros ignored
+ *   "42"               ->  42 "   -042"          ->  -42            leading spaces and zeros
+ *   ignored
  *   "1337c0d3"         ->  1337           stops at the first non-digit
  *   "words and 987"    ->  0              no digits before the first letter
  *   "2147483648"       ->  2147483647     clamped to Integer.MAX_VALUE

@@ -28,7 +28,7 @@
  *   equality check. The leaf test must be left == null AND right == null: treating a
  *   node with one missing child as a leaf, or returning true when the sum matches at an
  *   inner node, are the two mistakes people make under pressure. Same shape as
- *   BranchSums (A05), plus early exit; PathSumII (C11) adds backtracking on top.
+ *   A04_BranchSums, plus early exit; C10_PathSumII adds backtracking on top.
  *
  * COMPLEXITY
  *   Time  O(n)  every node may be visited once in the worst case

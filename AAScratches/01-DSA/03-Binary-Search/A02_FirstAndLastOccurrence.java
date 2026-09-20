@@ -21,10 +21,10 @@
  *   3. If the first search returns -1 the target is absent; skip the second search.
  *
  * KEY INSIGHT
- *   This is the lower/upper bound template (A01) called twice. A plain binary search stops at
- *   ANY match; to reach the edge of a run of duplicates you treat a match as "possible answer,
- *   keep going" instead of "done". The only difference between the two helpers is which side
- *   you continue toward after a match.
+ *   This is the lower/upper bound template (A01_LowerAndUpperBounds) called twice. A plain binary
+ *   search stops at ANY match; to reach the edge of a run of duplicates you treat a match as
+ *   "possible answer, keep going" instead of "done". The only difference between the two helpers is
+ *   which side you continue toward after a match.
  *
  * COMPLEXITY
  *   Time  O(log n)  two independent halvings of the window

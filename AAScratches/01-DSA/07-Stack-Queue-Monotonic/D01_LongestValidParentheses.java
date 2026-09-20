@@ -12,8 +12,7 @@
  *   ")()())"   ->  4   substring "()()"
  *   "(()"      ->  2   substring "()"
  *   ")(()()))" ->  6   substring "(()())"
- *   ""         ->  0
- *   "()(()"    ->  2   two separate valid pieces, neither joins the other
+ *   ""         ->  0 "()(()"    ->  2   two separate valid pieces, neither joins the other
  *
  * APPROACH  (index stack with a -1 sentinel)
  *   1. Push -1 as the "index of the last unmatched ')'" so the first valid

@@ -42,7 +42,8 @@
  *   - What if values are not unique? (Need node references instead of values.)
  *   - Generalise: are two nodes at the same depth at all? (Drop the parent check.)
  *   - Early exit: BFS stops at the first level where either value is found; can DFS?
- *   - Related: Sum of Left Leaves (B06) is another "property only the parent can see" case.
+ *   - Related: Sum of Left Leaves (B06_SumOfLeftLeaves) is another "property only the parent can
+ *   see" case.
  *
  * RUN
  *   main() runs 4 cases (true cousins, siblings, different depth, empty) through both

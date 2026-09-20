@@ -49,7 +49,7 @@
  *   and prints actual vs expected.
  */
 
-class ImportantMedianOfTwoSortedArrays {
+class MedianOfTwoSortedArrays {
 
     public static double findMedianSortedArrays(int[] arr1, int[] arr2) {
         if (arr2.length < arr1.length) {

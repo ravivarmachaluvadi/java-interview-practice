@@ -26,7 +26,7 @@
  * KEY INSIGHT
  *   This is the merge step of merge sort with "alternate" in place of
  *   "pick the smaller": a shared loop while both sides have input, then drain
- *   the tails. The exact skeleton returns in C08 LargestMerge, where step 2
+ *   the tails. The exact skeleton returns in C08_LargestMergeOfTwoStrings, where step 2
  *   becomes a greedy choice instead of strict alternation.
  *
  * COMPLEXITY

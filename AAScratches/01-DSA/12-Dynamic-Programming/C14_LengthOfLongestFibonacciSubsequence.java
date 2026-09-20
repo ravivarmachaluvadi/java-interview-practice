@@ -34,8 +34,10 @@
  *   sweep finds each pair summing to arr[k] in O(n) instead of O(n log n).
  *
  * COMPLEXITY
- *   Greedy         Time O(n^2 * log M)  each (i, j) walk is O(log M) terms
- *   Binary search  Time O(n^2 * log M * log n), Space O(1) beyond the input
+ *   Greedy         Time O(n^2 * log M)  each (i, j) walk is O(log M) terms,
+ *                  Space O(n) for the HashSet holding every value
+ *   Binary search  Time O(n^2 * log M * log n),
+ *                  Space O(log M) - fibChainLength recurses once per chain term
  *   DP             Time O(n^2)  two-pointer sweep per k, Space O(n^2) table
  *   (M is the largest value; Fibonacci growth caps a chain at ~log M terms.)
  *

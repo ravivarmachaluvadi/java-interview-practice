@@ -39,8 +39,10 @@
  *   - Change to grade-on-a-curve: cut-offs become percentiles of the cohort.
  *
  * RUN
- *   main() runs 6 cases (typical, every boundary, and the low edge) and prints
- *   actual vs expected on one line each.
+ *   main() runs 6 cases (typical, the 90 / 70 / 50 boundaries, one mark below the
+ *   35 pass mark, and the low edge) and prints actual vs expected on one line each.
+ *   The 35 boundary itself is the one cut-off no case exercises - add it if you
+ *   want the D band covered.
  */
 class StudentGrade {
 

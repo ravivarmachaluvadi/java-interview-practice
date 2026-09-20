@@ -9,7 +9,10 @@
  * INTENT
  *   Capture an object's internal state so it can be restored later,
  *   WITHOUT exposing the fields that make up that state. The snapshot is
- *   opaque: whoever stores it can hand it back, but cannot read into it.
+ *   meant to be opaque: whoever stores it hands it back without reading it.
+ *   In this demo that opacity is a convention, not a compiler guarantee -
+ *   EditorMemento.getContent() is public for brevity, so History could read
+ *   every snapshot if it wanted to.
  *
  * WHEN TO USE, WHEN NOT
  *   Use    : undo/redo, transactional rollback, checkpoints in a wizard,
@@ -20,8 +23,8 @@
  *            when the state is big and the edits are small.
  *
  * ROLES IN THIS CODE
- *   EditorMemento  Memento   - immutable snapshot, only the Originator
- *                              is meant to read its content.
+ *   EditorMemento  Memento   - immutable snapshot; by convention only the
+ *                              Originator reads its content.
  *   Editor         Originator- creates snapshots (save) and restores
  *                              itself from one (restore).
  *   History        Caretaker - owns a Stack of mementos. It stores and
@@ -29,9 +32,12 @@
  *   main           Client    - drives the three roles.
  *
  * KEY INSIGHT
- *   The Caretaker holds the state but cannot read it; the Originator can
- *   read it but does not hold it. That split is the whole pattern - it is
+ *   The Caretaker holds the state but does not read it; the Originator
+ *   reads it but does not hold it. That split is the whole pattern - it is
  *   how undo works without leaking the Originator's fields to the world.
+ *   To enforce the split for real, nest the memento as a private inner
+ *   class of the Originator, or expose its content only through a narrow
+ *   package-private accessor, instead of the public getter used here.
  *   A Stack gives LIFO undo for free; add a second stack for redo.
  *
  * INTERVIEW FOLLOW-UPS
@@ -49,7 +55,8 @@
 
 import java.util.Stack;
 
-/** Memento: an immutable, opaque snapshot of the Editor's content. */
+/** Memento: an immutable snapshot of the Editor's content. The getter is
+ *  public only to keep this demo short; see KEY INSIGHT for the real fix. */
 class EditorMemento {
     private final String content;
 
@@ -85,7 +92,7 @@ class Editor {
     }
 }
 
-/** Caretaker: stores mementos, never looks inside them. */
+/** Caretaker: stores mementos and, by convention, never looks inside them. */
 class History {
     private final Stack<EditorMemento> history = new Stack<>();
 

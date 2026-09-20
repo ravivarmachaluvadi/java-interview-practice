@@ -42,7 +42,7 @@
  *   - O(n) space version: copy values to an ArrayList and two-pointer compare.
  *   - Recursive version: recurse to the end and compare against a front pointer on unwind.
  *   - Why not modify the list? Explain how you restore it and what breaks if you skip it.
- *   - Same shape as MaximumTwinSum (C09) and ReorderList (C11); name the shared primitive.
+ *   - Same shape as C09_MaximumTwinSum and C10_ReorderList; name the shared primitive.
  *
  * RUN
  *   main() runs 5 cases (even, odd, non-palindrome, single, empty) and prints actual vs

@@ -9,8 +9,8 @@
  *
  * EXAMPLE
  *   [1, 1, 0, 1, 1, 1]  ->  3   runs of 2 and 3; the last one wins
- *   [1, 0, 1, 1, 0, 1]  ->  2
- *   [1, 0, 1, 1, 1]     ->  3   longest run sits at the very end (the trap)
+ *   [1, 0, 1, 1, 0, 1]  ->  2 [1, 0, 1, 1, 1]     ->  3   longest run sits at the very end (the
+ *   trap)
  *   [1, 1, 1, 1]        ->  4   whole array is one run
  *   [0, 0, 0]           ->  0   no ones at all
  *   []                  ->  0
@@ -28,8 +28,7 @@
  *   by "count zero-filled subarrays" and the sliding-window problems.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two counters
+ *   Time  O(n)  one pass Space O(1)  two counters
  *
  * INTERVIEW FOLLOW-UPS
  *   - Allowed to flip at most one 0 (LeetCode 487)? Sliding window with a zero budget.

@@ -21,8 +21,8 @@
  *      prev.next = null so the two halves are independent lists, and return slow as the
  *      head of the second half.
  *   3. Recursively sort both halves.
- *   4. merge: dummy-headed two-pointer merge (same as Merge Two Sorted Lists, A05). Relink
- *      the existing nodes; do not allocate new ones.
+ *   4. merge: dummy-headed two-pointer merge, the same one as A04_MergeTwoSortedLists.
+ *      Relink the existing nodes; do not allocate new ones.
  *
  * KEY INSIGHT
  *   Merge sort needs only two things a linked list is good at: splitting by walking to
@@ -39,7 +39,9 @@
  *     with a length counter and a split(head, size) helper. Same time, no recursion.
  *   - Why not quicksort? Partitioning is fine, but random pivots need indexing and
  *     worst-case is O(n^2) on sorted input, which is common in practice.
- *   - Stability: merge uses "<" so equal keys keep left-half-first order, i.e. it is stable.
+ *   - Stability: the test is "list1.val < list2.val", so on a TIE the else branch fires and
+ *     the right half's node is emitted first - this merge is NOT stable. Change it to
+ *     "list1.val <= list2.val" (left wins ties) to make the sort stable.
  *
  * RUN
  *   main() runs 4 cases (typical, negatives with odd length, empty, all equal) and prints

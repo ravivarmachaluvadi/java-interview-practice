@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   n = 3  ->  [((())), (()()), (())(), ()(()), ()()()]     5 = Catalan(3)
- *   n = 1  ->  [()]
- *   n = 0  ->  [""]        the empty string is well formed (edge case)
+ *   n = 1  ->  [()] n = 0  ->  [""]        the empty string is well formed (edge case)
  *   n = 4  ->  14 strings  = Catalan(4)
  *
  * APPROACH  (counter-based pruning of invalid branches)

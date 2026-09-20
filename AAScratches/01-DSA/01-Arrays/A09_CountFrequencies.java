@@ -26,7 +26,8 @@
  *   When values are bounded by the array length, the array can be its own hash
  *   map (index = value), and one slot can hold two numbers at once because
  *   (original + k * n) % n == original and (original + k * n) / n == k.
- *   Sign marking (C14), cyclic sort (C13, C15) and first-missing-positive (D01)
+ *   Sign marking (B10_FindAllMissedNumbers), cyclic sort (B11_FindCorruptPair,
+ *   C14_FindAllDuplicatesInAnArray) and first-missing-positive (D01_FirstMissingPositive)
  *   are all variations of "encode extra information into the slot itself".
  *
  * COMPLEXITY

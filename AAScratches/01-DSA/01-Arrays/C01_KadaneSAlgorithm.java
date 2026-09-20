@@ -31,8 +31,7 @@
  *   of every DP-on-arrays problem; recognise it whenever the answer is a contiguous run.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two running scalars
+ *   Time  O(n)  one pass Space O(1)  two running scalars
  *
  * INTERVIEW FOLLOW-UPS
  *   - Return the subarray itself: record a tentative start on each reset and commit start

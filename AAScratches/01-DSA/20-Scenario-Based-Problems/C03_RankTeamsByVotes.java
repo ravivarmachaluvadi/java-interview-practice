@@ -15,8 +15,8 @@
  *   ["ABC","ACB","ABC","ACB","ACB"]  ->  "ACB"
  *     A: 5 firsts. B and C both have 0 firsts, so compare seconds: C has 3, B has 2.
  *   ["WXYZ","XYZW"]                  ->  "XWYZ"
- *     W and X each have 1 first; both have 0 seconds and 0 thirds; W has 1 fourth
- *     and X has 0, so X wins on the fourth position - the tie goes deep.
+ *     W and X each have 1 first-place vote; at the second position X has 1 and W
+ *     has 0, so X ranks above W - the cascade decides one position down.
  *   ["BCA","CAB","CBA","ABC","ACB","BAC"] -> "ABC"   every team ties everywhere
  *   ["A"]                            ->  "A"         edge case main() runs
  *
@@ -38,7 +38,7 @@
  *   antisymmetric), which is exactly why the letter fallback is mandatory rather than
  *   cosmetic - without it Arrays.sort can throw "Comparison method violates its
  *   general contract" and the output becomes input-order dependent.
- *   Recognise the shape next time: ElectionWinner is this problem with n = 1.
+ *   Recognise the shape next time: A03_ElectionWinner is this problem with n = 1.
  *
  * COMPLEXITY
  *   With v = number of votes and n = number of teams (n <= 26):
@@ -55,8 +55,8 @@
  *     the comparator collapse? (to a single summed score, and ties become common)
  *
  * RUN
- *   main() runs 5 cases (two LeetCode examples, an all-tie case, a single vote, a
- *   single team) and prints actual vs expected.
+ *   main() runs 6 cases (two LeetCode examples, an all-tie case, a single vote, a
+ *   single team, and an empty vote list) and prints actual vs expected.
  */
 
 import java.util.Arrays;
@@ -122,7 +122,7 @@ class RankTeamsByVotes {
         // case 1 - typical: A sweeps the firsts, C beats B on second-place votes
         check("case 1", new String[]{"ABC", "ACB", "ABC", "ACB", "ACB"}, "ACB");
 
-        // case 2 - tricky: W and X tie on positions 1..3, decided only at position 4
+        // case 2 - tricky: W and X tie on first-place votes, decided at position 2
         check("case 2", new String[]{"WXYZ", "XYZW"}, "XWYZ");
 
         // case 3 - tricky: every team ties on every position, so letters decide

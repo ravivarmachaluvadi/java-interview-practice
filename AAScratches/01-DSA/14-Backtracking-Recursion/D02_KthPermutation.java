@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   n = 3, k = 3   ->  "213"    order is 123, 132, 213, 231, 312, 321
- *   n = 4, k = 9   ->  "2314"
- *   n = 4, k = 24  ->  "4321"   edge case: the very last permutation
+ *   n = 4, k = 9   ->  "2314" n = 4, k = 24  ->  "4321"   edge case: the very last permutation
  *   n = 1, k = 1   ->  "1"      edge case: only one permutation exists
  *
  * APPROACH  (factorial number system - counting instead of generating)
@@ -27,7 +26,8 @@
  *
  *   bruteForcePermutation() is here only as a cross-check: it really does build
  *   all n! permutations in order and index into them. main() runs both and
- *   compares them for every k, which is how we know the fast version is right.
+ *   compares them for every k of n = 1..6, which is how we know the fast
+ *   version is right.
  *
  * KEY INSIGHT
  *   Fixing the first digit fixes a contiguous BLOCK of (n-1)! permutations, so
@@ -50,8 +50,8 @@
  *   - Replace the ArrayList with an order-statistic tree for O(n log n).
  *
  * RUN
- *   main() runs 4 direct cases plus an exhaustive n=4 cross-check against the
- *   brute-force generator, printing actual vs expected on each line.
+ *   main() runs 4 direct cases plus an exhaustive cross-check of every k for
+ *   n = 1..6 against the brute-force generator, printing actual vs expected.
  */
 
 import java.util.ArrayList;

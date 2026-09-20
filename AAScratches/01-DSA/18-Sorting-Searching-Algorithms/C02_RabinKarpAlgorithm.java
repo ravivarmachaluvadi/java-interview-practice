@@ -1,6 +1,6 @@
 /*
  * =====================================================================
- *  Rabin-Karp: find all occurrences of a pattern   LeetCode 28 family | Medium
+ *  Rabin-Karp: find all occurrences of a pattern   classic string search | Medium
  * =====================================================================
  *
  * PROBLEM
@@ -43,7 +43,8 @@
  *   - Why a large prime modulus (1e9+7) and a random base in production?
  *   - How would you search many patterns at once? (hash all patterns of one
  *     length into a set - the Rabin-Karp multi-pattern trick)
- *   - Compare with KMP: guaranteed O(n + m) but no hashing (see D02).
+ *   - Compare with KMP: guaranteed O(n + m) but no hashing
+ *     (see D02_SingleLoopSubstringCheckKMP).
  *
  * RUN
  *   main() runs 4 cases (typical, overlapping, no match, pattern longer than

@@ -21,6 +21,8 @@
  *   2. Repeat V-1 times: for every edge (u, v, w), if u is reachable and
  *      dist[u] + w < dist[v], lower dist[v]. One pass locks in at least one
  *      more hop of the true shortest path, and a simple path has <= V-1 hops.
+ *      The loop below breaks out as soon as a whole sweep changes nothing,
+ *      because nothing later can change either.
  *   3. Run the same sweep one more time. If anything still improves, some
  *      path can be made cheaper forever: report the negative cycle.
  *   4. The "dist[u] != INF" guard stops INF + (-5) from looking like a real
@@ -40,9 +42,12 @@
  * INTERVIEW FOLLOW-UPS
  *   - Print the cycle itself? Keep a parent[] and walk back V steps from the
  *     node that improved on the Vth pass, then follow parents until repeat.
- *   - Early exit: stop when a full sweep changes nothing (often way under V-1).
+ *   - Early exit is already done here: the sweep loop breaks when a pass changes
+ *     nothing, often well under V-1 passes. The extra detection sweep still runs,
+ *     so cycle detection is unaffected.
  *   - Undirected graph with a negative edge is always a negative cycle (u->v->u).
- *   - All pairs with negative edges instead -> Floyd-Warshall (see A10).
+ *   - All pairs with negative edges instead -> Floyd-Warshall
+ *     (see A08_FloydWarshallAlgorithm).
  *
  * RUN
  *   main() runs 3 cases (typical negative-edge graph, unreachable node,

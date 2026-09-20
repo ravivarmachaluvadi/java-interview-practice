@@ -12,15 +12,14 @@
  *   "abbaca"  ->  "ca"    remove "bb" -> "aaca", then "aa" -> "ca"
  *   "azxxzy"  ->  "ay"    remove "xx" -> "azzy", then "zz" -> "ay"  (cascade)
  *   "aaaa"    ->  ""      everything cancels
- *   ""        ->  ""
- *   "abc"     ->  "abc"   nothing adjacent is equal
+ *   ""        ->  "" "abc"     ->  "abc"   nothing adjacent is equal
  *
  * APPROACH  (Stack collapse on equal top)
  *   1. Walk the string once, keeping a stack of characters that have survived so far.
  *   2. If the current char equals the stack top, pop: the pair is destroyed.
  *   3. Otherwise push the current char.
  *   4. The stack, read BOTTOM to TOP, is the answer. Note: for-each over java.util.Stack
- *      iterates bottom to top, which is exactly the order we need here (see A01).
+ *      iterates bottom to top, which is exactly the order we need here (see A01_StackTraversal).
  *   Second method (removeDuplicatesWithBuilder): the same loop with a StringBuilder as the
  *   stack. Its last char is the top; deleteCharAt(len-1) is pop. No boxing, and the result
  *   is already a string.

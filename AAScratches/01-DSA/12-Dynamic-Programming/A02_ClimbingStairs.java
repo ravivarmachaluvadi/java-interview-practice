@@ -10,8 +10,7 @@
  *
  * EXAMPLE
  *   n = 3  ->  3     (1+1+1, 1+2, 2+1)
- *   n = 5  ->  8
- *   n = 1  ->  1     (the smallest real case, main() runs it)
+ *   n = 5  ->  8 n = 1  ->  1     (the smallest real case, main() runs it)
  *   n = 2  ->  2     (1+1, 2)
  *
  * APPROACH  (Fibonacci as a rolling O(1) DP)

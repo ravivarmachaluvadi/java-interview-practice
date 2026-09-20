@@ -24,7 +24,7 @@
  * KEY INSIGHT
  *   The sequence ALWAYS ends in a cycle, so "does it loop?" is not the
  *   question - the question is which cycle. For any n below 1000 the next
- *   value is at most 9^2 * 4 = 324, so the sequence is trapped in a small
+ *   value is at most 9^2 * 3 = 243, so the sequence is trapped in a small
  *   finite range and must repeat. Once you see "a function applied over and
  *   over on a finite set", you are on a functional graph, and Floyd's two
  *   pointers detect the loop in O(1) space - the same trick as Linked List
@@ -37,7 +37,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Solve it with a HashSet instead; compare space (O(log n) vs O(1)).
- *   - Prove the sequence cannot grow without bound (the 4-digit argument above).
+ *   - Prove the sequence cannot grow without bound (the 3-digit argument above).
  *   - Name the one unhappy cycle: 4, 16, 37, 58, 89, 145, 42, 20, back to 4.
  *   - Generalise to sums of cubes of digits - do the same arguments hold?
  *

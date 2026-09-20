@@ -30,15 +30,17 @@
  * KEY INSIGHT
  *   "In exactly one array" is two one-sided differences glued together (A\B then B\A).
  *   A Set answers "is x in the other array?" in O(1); the two-pointer walk answers the same
- *   question with no extra structure because sorted order lines matching values up.
+ *   question from sorted order alone, with no hashing - it still copies both inputs here so
+ *   the caller's arrays are left untouched.
  *
  * COMPLEXITY
  *   HashSets:     Time O(n + m + k log k)  build, scan, sort the k-element result;  Space O(n + m)
- *   Two pointers: Time O(n log n + m log m) dominated by sorting;  Space O(1) beyond the output
+ *   Two pointers: Time O(n log n + m log m) sorting dominates;  Space O(n + m) both inputs cloned
+ *                 Space drops to O(log n) stack if you may sort the caller's arrays in place.
  *
  * INTERVIEW FOLLOW-UPS
- *   - Return the two one-sided lists separately (LeetCode 2215, see B01 in this folder).
- *   - Inputs already sorted and huge: two pointers wins because it needs no extra memory.
+ *   - Return the two one-sided lists separately: see B01_FindTheDifferenceOfTwoArrays.
+ *   - Inputs already sorted and mutable: drop the clones and two pointers needs no extra memory.
  *   - Streams of unknown length: HashSet version works online, two pointers does not.
  *   - Keep multiplicity (multiset difference): switch the sets for count maps.
  *

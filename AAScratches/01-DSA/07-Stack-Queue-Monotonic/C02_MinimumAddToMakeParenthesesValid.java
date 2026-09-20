@@ -30,8 +30,7 @@
  *   because there is only one bracket type.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two ints
+ *   Time  O(n)  one pass Space O(1)  two ints
  *
  * INTERVIEW FOLLOW-UPS
  *   - Minimum Remove to Make Valid Parentheses (LC 1249): same counters, but you must

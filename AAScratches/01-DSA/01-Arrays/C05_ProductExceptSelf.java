@@ -29,8 +29,7 @@
  *   rain water, candy, and best seat.
  *
  * COMPLEXITY
- *   Time  O(n)  two passes
- *   Space O(1)  extra beyond the output array
+ *   Time  O(n)  two passes Space O(1)  extra beyond the output array
  *
  * INTERVIEW FOLLOW-UPS
  *   - Why not total / nums[i]? Zeros break it and the problem forbids division.

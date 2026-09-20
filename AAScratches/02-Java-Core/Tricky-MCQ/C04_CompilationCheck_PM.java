@@ -23,9 +23,9 @@
  *     fall into default. "case null" is what makes null survivable here.
  *   - Boxed numeric types do not widen or convert in a type pattern: a Double is
  *     matched only by "case Double", never by "case Long" or "case Integer".
- *   - Fixed: the class was declared "public class PM" inside CompilationCheck_PM.java,
- *     which javac rejects. A public type must live in a file of its own name, so the
- *     class is now package-private and the file compiles.
+ *   - A public top-level class must live in a file named after it. This class is
+ *     package-private ("class PM"), so its name may differ from the file name;
+ *     declaring it "public class PM" here would not compile.
  *
  * INTERVIEW FOLLOW-UPS
  *   - What happens if you delete "case null"? (NPE, thrown before any case is tried.)

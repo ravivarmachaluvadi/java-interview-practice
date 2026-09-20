@@ -27,8 +27,8 @@
  *   The only trap is associativity: reversing the input turns a left-assoc
  *   chain into a right-assoc one, so the "pop on equal precedence" rule that
  *   is correct for plain infix-to-postfix gives the wrong tree here.
- *   Fixed: original popped on equal precedence for all operators, so A-B-C
- *   produced -A-BC (= A-(B-C)) instead of --ABC.
+ *   Trap: popping on equal precedence for all operators turns A-B-C into
+ *   -A-BC (= A-(B-C)) instead of --ABC.
  *
  * COMPLEXITY
  *   Time  O(n)  each character is pushed and popped at most once

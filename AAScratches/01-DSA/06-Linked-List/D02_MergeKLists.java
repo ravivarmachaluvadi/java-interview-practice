@@ -23,7 +23,7 @@
  *
  * KEY INSIGHT
  *   You only ever need to compare the FRONT of each list, so keep exactly k candidates in
- *   a heap and let it pick the minimum in O(log k). The two-list merge (A05) is this same
+ *   a heap and let it pick the minimum in O(log k). A04_MergeTwoSortedLists is this same
  *   loop with k = 2 and an if/else instead of a heap. Naively merging lists one after
  *   another into a growing result is O(N * k) because early nodes get rescanned k times.
  *

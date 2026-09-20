@@ -12,8 +12,7 @@
  * EXAMPLE
  *   [["John","johnsmith@m","john_newyork@m"],
  *    ["John","johnsmith@m","john00@m"],
- *    ["Mary","mary@m"],
- *    ["John","johnnybravo@m"]]
+ *    ["Mary","mary@m"], ["John","johnnybravo@m"]]
  *   -> [[John, john00@m, john_newyork@m, johnsmith@m], [John, johnnybravo@m],
  *       [Mary, mary@m]]                    the first two share johnsmith@m
  *

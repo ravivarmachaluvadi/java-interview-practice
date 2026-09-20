@@ -24,8 +24,7 @@
  *   OrderState     State          - the interface every state implements.
  *   NewState,      ConcreteState  - each owns its own behaviour AND decides
  *   PaidState,                      its own successor via order.setState().
- *   ShippedState,
- *   DeliveredState,
+ *   ShippedState, DeliveredState,
  *   CancelledState                  (DELIVERED and CANCELLED are terminal:
  *                                    they refuse every transition.)
  *   Order          Context        - holds the current state and forwards

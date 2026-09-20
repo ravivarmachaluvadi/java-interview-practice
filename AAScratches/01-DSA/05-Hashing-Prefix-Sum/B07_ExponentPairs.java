@@ -14,7 +14,7 @@
  *   [2, 4, 2]           ->  [[2, 2], [2, 4]]   the two 2s form a trivial pair
  *   [1000, 2000]        ->  []                 huge values must not be reported by mistake
  *
- * APPROACH  (brute-force pairs, set for dedup)
+ * APPROACH  (brute-force pairs, set for dedup)  -- findPairs
  *   1. Nested loops over index pairs i < j. Starting j at i+1 visits each unordered pair once.
  *   2. Test a^b == b^a. Comparing b*ln(a) with a*ln(b) is safe where Math.pow is not: ln keeps
  *      the numbers tiny, so nothing overflows to Infinity.
@@ -25,6 +25,15 @@
  *   Infinity for values around 1000 and up, and Infinity == Infinity is true, so any two
  *   large numbers were wrongly reported as a pair (e.g. 1000 and 2000).
  *
+ * APPROACH 2  (closed form, no arithmetic at all)  -- findPairsClosedForm
+ *   1. Same nested walk over index pairs i < j, so each unordered pair is visited once.
+ *   2. Keep the pair only when a == b, or when {a, b} is exactly {2, 4}. No powers, no logs,
+ *      so there is nothing left to overflow or to compare with a tolerance.
+ *   3. Why that is the whole answer: a^b == b^a  <=>  ln(a)/a == ln(b)/b, and ln(x)/x is
+ *      strictly increasing up to x = e and strictly decreasing after it. Two distinct values
+ *      can therefore match only by straddling e, and 2 and 4 are the only integers that do.
+ *   4. Dedupe with the same [min, max] Set and sort for stable output.
+ *
  * KEY INSIGHT
  *   Take the log of both sides: a^b == b^a  <=>  ln(a)/a == ln(b)/b. The function ln(x)/x rises
  *   until x = e and then falls, so for distinct positive integers the only solution is {2, 4}.
@@ -32,7 +41,8 @@
  *
  * COMPLEXITY
  *   Time  O(n^2)  every pair of positions is examined once
- *   Space O(p)    p = number of distinct valid pairs kept in the set (worst case O(n^2))
+ *   Space O(n)    the set holds at most one (a, a) entry per distinct repeated value plus the
+ *                 single {2, 4} pair, so it can never grow to O(n^2) despite the O(n^2) walk
  *
  * INTERVIEW FOLLOW-UPS
  *   - Why does Math.pow fail here and how would you check exactly? (logs, or BigInteger)
@@ -65,7 +75,7 @@ class ExponentPairs {
         return sorted(pairs);
     }
 
-    /** Approach 2: closed form. For positive integers a^b == b^a iff a == b or {a, b} == {2, 4}. */
+    /** Approach 2: closed form. For positive ints a^b == b^a iff a == b or {a, b} == {2, 4}. */
     public static List<List<Integer>> findPairsClosedForm(int[] arr) {
         Set<List<Integer>> pairs = new HashSet<>();
         for (int i = 0; i < arr.length; i++) {

@@ -37,7 +37,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Return the DISTANCE instead of the value: store indices (as here) and use i - top.
- *     That is C01_DailyTemperatures.
+ *     That is C06_DailyTemperatures.
  *   - Circular array (LeetCode 503): loop i from 0 to 2n-1 and index with i % n.
  *   - Next SMALLER element: flip the comparison, the stack becomes increasing.
  *   - Previous greater element: same loop, but the answer for i is stack.peek() after popping.

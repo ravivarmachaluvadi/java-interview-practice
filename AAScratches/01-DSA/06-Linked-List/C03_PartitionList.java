@@ -29,11 +29,11 @@
  *   chain you now have a CYCLE. Always null-terminate the second chain before splicing.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two sentinels and two tail pointers; no new data nodes
+ *   Time  O(n)  one pass Space O(1)  two sentinels and two tail pointers; no new data nodes
  *
  * INTERVIEW FOLLOW-UPS
- *   - Sort a list of 0s, 1s and 2s: same idea with three chains (C04 in this folder).
+ *   - Sort a list of 0s, 1s and 2s: same idea with three chains (C04_SortListOf0s1s2s in this
+ *   folder).
  *   - Why not swap values in place? Stability requires moving nodes, not values, and an
  *     array-style in-place stable partition is O(n^2) or needs extra memory.
  *   - Odd/Even list (LeetCode 328) is the same split-and-splice without sentinels.

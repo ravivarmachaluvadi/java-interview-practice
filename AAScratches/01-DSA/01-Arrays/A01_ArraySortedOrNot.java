@@ -33,7 +33,7 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Strictly increasing? Change > to >= in the check.
- *   - Sorted in either direction? Track two flags in one pass (see A02).
+ *   - Sorted in either direction? Track two flags in one pass (see A02_MonotonicArray).
  *   - Sorted then rotated? Count the number of "drops"; at most one, with wrap.
  *   - Recursive version: isSorted(arr, i) = arr[i] <= arr[i+1] && isSorted(arr, i+1).
  *

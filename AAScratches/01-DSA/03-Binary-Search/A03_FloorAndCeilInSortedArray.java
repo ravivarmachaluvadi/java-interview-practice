@@ -23,10 +23,10 @@
  *   3. Each search starts with ans = -1 so "no candidate found" falls out naturally.
  *
  * KEY INSIGHT
- *   Same lower/upper bound template as A01, but the answer stored is the element's value
- *   rather than its index. Ceil is lowerBound(x) read as a value; floor is the element just
- *   before upperBound(x). Recognise this whenever a problem asks for "the closest element
- *   not exceeding / not below" something in sorted data.
+ *   Same lower/upper bound template as A01_LowerAndUpperBounds, but the answer stored is the
+ *   element's value rather than its index. Ceil is lowerBound(x) read as a value; floor is the
+ *   element just before upperBound(x). Recognise this whenever a problem asks for "the closest
+ *   element not exceeding / not below" something in sorted data.
  *
  * COMPLEXITY
  *   Time  O(log n)  two binary searches

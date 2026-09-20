@@ -23,8 +23,7 @@
  *   1. dp[i][j] = cheapest cost of any path that starts in row 0 and ends at (i, j).
  *   2. Row 0 is already the answer for itself, so start from row 1.
  *   3. A cell (i, j) can only be reached from three cells in the row above:
- *        up    = dp[i-1][j]
- *        left  = dp[i-1][j-1]   (does not exist when j == 0)
+ *        up    = dp[i-1][j] left  = dp[i-1][j-1]   (does not exist when j == 0)
  *        right = dp[i-1][j+1]   (does not exist when j == m-1)
  *      Missing neighbours are treated as Integer.MAX_VALUE so min() ignores them;
  *      "up" always exists, so a sentinel can never be the winner and never gets added.

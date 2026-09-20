@@ -11,8 +11,7 @@
  * EXAMPLE
  *   n = 0   ->  0        (base case, main() runs this)
  *   n = 4   ->  3        0, 1, 1, 2, 3
- *   n = 10  ->  55
- *   n = 90  ->  2880067194370816120   (only the fast methods can reach this)
+ *   n = 10  ->  55 n = 90  ->  2880067194370816120   (only the fast methods can reach this)
  *
  * APPROACH  (four versions of the same recurrence, cheapest to most expensive)
  *   1. naiveRecursive: translate the recurrence literally. fib(5) computes
@@ -24,8 +23,7 @@
  *      are ever read, so keep two variables instead of an array.
  *   4. matrixExponentiation: use the identity below and binary exponentiation
  *      to raise the 2x2 matrix in O(log n) multiplications.
- *          [F(n+1) F(n)  ]     [1 1]^n
- *          [F(n)   F(n-1)]  =  [1 0]
+ *          [F(n+1) F(n)  ]     [1 1]^n [F(n)   F(n-1)]  =  [1 0]
  *
  * KEY INSIGHT
  *   The naive recursion is slow not because recursion is slow but because it

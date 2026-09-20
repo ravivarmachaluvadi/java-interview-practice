@@ -8,7 +8,7 @@
  *   different combinations add up to exactly that amount. Order does NOT matter:
  *   2+1+1 and 1+2+1 are the SAME way. Return 0 when the amount cannot be formed;
  *   the amount alone counts as one way when it is 0 (pick nothing).
- *   This is NOT "fewest coins" (LeetCode 322) - that is C09 in this folder.
+ *   This is NOT "fewest coins" (LeetCode 322) - that is C08_CoinChangeMinimum.
  *
  * EXAMPLE
  *   coins = [1,2,5], amount = 5  ->  4   (5 | 2+2+1 | 2+1+1+1 | 1+1+1+1+1)
@@ -30,11 +30,12 @@
  *        countWays1D         - bottom-up single row, O(T) space (write this one)
  *
  * KEY INSIGHT
- *   Compare this with C09 line by line: identical recursion, min() swapped for +. The
- *   part unique to counting is why order does not matter - the coin loop is OUTER, so a
- *   combination is built by finishing all decisions about coin 0, then coin 1, and so on,
- *   which fixes one canonical order per multiset. Swap the loops (amount outer, coins
- *   inner) and you count PERMUTATIONS instead: that is Combination Sum IV, LeetCode 377.
+ *   Compare this with C08_CoinChangeMinimum line by line: identical recursion, with
+ *   min() swapped for +. The part unique to counting is why order does not matter - the
+ *   coin loop is OUTER, so a combination is built by finishing all decisions about coin
+ *   0, then coin 1, and so on, which fixes one canonical order per multiset. Swap the
+ *   loops (amount outer, coins inner) and you count PERMUTATIONS instead: that is
+ *   Combination Sum IV, LeetCode 377.
  *   The forward inner pass (T from coin upwards) is what lets a coin be reused, because
  *   dp[T - coin] has already been updated for this same coin.
  *

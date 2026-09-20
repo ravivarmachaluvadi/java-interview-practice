@@ -24,7 +24,8 @@
  *      All three collapse to ceil(c / 3) = (c + 2) / 3.
  *   3. Sum over all levels.
  *   Alternative shown as minimumRoundsSorted(): sort, walk runs of equal values, apply the
- *   same formula per run. O(n log n) but O(1) extra space.
+ *   same formula per run. O(n log n) time and O(n) extra space, because the input is cloned
+ *   so the caller's array is not mutated - O(log n) stack only if you may sort in place.
  *
  * KEY INSIGHT
  *   The hash map only sets up the real question: "given c identical items, how few groups
@@ -40,7 +41,8 @@
  *   - Prove ceil(c/3) is optimal (each round removes at most 3, and c%3==1 forces two pairs).
  *   - Rounds must be exactly 2 tasks -> answer is c/2 per level, -1 if any count is odd.
  *   - Rounds of size 2 or 3 but across different levels allowed -> just ceil(n/3) overall.
- *   - Space-constrained input: sort in place and group runs (minimumRoundsSorted).
+ *   - Space-constrained input: group runs after sorting (minimumRoundsSorted); drop its
+ *     defensive clone and sort the caller's array in place to get down to O(log n) stack.
  *
  * RUN
  *   main() runs 4 cases (typical, impossible, count%3==1, single pair) with both methods
@@ -68,7 +70,8 @@ class MinimumRounds {
         return totalRounds;
     }
 
-    /** Alternative: sort so equal levels are adjacent, then measure each run. O(1) extra space. */
+    /** Alternative: sort so equal levels are adjacent, then measure each run. O(n) extra: the
+     *  clone below. Sorting the caller's array in place instead would cost only O(log n) stack. */
     public static int minimumRoundsSorted(int[] tasks) {
         int[] sorted = tasks.clone(); // do not mutate the caller's array
         Arrays.sort(sorted);

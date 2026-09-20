@@ -20,6 +20,8 @@
  *   2. Reverse each row with two pointers walking in from both ends.
  *   3. Transpose maps (r,c) -> (c,r); reversing the row then maps (c,r) -> (c,n-1-r),
  *      which is exactly the clockwise rotation.
+ *   4. rotate270() reuses the same transpose but reverses each COLUMN instead, so
+ *      (r,c) -> (n-1-c, r): a 90 degree anticlockwise turn.
  *
  * KEY INSIGHT
  *   Every square-matrix rotation is built from two cheap primitives, transpose and
@@ -37,10 +39,12 @@
  *   - Rotate anticlockwise instead: transpose, then reverse each column.
  *   - Rotate a non-square m x n matrix: O(1) space is impossible, allocate n x m.
  *   - Rotate by layers (four-way cyclic swap) - same O(1) space, one pass, trickier indices.
- *   - Spiral traversal reuses the same boundary-shrinking mindset (see C02).
+ *   - Spiral traversal reuses the same boundary-shrinking mindset
+ *     (C02_SpiralTraversalOfMatrix).
  *
  * RUN
- *   main() runs 3 cases (2x2 typical, 3x3 typical, 1x1 edge) and prints actual vs expected.
+ *   main() runs 4 cases (2x2 90 cw, 3x3 90 cw, 1x1 edge, 3x3 90 anticlockwise via
+ *   rotate270) and prints actual vs expected.
  */
 
 import java.util.Arrays;

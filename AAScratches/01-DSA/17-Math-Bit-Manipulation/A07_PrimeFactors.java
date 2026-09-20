@@ -43,8 +43,9 @@
  *   - What breaks for 64-bit semiprimes? Trial division dies; Pollard's rho.
  *
  * RUN
- *   main() runs 5 cases (typical, prime, prime power, n = 1, large prime)
- *   through both implementations and prints actual vs expected.
+ *   main() runs 5 cases (typical, prime, prime power, n = 1, large prime).
+ *   n = 60 goes through both implementations, the rest through the sqrt
+ *   version only; each line prints actual vs expected.
  */
 
 import java.util.ArrayList;

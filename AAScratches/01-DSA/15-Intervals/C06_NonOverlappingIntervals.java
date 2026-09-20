@@ -38,8 +38,11 @@
  *   Space O(1)        in place, ignoring the sort's own overhead.
  *
  * INTERVIEW FOLLOW-UPS
- *   - Minimum Arrows to Burst Balloons (LC 452) is the same greedy with the
- *     answer reframed as "groups kept" instead of "intervals removed".
+ *   - Minimum Arrows to Burst Balloons (C07_MinimumArrowsToBurstBalloons,
+ *     LC 452) is the same sort-by-end greedy, EXCEPT that touching intervals
+ *     are pierceable by one arrow there, so its comparison is strict
+ *     (start > end) while this one is start >= lastEnd. The two counts are
+ *     therefore not simple reframings of each other.
  *   - If touching intervals DID overlap, change the test to interval[0] > lastEnd.
  *   - Weighted version (each interval has a value, maximise the kept value):
  *     greedy breaks, it becomes DP with binary search - O(n log n).

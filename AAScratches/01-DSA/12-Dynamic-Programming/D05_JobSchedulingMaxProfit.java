@@ -121,7 +121,8 @@ class ImportantJobSchedulingMaxProfit {
     public static void main(String[] args) {
         ImportantJobSchedulingMaxProfit solver = new ImportantJobSchedulingMaxProfit();
 
-        // Case 1 (typical): 6 jobs, best set is (1,2,50) + (5,7,200) + (8,9,150).
+        // Case 1 (typical): 6 jobs; best set is (1,2,50) + (3,4,20) + (5,7,200)
+        //                   + (8,9,150) = 420.
         int[] start1  = {1, 3, 0, 5, 8, 5};
         int[] end1    = {2, 4, 6, 7, 9, 9};
         int[] profit1 = {50, 20, 100, 200, 150, 170};

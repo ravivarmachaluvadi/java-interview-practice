@@ -28,8 +28,10 @@
  *   and every "same characters?" question. Recite it.
  *
  * COMPLEXITY
- *   Time  O(n)  one pass over each string plus a fixed 26-slot scan
- *   Space O(1)  the array is 26 ints regardless of input size
+ *   anagramStrings     Time O(n)        one pass over each string plus a fixed 26-slot scan
+ *                      Space O(1)       the array is 26 ints regardless of input size
+ *   isAnagramBySorting Time O(n log n)  two sorts dominate
+ *                      Space O(n)       the two char[] copies from toCharArray
  *
  * INTERVIEW FOLLOW-UPS
  *   - Unicode input: replace int[26] with a HashMap<Character,Integer> (or int[128] for ASCII).

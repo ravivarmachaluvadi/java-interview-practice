@@ -4,11 +4,8 @@
  * =====================================================================
  *
  * QUESTION
- *   int[] arr = new int[2];
- *   int i = 0, j = 0;
- *   arr[0] = ++i;
- *   arr[1] = j++;
- *   What does Arrays.toString(arr) print, and what are i and j afterwards?
+ *   int[] arr = new int[2]; int i = 0, j = 0; arr[0] = ++i; arr[1] = j++; What does
+ *   Arrays.toString(arr) print, and what are i and j afterwards?
  *
  * OPTIONS
  *   A. [0, 0]      B. [1, 0]      C. [1, 1]      D. [0, 1]

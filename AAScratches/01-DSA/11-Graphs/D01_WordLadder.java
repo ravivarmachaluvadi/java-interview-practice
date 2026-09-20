@@ -41,8 +41,8 @@
  *   "what is a state, and what is one legal move?", not "where are the edges?".
  *
  * COMPLEXITY
- *   Time  O(n * L * 26)  n words, each dequeued once, each generating 26*L
- *                        candidates costing O(L) to build and hash
+ *   Time  O(n * L^2 * 26)  n words, each dequeued once, each generating 26*L
+ *                          candidates costing O(L) to build and hash
  *   Space O(n * L)       the set and the queue hold the dictionary
  *
  * INTERVIEW FOLLOW-UPS

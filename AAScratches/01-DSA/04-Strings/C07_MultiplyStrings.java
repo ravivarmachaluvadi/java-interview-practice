@@ -28,7 +28,7 @@
  * KEY INSIGHT
  *   The whole problem is the index mapping: digit i of num1 times digit j of num2
  *   contributes to result positions i + j and i + j + 1 (counting from the left in an
- *   array of length m + n). Everything else is the carry loop from AddStrings (A08).
+ *   array of length m + n). Everything else is the carry loop from AddStrings (A08_AddStrings).
  *   Recognise this shape whenever you must do arithmetic on numbers too big for a long:
  *   simulate the schoolbook method on a digit array.
  *

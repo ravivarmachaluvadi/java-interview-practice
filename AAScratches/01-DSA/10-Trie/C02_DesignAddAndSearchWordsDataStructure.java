@@ -10,8 +10,7 @@
  *   many), so the pattern always has the same length as the word it matches.
  *
  * EXAMPLE
- *   add "bad", "dad", "mad"
- *   search("pad")   ->  false  no word starts with p
+ *   add "bad", "dad", "mad" search("pad")   ->  false  no word starts with p
  *   search("bad")   ->  true   exact hit
  *   search(".ad")   ->  true   '.' matches b, d or m
  *   search("b..")   ->  true   b then any two letters

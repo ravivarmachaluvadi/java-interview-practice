@@ -12,8 +12,7 @@
  *   x = 25  ->  5    exact square
  *   x = 8   ->  2    because 2*2 = 4 <= 8 < 9 = 3*3
  *   x = 0   ->  0    edge: the loop cannot start at 1 with x = 0
- *   x = 1   ->  1
- *   x = 2147483647 (Integer.MAX_VALUE)  ->  46340    overflow-safe check needed
+ *   x = 1   ->  1 x = 2147483647 (Integer.MAX_VALUE)  ->  46340    overflow-safe check needed
  *
  * APPROACH  (binary search on the answer range [1, x])
  *   1. Handle x == 0 up front; the search range below starts at 1 so division is safe.

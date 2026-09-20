@@ -33,8 +33,7 @@
  *   prices[j] - prices[i] is the sum of daily differences over (i, j].
  *
  * COMPLEXITY
- *   Time  O(n)  one pass
- *   Space O(1)  two integers
+ *   Time  O(n)  one pass Space O(1)  two integers
  *
  * INTERVIEW FOLLOW-UPS
  *   - Return the buy/sell DAYS, not just the profit: track the index of minSoFar

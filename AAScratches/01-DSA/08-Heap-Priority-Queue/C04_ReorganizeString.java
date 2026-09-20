@@ -9,8 +9,7 @@
  *   1 <= s.length <= 500, lowercase letters only.
  *
  * EXAMPLE
- *   s = "aab"    ->  "aba"
- *   s = "aaab"   ->  ""       'a' appears 3 times; length 4 allows at most 2
+ *   s = "aab"    ->  "aba" s = "aaab"   ->  ""       'a' appears 3 times; length 4 allows at most 2
  *   s = "vvvlo"  ->  "vlvov"  (any other valid order is also accepted)
  *   s = "a"      ->  "a"      a single character is trivially valid
  *

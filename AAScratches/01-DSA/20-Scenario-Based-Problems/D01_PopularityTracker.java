@@ -59,12 +59,15 @@
  *     (firstKey) instead of reading the highest.
  *   - Thread safety: the two maps must move together, so guard both with one lock or
  *     make the whole move a single atomic section. Two concurrent maps are not enough.
- *   - Gotcha: mostPopular() returns Integer, so a caller writing "result == -1" compares
- *     references and fails outside the Integer cache range. Use equals or intValue().
+ *   - Gotcha: mostPopular() returns Integer, so == between TWO boxed Integers compares
+ *     references and fails outside the -128..127 cache - use .equals() or .intValue().
+ *     Against an int literal it is safe: "result == -1" unboxes the Integer and compares
+ *     numerically, which is exactly what case 7 below relies on.
  *
  * RUN
- *   main() runs 6 cases: the typical promote/demote sequence, a tie, a no-op decrease
- *   on an unknown ID, and the empty-tracker case. Each prints actual vs expected.
+ *   main() runs 7 cases: the empty tracker, the typical promote/demote sequence, a
+ *   no-op decrease on an unknown ID, everything back at zero, and a tie on a second
+ *   tracker. Each prints actual vs expected.
  */
 
 import java.util.*;

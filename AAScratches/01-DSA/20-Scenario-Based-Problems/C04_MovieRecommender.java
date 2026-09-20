@@ -59,9 +59,9 @@
  *     min-hash / LSH to shortlist neighbours, or precompute item-item similarity offline.
  *
  * RUN
- *   main() runs 5 cases: a plain case, a user with no similar users (edge), a user
- *   whose only candidate is already rated, and an unknown user. Each prints actual
- *   vs expected on one line.
+ *   main() runs 7 cases: four ordinary users (Charlie, Bob, Dennis, Franz), a user
+ *   with no similar users (Alice), an unknown user, and an empty log. Each prints
+ *   actual vs expected on one line.
  */
 
 import java.util.*;

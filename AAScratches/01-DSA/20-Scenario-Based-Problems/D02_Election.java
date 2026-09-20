@@ -1,6 +1,6 @@
 /*
  * =====================================================================
- *  Election / Josephus Problem                            LC 1823 | Hard
+ *  Election / Josephus Problem                          LC 1823 | Medium
  * =====================================================================
  *
  * PROBLEM
@@ -54,9 +54,9 @@
  *     still works as long as each round removes exactly one and restarts after it.
  *
  * RUN
- *   main() runs 7 cases through all three implementations: the doc example, the n = 1
- *   edge case, k = 1 (plain round robin), and two larger n. Each prints actual vs
- *   expected; the simulation is skipped above n = 2000 because it is quadratic.
+ *   main() runs 8 cases through all three implementations: the doc example, the n = 1
+ *   edge case, k = 1 (plain round robin), and larger n up to 1000. Each prints actual
+ *   vs expected; the simulation is skipped above n = 2000 because it is quadratic.
  */
 
 import java.util.*;
@@ -113,7 +113,7 @@ class Election {
                 {6, 4, 5},
                 {7, 1, 7},          // k = 1: everyone is removed in order, the last seat wins
                 {100, 2, 73},
-                {1000, 5, 763}      // large enough that the simulation is skipped
+                {1000, 5, 763}      // still inside the n <= 2000 simulation guard
         };
 
         for (int[] c : cases) {

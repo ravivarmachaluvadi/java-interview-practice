@@ -9,8 +9,7 @@
  *   greatest key that is <= k, or null when every key in the map is bigger.
  *
  * WHAT YOU WILL SEE
- *   map = {5=A, 10=B, 15=C}
- *   floorKey(3)  -> null   no key is <= 3
+ *   map = {5=A, 10=B, 15=C} floorKey(3)  -> null   no key is <= 3
  *   floorKey(12) -> 10     10 is the greatest key <= 12
  *   floorKey(10) -> 10     floor INCLUDES an exact match
  *   floorEntry(12) -> 10=B same lookup, but you also get the value

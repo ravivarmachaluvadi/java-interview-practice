@@ -14,8 +14,7 @@
  *   k = 3, nums = [4, 5, 8, 2]
  *     add(3)  -> 4     stream {2,3,4,5,8}, 3rd largest is 4
  *     add(5)  -> 5     stream {2,3,4,5,5,8}
- *     add(10) -> 5
- *     add(9)  -> 8
+ *     add(10) -> 5 add(9)  -> 8
  *     add(4)  -> 8
  *   k = 1, nums = []  (edge: empty start)
  *     add(-3) -> -3, add(-2) -> -2, add(-4) -> -2, add(1) -> 1

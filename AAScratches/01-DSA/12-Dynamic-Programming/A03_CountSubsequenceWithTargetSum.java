@@ -49,8 +49,8 @@
  * INTERVIEW FOLLOW-UPS
  *   - Memoise (ind, remaining), then flatten to a bottom-up dp[n+1][target+1],
  *     then to a single rolling row - the standard three-step upgrade.
- *   - Return true/false instead of a count -> A06 Subset Sum.
- *   - Maximise value under a weight cap -> A07 0/1 Knapsack, same state.
+ *   - Return true/false instead of a count -> A04_SubsetSumEqualsToTarget.
+ *   - Maximise value under a weight cap -> A05_Knapsack01, same state.
  *   - Negative numbers allowed? The remaining < 0 prune breaks; you must shift
  *     the sum range or memoise with a HashMap keyed on (ind, remaining).
  *

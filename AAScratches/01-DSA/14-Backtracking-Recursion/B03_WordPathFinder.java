@@ -37,7 +37,7 @@
  *   Space O(L)            recursion stack plus the path list
  *
  * INTERVIEW FOLLOW-UPS
- *   - Allow all 4 directions: now you need a visited marker (see C05 WordSearch).
+ *   - Allow all 4 directions: now you need a visited marker (see C05_WordSearch).
  *   - Return every path, not just the first one.
  *   - Count paths instead of listing them -- with right/down only this becomes
  *     a clean DP over the grid, no backtracking needed.

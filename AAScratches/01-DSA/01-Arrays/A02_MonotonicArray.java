@@ -14,8 +14,7 @@
  *   [6, 5, 4, 4]  ->  true    non-increasing
  *   [1, 3, 2]     ->  false   goes up then down
  *   [7, 7, 7]     ->  true    flat counts as both
- *   []            ->  true
- *   [1, 2, 2, 1]  ->  false   the plateau hides a turn
+ *   []            ->  true [1, 2, 2, 1]  ->  false   the plateau hides a turn
  *
  * APPROACH  (two boolean flags, one pass)
  *   1. Start with increasing = true and decreasing = true (both hypotheses alive).
@@ -26,7 +25,7 @@
  * KEY INSIGHT
  *   Instead of scanning once for "is it increasing?" and again for "is it
  *   decreasing?", carry both hypotheses through a single scan and let the
- *   data falsify them. Same adjacent-pair loop as A01, but testing two
+ *   data falsify them. Same adjacent-pair loop as A01_ArraySortedOrNot, but testing two
  *   properties at once; a rise and a fall both seen means neither survives.
  *
  * COMPLEXITY

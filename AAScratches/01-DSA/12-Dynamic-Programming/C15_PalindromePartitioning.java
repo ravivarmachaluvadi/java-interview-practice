@@ -33,9 +33,11 @@
  *   the paths. Enumerating cannot be memoised - the output itself is huge.
  *
  * COMPLEXITY
- *   Time  O(n * 2^n)  up to 2^(n-1) cuttings, each costing O(n) to copy; the
- *                     palindrome tests add O(n) each without the table
- *   Space O(n)        recursion depth and the path, excluding the output list
+ *   partition()      Time  O(n * 2^n)  up to 2^(n-1) cuttings, each costing O(n)
+ *                          to copy, plus an O(n) palindrome test per candidate
+ *                    Space O(n)  recursion depth and the path, excluding output
+ *   partitionFast()  Time  O(n * 2^n)  same walk, palindrome tests now O(1)
+ *                    Space O(n^2)  the isPal table, plus O(n) recursion and path
  *
  * INTERVIEW FOLLOW-UPS
  *   - Palindrome Partitioning II: minimum cuts only - that is 1D DP, not a walk.

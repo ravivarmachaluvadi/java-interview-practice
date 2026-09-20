@@ -28,8 +28,9 @@
  * KEY INSIGHT
  *   In a rotated array exactly one half of any window is sorted. Comparing mid to
  *   high tells you which half, and the minimum always lives in the unsorted half
- *   (or is mid itself). The next three files in this folder all start by finding
- *   this pivot.
+ *   (or is mid itself). C05_SecondSmallestInRotatedArray starts by finding this
+ *   pivot; C06_SearchInRotatedSortedArray and C07_SearchInARotatedSortedArrayII
+ *   use the related "which half is sorted" test instead of locating the pivot.
  *
  * Fixed: mid was computed once before the loop and never updated, and the
  *   arr[mid - 1] neighbour check had no bounds guard. Returned -1 for

@@ -11,8 +11,7 @@
  *
  * EXAMPLE
  *   [4, 2, 2, 1, 1]   ->  2      smallest 1, next distinct value 2
- *   [0, 1]            ->  1
- *   [1, 1, 2]         ->  2      duplicate of the smallest is ignored
+ *   [0, 1]            ->  1 [1, 1, 2]         ->  2      duplicate of the smallest is ignored
  *   [-3, -3, -1, 0]   ->  -1     negatives work the same way
  *   [5, 5, 5]         ->  throws  only one distinct value
  *   [0]               ->  throws  too short
@@ -32,8 +31,7 @@
  *   Integer.MIN_VALUE / MAX_VALUE in the input are handled without a flag.
  *
  * COMPLEXITY
- *   Time  O(n)  single pass
- *   Space O(1)  two scalars
+ *   Time  O(n)  single pass Space O(1)  two scalars
  *
  * INTERVIEW FOLLOW-UPS
  *   - Second largest? Mirror the comparisons with -infinity sentinels.

@@ -53,9 +53,9 @@
  *   - Many queries on one graph: what can be precomputed?
  *
  * RUN
- *   main() runs 5 cases (typical, k=0 boundary, src==dst, unreachable,
- *   cheap-but-too-many-hops trap) and prints actual vs expected for both
- *   methods.
+ *   main() runs 5 cases (the cheap-but-too-many-hops trap at k=1, the same
+ *   graph at k=2 where the cheap chain becomes legal, the k=0 boundary,
+ *   src==dst, and unreachable) and prints actual vs expected for both methods.
  */
 
 import java.util.*;

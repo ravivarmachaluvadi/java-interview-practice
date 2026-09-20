@@ -11,8 +11,7 @@
  *   O(1) query but O(n) update. The segment tree balances both at O(log n).
  *
  * EXAMPLE
- *   nums = [1, 3, 5, 7, 9, 11]
- *   rangeSum(2, 5)          -> 32   (5 + 7 + 9 + 11)
+ *   nums = [1, 3, 5, 7, 9, 11] rangeSum(2, 5)          -> 32   (5 + 7 + 9 + 11)
  *   update(2, 7) then (2,5) -> 34   (7 + 7 + 9 + 11)
  *
  * DESIGN  (classes and why)

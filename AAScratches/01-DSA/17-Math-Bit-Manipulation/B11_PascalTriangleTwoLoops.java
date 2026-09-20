@@ -10,8 +10,7 @@
  *
  * EXAMPLE
  *   n = 5  ->  [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1]]
- *   n = 1  ->  [[1]]
- *   n = 0  ->  []            (edge case main() runs)
+ *   n = 1  ->  [[1]] n = 0  ->  []            (edge case main() runs)
  *
  * APPROACH 1  (row from previous row - the "two loops" build)
  *   1. Seed the triangle with the single-element row [1].

@@ -12,7 +12,8 @@
  * WHAT YOU WILL SEE
  *   countOccurrences([1,2,3,3,3,4,5])       -> {1=1, 2=1, 3=3, 4=1, 5=1}
  *   filter "A" from [Abc, Bac, Axy]         -> [Abc, Axy]
- *   flatten [[Alice,Bob],[Charlie,David]]   -> [Alice, Bob, Charlie, David]
+ *   flatten [[Alice,Bob],[Charlie,David],[Eve,Frank]]
+ *                                           -> [Alice, Bob, Charlie, David, Eve, Frank]
  *   max salary per dept (Optional form)     -> {Finance=6500.0, HR=4500.0, IT=8000.0}
  *   max salary per dept (unwrapped form)    -> same numbers, no Optional to peel
  *   high earners > 7000, Collectors.filtering -> {Finance=[], HR=[], IT=[David]}
@@ -110,7 +111,8 @@ class Streams {
     }
 
     // Approach 2: collectingAndThen(downstream, finisher) runs the finisher on each group's
-    // result, so the Optional is unwrapped inside the collector and the map is Map<String, Double>.
+    // result, so the Optional is unwrapped inside the collector and the map is
+    // Map<String, Double>.
     static Map<String, Double> maxSalaryUnwrapped(List<Employee> employees) {
         return employees.stream()
                 .collect(Collectors.groupingBy(

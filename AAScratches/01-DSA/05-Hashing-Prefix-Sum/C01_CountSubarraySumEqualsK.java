@@ -35,9 +35,10 @@
  *
  * INTERVIEW FOLLOW-UPS
  *   - Longest (not count) subarray with sum k: store the first index per prefix instead of a
- *     count and use putIfAbsent (see C03).
+ *     count and use putIfAbsent (see C03_LongestSubarrayWithSumKHash).
  *   - Subarray sum divisible by k (LC 974): key the map on prefixSum mod k, normalise negatives.
- *   - Binary array / all non-negative: sliding window works and needs O(1) space (see C02).
+ *   - Binary array / all non-negative: sliding window works and needs O(1) space (see
+ *   C02_BinarySubarraysWithSum).
  *   - Prefix sums can overflow int for large inputs; use long for the running sum.
  *
  * RUN

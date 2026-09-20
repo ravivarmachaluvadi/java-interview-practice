@@ -31,7 +31,7 @@
  *
  * KEY INSIGHT
  *   The two halves never interact, so solve them separately instead of searching all
- *   81 (x, y) pairs. Within each half, place value means the LEFTMOST digit you are
+ *   100 (x, y) pairs. Within each half, place value means the LEFTMOST digit you are
  *   allowed to move dominates every digit to its right, so one commit ends the search.
  *   The whole difficulty of the problem lives in the leading-zero constraint: it is what
  *   forces the '1' special case in the minimisation. Pattern: when a score splits into

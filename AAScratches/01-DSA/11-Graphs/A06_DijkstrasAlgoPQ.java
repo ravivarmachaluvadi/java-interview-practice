@@ -7,7 +7,7 @@
  *   Given a weighted graph with NON-NEGATIVE edge weights and a source vertex,
  *   return the shortest distance from the source to every vertex. Vertices the
  *   source cannot reach keep distance "infinity" (Integer.MAX_VALUE here).
- *   Negative weights are out of scope - use Bellman-Ford for those (A09).
+ *   Negative weights are out of scope - use Bellman-Ford (A07_BellmanFord).
  *
  * EXAMPLE
  *   Undirected, V=5: 0-1 (9), 0-2 (6), 0-3 (5), 0-4 (3), 2-1 (2), 2-3 (4)
@@ -46,12 +46,16 @@
  *         (the TreeSet version is bounded at O(V) entries instead).
  *
  * INTERVIEW FOLLOW-UPS
- *   - Return the path, not just the cost: keep a parent[] and walk it back (C14).
- *   - Count the number of shortest paths: carry ways[] next to dist[] (D03).
- *   - Add a constraint dimension, e.g. at most K stops (LC 787, C15) - plain
- *     Dijkstra breaks, you order by stops instead.
- *   - All edges weigh 0 or 1: skip the heap, use 0-1 BFS with a deque (D05).
- *   - Negative edges or a negative cycle: Bellman-Ford (A09) or Floyd-Warshall (A10).
+ *   - Return the path, not just the cost: keep a parent[] and walk it back
+ *     (C11_ShortestPath).
+ *   - Count the number of shortest paths: carry ways[] next to dist[]
+ *     (C14_NumberOfWaysToArriveAtDestination).
+ *   - Add a constraint dimension, e.g. at most K stops (LC 787,
+ *     C12_CheapestFlight) - plain Dijkstra breaks, you order by stops instead.
+ *   - All edges weigh 0 or 1: skip the heap, use 0-1 BFS with a deque
+ *     (C15_GridTeleportationTraversal).
+ *   - Negative edges or a negative cycle: Bellman-Ford (A07_BellmanFord) or
+ *     Floyd-Warshall (A08_FloydWarshallAlgorithm).
  *
  * RUN
  *   main() runs 3 cases (the 5-vertex graph above, a graph with an unreachable

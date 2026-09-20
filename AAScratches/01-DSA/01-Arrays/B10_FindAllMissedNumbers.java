@@ -23,8 +23,9 @@
  * KEY INSIGHT
  *   The array is its own bitmap: the sign of slot v - 1 is a free boolean "v seen", and
  *   the magnitude still carries the original value so later reads are never confused.
- *   Compare cyclic sort (C13): swapping moves values to their home index, sign marking
- *   leaves the order intact and touches only one bit. Both need values in 1..n.
+ *   Compare cyclic sort (B11_FindCorruptPair): swapping moves values to their home
+ *   index, while sign marking leaves the order intact and touches only one bit.
+ *   Both need values in 1..n.
  *
  * COMPLEXITY
  *   Time  O(n)  two linear passes
