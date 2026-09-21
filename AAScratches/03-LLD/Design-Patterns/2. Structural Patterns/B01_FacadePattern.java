@@ -53,7 +53,9 @@
  */
 
 class UserService {
-    /** Demo rule: any id starting with "user" is a known customer. */
+    /**
+     * Demo rule: any id starting with "user" is a known customer.
+     */
     public boolean validateUser(String userId) {
         System.out.println("  validating user : " + userId);
         return userId != null && userId.startsWith("user");
@@ -61,7 +63,9 @@ class UserService {
 }
 
 class InventoryService {
-    /** Demo rule: the product id "OUT" is the one we never have in stock. */
+    /**
+     * Demo rule: the product id "OUT" is the one we never have in stock.
+     */
     public boolean checkStock(String productId) {
         System.out.println("  checking inventory for productId : " + productId);
         return !"OUT".equals(productId);
@@ -69,7 +73,9 @@ class InventoryService {
 }
 
 class PaymentGateway {
-    /** Demo rule: a non-positive amount is rejected by the gateway. */
+    /**
+     * Demo rule: a non-positive amount is rejected by the gateway.
+     */
     public boolean makePayment(String userId, double amount) {
         System.out.println("  processing payment of Rs " + amount + " for userId " + userId);
         return amount > 0;
@@ -94,11 +100,17 @@ class PaymentServiceFacade {
     private final NotificationService notificationService;
 
     public PaymentServiceFacade() {
-        this(new UserService(), new InventoryService(),
-                new PaymentGateway(), new NotificationService());
+        this(
+                new UserService(),
+                new InventoryService(),
+                new PaymentGateway(),
+                new NotificationService()
+        );
     }
 
-    /** Injected form: same facade, but the subsystem can be stubbed in a test. */
+    /**
+     * Injected form: same facade, but the subsystem can be stubbed in a test.
+     */
     public PaymentServiceFacade(UserService userService,
                                 InventoryService inventoryService,
                                 PaymentGateway paymentGateway,

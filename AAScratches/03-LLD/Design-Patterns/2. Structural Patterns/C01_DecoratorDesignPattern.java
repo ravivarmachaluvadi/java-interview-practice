@@ -83,7 +83,7 @@ class SimpleCoffee implements Coffee {
  */
 abstract class CoffeeDecorator implements Coffee {
 
-    protected final Coffee coffee; // the wrappee, one level down the chain
+    protected final Coffee coffee; // the wrapper, one level down the chain
 
     public CoffeeDecorator(Coffee coffee) {
         this.coffee = coffee;

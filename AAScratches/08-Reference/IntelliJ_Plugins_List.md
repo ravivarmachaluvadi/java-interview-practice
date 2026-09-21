@@ -1,6 +1,22 @@
 # IntelliJ Plugins List
 
-The list of IntelliJ IDEA plugins the owner had installed, with the version of each; converted from `_archive/original-txt/ThanksAndRegards.txt` (the original filename does not describe the contents).
+The IntelliJ IDEA plugins the owner had installed, with the version of each.
+
+This is a **point-in-time snapshot**, not a shopping list. The version numbers
+are the ones that were installed when the list was taken; the build suffixes
+(`-231`, `222.`, `2023.x`) pin several of them to the IntelliJ 2022.2 / 2023.1 /
+2023.2 line, so a current IDE will offer newer builds or, in a few cases,
+nothing at all.
+
+## Where this came from
+
+Converted from `AAScratches/_archive/original-txt/ThanksAndRegards.txt` -- the
+original filename does not describe the contents. That folder was deleted in
+commit `9474f16`; recover the original with:
+
+```bash
+git show 9474f16^:AAScratches/_archive/original-txt/ThanksAndRegards.txt
+```
 
 ## Installed plugins
 
@@ -36,3 +52,15 @@ The list of IntelliJ IDEA plugins the owner had installed, with the version of e
 | Tabnine AI Code Completion- JS Java Python TS Rust Go PHP & More | 1.0.17 |
 | Test Data | 231.8109.91 |
 | VisualVM Launcher | 1.21.211.6085.0 |
+
+## Notes before reinstalling
+
+| Plugin | Why it needs a second look |
+| --- | --- |
+| Codota AI Autocomplete **and** Tabnine | Codota renamed itself Tabnine; these two entries are the same product line and installing both is redundant. Pick Tabnine |
+| Rainbow Brackets **and** HighlightBracketPair | Overlapping jobs -- both colour or highlight matching brackets |
+| Everything pinned to `-231` / `222.` / `2023.x` | Built against IntelliJ 2022.2-2023.2. Let the Marketplace resolve the version for your IDE rather than pasting these numbers |
+
+These notes are about what the list itself shows -- duplicated purpose and pinned
+builds. Whether each plugin is still published, still maintained, or still free
+has not been checked.

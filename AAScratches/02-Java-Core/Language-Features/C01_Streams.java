@@ -60,6 +60,7 @@
  *   main() runs the six pipelines on a typical dataset plus an empty-input edge
  *   case, and prints actual vs expected.
  */
+
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -102,11 +103,14 @@ class Streams {
 
     // Approach 1: maxBy returns Optional<Employee> (a reduction has no identity value),
     // so the map value is Optional and the caller has to unwrap it.
-    static Map<String, Optional<Employee>> maxSalaryWithOptional(List<Employee> employees) {
+    static Map<String, Employee> maxSalaryByDepartment(List<Employee> employees) {
         return employees.stream()
                 .collect(Collectors.groupingBy(
                         Employee::getDepartment,
-                        Collectors.maxBy(Comparator.comparingDouble(Employee::getSalary))
+                        Collectors.collectingAndThen(
+                                Collectors.maxBy(Comparator.comparingDouble(Employee::getSalary)),
+                                Optional::get
+                        )
                 ));
     }
 
@@ -127,7 +131,7 @@ class Streams {
     // Collectors.filtering (Java 9+) filters INSIDE each group -> departments with no match
     // still appear with an empty list.
     static Map<String, List<Employee>> highEarnersByDeptKeepEmptyGroups(List<Employee> employees,
-                                                                       double threshold) {
+                                                                        double threshold) {
         return employees.stream()
                 .collect(Collectors.groupingBy(
                         Employee::getDepartment,
@@ -137,13 +141,15 @@ class Streams {
 
     // Stream.filter BEFORE groupingBy -> departments with no match are absent from the map.
     static Map<String, List<Employee>> highEarnersByDeptDropEmptyGroups(List<Employee> employees,
-                                                                       double threshold) {
+                                                                        double threshold) {
         return employees.stream()
                 .filter(e -> e.getSalary() > threshold)
                 .collect(Collectors.groupingBy(Employee::getDepartment));
     }
 
-    /** groupingBy hands back a HashMap; sort it so the printed output is deterministic. */
+    /**
+     * groupingBy hands back a HashMap; sort it so the printed output is deterministic.
+     */
     private static <K, V> Map<K, V> sorted(Map<K, V> map) {
         return new TreeMap<>(map);
     }
@@ -173,8 +179,8 @@ class Streams {
 
         // Approach 1: the caller peels the Optional off every value.
         Map<String, Double> peeledByCaller = new TreeMap<>();
-        maxSalaryWithOptional(employees).forEach((dept, best) ->
-                peeledByCaller.put(dept, best.map(Employee::getSalary).orElse(0.0)));
+        maxSalaryByDepartment(employees).forEach((dept, best) ->
+                peeledByCaller.put(dept, best.getSalary()));
         print("maxSalaryWithOptional   : ", peeledByCaller,
                 "{Finance=6500.0, HR=4500.0, IT=8000.0}");
 
