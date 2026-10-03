@@ -1,0 +1,3 @@
+# The sh launchers must keep LF endings: with CRLF, Git Bash and macOS sh fail on the carriage return.
+tools/codeview text eol=lf
+tools/runjava text eol=lf

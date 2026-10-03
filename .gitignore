@@ -15,6 +15,7 @@
 !AAScratches/**/*.properties
 !AAScratches/**/pom.xml
 !/.gitignore
+!/.gitattributes
 !/*.md
 !/tools/*.py
 !/tools/mustknow.json
