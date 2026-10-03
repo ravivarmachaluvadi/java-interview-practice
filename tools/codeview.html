@@ -1235,12 +1235,14 @@ async function run() {
   if (res.phase === 'compile' && !res.ok) setMarkers(model, res.output || '', res.file);
   if (viewKey() === vk) { renderOutput(res); refreshBar(); }
   if (practice && res.phase === 'run') {
-    const { pass, fail } = countExpected(res.output || '');
-    if (res.ok && pass && !fail) {
+    const { pass, fail, unchecked } = res.checks || { pass: 0, fail: 0, unchecked: 0 };
+    if (res.ok && pass && !fail && !unchecked) {
       await setProgress(c.path, 'done', true);
       toast(`Solved: all ${pass} cases match. Marked done ✓`);
     } else {
       setProgress(c.path, null, false);
+      if (res.ok && pass && !fail && unchecked)
+        toast(`All ${pass} checked cases match, but ${unchecked} line(s) can't be checked automatically. If they look right, mark it done (Alt+M).`);
     }
   }
 }
@@ -1258,15 +1260,8 @@ function setMarkers(model, output, file) {
   });
   monaco.editor.setModelMarkers(model, 'javac', markers);
 }
-const EXPECTED = /^(.*?:\s)(.*?)\s+expected[:=]?\s+(.*)$/;
-function countExpected(output) {
-  let pass = 0, fail = 0;
-  for (const line of output.replace(/\r\n?/g, '\n').split('\n')) {
-    const m = line.match(EXPECTED);
-    if (m && m[2].trim() && !isErrorLine(line)) { if (norm(m[2]) === norm(m[3])) pass++; else fail++; }
-  }
-  return { pass, fail };
-}
+// Ticks and crosses come from the server (tools/outcheck.py, measured on every repo file),
+// one verdict per output line: true, false, or null when it is not a result or can't be called.
 const isErrorLine = line => /^(Exception in thread|Caused by:|\s+at |\s+\.\.\. \d+ more|Error: )/.test(line) || /^[\w.$]+(Exception|Error)(: |$)/.test(line);
 
 function renderOutput(res) {
@@ -1293,8 +1288,8 @@ function renderOutput(res) {
   meta.textContent = bits.join(' · ');
 
   const lines = (res.output || '').replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
-  const frag = document.createDocumentFragment();
-  for (const line of lines) {
+  const frag = document.createDocumentFragment(), verdicts = res.verdicts || [];
+  lines.forEach((line, i) => {
     const div = document.createElement('div');
     div.className = 'ln';
     let m;
@@ -1307,24 +1302,26 @@ function renderOutput(res) {
       if (m[2] === res.file) div.append(m[1], lineLink(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
     } else if (isErrorLine(line)) {
       div.classList.add('err'); div.textContent = line;
-    } else if ((m = line.match(EXPECTED)) && m[2].trim()) {
-      const ok = norm(m[2]) === norm(m[3]);
+    } else if (verdicts[i] === true || verdicts[i] === false) {
+      const ok = verdicts[i];
       div.classList.add(ok ? 'pass' : 'mismatch');
       const mk = document.createElement('span'); mk.className = 'mk'; mk.textContent = ok ? '✓' : '✗';
       div.append(mk, line);
     } else div.textContent = line;
     frag.append(div);
-  }
+  });
   const note = t => { const d = document.createElement('div'); d.className = 'ln note'; d.textContent = t; frag.append(d); };
   if (!res.output && res.phase === 'run' && !res.timedOut) note('(no output)');
   if (res.truncated) note('… output cut at 256 KB.');
   if (res.timedOut) note(`Stopped after ${$('#timeoutSel').value} s. An infinite loop, or a program waiting for input? (stdin button above)`);
   out.append(frag);
-  const { pass, fail } = countExpected(res.output || '');
+  const { pass = 0, fail = 0, unchecked = 0 } = res.checks || {};
   if (pass + fail) {
     verdict.hidden = false;
     verdict.className = 'verdict ' + (fail ? 'bad' : 'ok');
-    verdict.textContent = fail ? `✗ ${fail} of ${pass + fail} differ from expected` : `✓ ${pass}/${pass} match expected`;
+    verdict.textContent = (fail ? `✗ ${fail} of ${pass + fail} differ from expected` : `✓ ${pass}/${pass} match expected`)
+      + (unchecked ? ` · ${unchecked} not checked` : '');
+    verdict.title = unchecked ? 'Lines with no mark state their expectation in words, or in a shape the checker will not guess at.' : '';
   }
 }
 function lineLink(text, n) {

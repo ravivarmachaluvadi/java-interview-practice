@@ -43,6 +43,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 import javasrc  # noqa: E402  main()/package detection and practice skeletons
+import outcheck  # noqa: E402  ticks and crosses for "actual   expected X" output lines
 from runjava import JAVA, JAVAC  # noqa: E402  same newest-JDK pick as the CLI runner
 
 PAGE = HERE / "codeview.html"
@@ -437,12 +438,33 @@ def run_code(code, rid, rel_path, stdin, timeout, want_main):
         size = (work / "output.txt").stat().st_size
         with open(work / "output.txt", "rb") as fh:
             text = fh.read(OUTPUT_CAP).decode("utf-8", "replace")
+        output = tidy(text, work)
+        verdicts, checks = check_lines(output)
         return {"phase": "run", "ok": rc == 0 and not timed_out, "exitCode": rc,
                 "timedOut": timed_out, "truncated": size > OUTPUT_CAP, "file": fname,
                 "ran": main, "mains": mains, "compileMs": compile_ms, "runMs": run_ms,
-                "output": tidy(text, work)}
+                "output": output, "verdicts": verdicts, "checks": checks}
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def check_lines(output):
+    """One verdict per output line (True / False / None), split exactly as the page splits.
+    `unchecked` counts result-looking lines the checker would not call either way."""
+    text = output.replace("\r\n", "\n").replace("\r", "\n")
+    if text.endswith("\n"):
+        text = text[:-1]
+    verdicts, checks = [], {"pass": 0, "fail": 0, "unchecked": 0}
+    for line in text.split("\n"):
+        v = outcheck.judge(line) if "expected" in line.lower() else None
+        verdicts.append(v)
+        if v is True:
+            checks["pass"] += 1
+        elif v is False:
+            checks["fail"] += 1
+        elif "expected" in line.lower() and not outcheck.ERROR_LINE.search(line):
+            checks["unchecked"] += 1
+    return verdicts, checks
 
 
 def tidy(text, work):
