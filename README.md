@@ -90,6 +90,11 @@ It opens http://127.0.0.1:8025:
 Progress is stored in `tools/codeview-state.json`, which is git-ignored. The editor loads from a
 CDN, so the viewer needs internet, and tray mode needs `pip install pystray`.
 
+**On macOS or Linux** everything above works from a terminal: `tools/codeview` (Ctrl becomes ⌘
+and Alt becomes ⌥ on a Mac). It needs Python 3, already on macOS, and JDK 25. On a Mac,
+`brew install openjdk` or the Temurin 25 installer both work, and the newest JDK is picked
+automatically. The tray icon, desktop shortcuts and `--autostart` are Windows-only.
+
 ### Why not `java Foo.java`
 
 The JDK single-file launcher looks for a class named after the **file**. Files here are

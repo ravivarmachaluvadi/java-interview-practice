@@ -350,7 +350,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
   <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts are kept the same way. Done / Revise marks are saved on this PC in tools\codeview-state.json.</p>
-  <label><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
+  <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -394,6 +394,17 @@ const encPath = p => p.split('/').map(encodeURIComponent).join('/');
 const norm = s => s.trim().replace(/\s+/g, ' ');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const qs = o => new URLSearchParams(o).toString();
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/* Show the keys a Mac user presses: Cmd for Ctrl, Option for Alt (the handlers accept both). */
+function macKeys() {
+  document.querySelectorAll('kbd').forEach(k => { if (k.textContent === 'Ctrl') k.textContent = '⌘'; else if (k.textContent === 'Alt') k.textContent = '⌥'; });
+  document.querySelectorAll('[title], [placeholder]').forEach(el => {
+    for (const a of ['title', 'placeholder']) {
+      const v = el.getAttribute(a);
+      if (v && /Ctrl\+|Alt\+/.test(v)) el.setAttribute(a, v.replace(/Ctrl\+/g, '⌘').replace(/Alt\+/g, '⌥'));
+    }
+  });
+}
 
 const S = {
   info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), progress: {},
@@ -439,6 +450,8 @@ const boot = (async () => {
   S.info = await api('/api/info');
   $('#jdk').textContent = 'JDK ' + S.info.jdk;
   $('#autostartChk').checked = !!S.info.autostart;
+  $('#autostartRow').hidden = S.info.autostart === null;     // Windows-only
+  if (IS_MAC) macKeys();
   await loadRoots();
   const fromHash = parseHash();
   await switchRoot(fromHash.root || store.get('root', null) || S.roots[0].id, false);
@@ -1376,8 +1389,8 @@ document.addEventListener('keydown', e => {
   else if (mod && k === 'enter') { e.preventDefault(); run(); }
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
   else if (mod && k === 's') { e.preventDefault(); save(); }
-  else if (e.altKey && k === 'p') { e.preventDefault(); togglePractice(); }
-  else if (e.altKey && k === 'm') { e.preventDefault(); cycleProgress(); }
+  else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
+  else if (e.altKey && e.code === 'KeyM') { e.preventDefault(); cycleProgress(); }
   else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; }
 });
 

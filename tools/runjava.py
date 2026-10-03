@@ -38,22 +38,40 @@ def find_jdk():
     JDK 21 or newer is required. Anything older will reject switch patterns,
     records and text blocks that several files use.
     """
-    roots = [r"C:\Program Files\Eclipse Adoptium", r"C:\Program Files\Java",
-             r"C:\Program Files\Microsoft", os.path.expanduser("~/.jdks")]
-    found = []
+    exe = ".exe" if os.name == "nt" else ""
+    roots = [r"C:\Program Files\Eclipse Adoptium", r"C:\Program Files\Java", r"C:\Program Files\Microsoft",
+             "/Library/Java/JavaVirtualMachines", "~/Library/Java/JavaVirtualMachines",   # macOS
+             "/opt/homebrew/opt", "/usr/local/opt",                                       # Homebrew
+             "/usr/lib/jvm", "~/.sdkman/candidates/java", "~/.jdks"]                       # Linux, SDKMAN, IntelliJ
+    homes = [pathlib.Path(os.environ["JAVA_HOME"])] if os.environ.get("JAVA_HOME") else []
     for r in roots:
-        p = pathlib.Path(r)
-        if not p.is_dir():
-            continue
-        for d in p.iterdir():
-            if (d / "bin" / "javac.exe").is_file():
-                m = re.search(r"(\d+)", d.name)
-                found.append((int(m.group(1)) if m else 0, d))
+        p = pathlib.Path(os.path.expanduser(r))
+        if p.is_dir():
+            for d in p.iterdir():
+                # a macOS .jdk bundle keeps its JDK home two levels down; so does Homebrew's openjdk
+                homes += [d, d / "Contents" / "Home", d / "libexec" / "openjdk.jdk" / "Contents" / "Home"]
+    found, seen = [], set()
+    for h in homes:
+        if (h / "bin" / ("javac" + exe)).is_file() and h.resolve() not in seen:
+            seen.add(h.resolve())
+            found.append((jdk_major(h), h))
     if not found:
         return "javac", "java"
     found.sort(key=lambda x: x[0], reverse=True)
     home = found[0][1]
-    return str(home / "bin" / "javac.exe"), str(home / "bin" / "java.exe")
+    return str(home / "bin" / ("javac" + exe)), str(home / "bin" / ("java" + exe))
+
+
+def jdk_major(home):
+    """25 for a JDK 25 home: from its `release` file, else the first number in its path."""
+    try:
+        m = re.search(r'JAVA_VERSION="(?:1\.)?(\d+)', (home / "release").read_text(errors="replace"))
+        if m:
+            return int(m.group(1))
+    except OSError:
+        pass
+    m = re.search(r"(\d+)", str(home))
+    return int(m.group(1)) if m else 0
 
 
 JAVAC, JAVA = find_jdk()
@@ -82,14 +100,11 @@ def classes_with_main(text):
 
 
 def find_files(needle):
-    roots = [pathlib.Path(os.path.expanduser(p)) for p in (
-        r"~\OneDrive\Documents\github\java-interview-practice",
-        r"~\AppData\Roaming\JetBrains\IdeaIC2025.2\scratches")]
-    hits = []
-    for r in roots:
-        if r.is_dir():
-            hits += [p for p in r.rglob("*.java") if needle.lower() in p.name.lower()]
-    return hits
+    # The repo this script lives in, wherever it is cloned. (The IntelliJ scratches folder
+    # used to be searched too, but it is a junction to this same repo, so every hit came
+    # back twice and every name looked ambiguous.)
+    root = pathlib.Path(__file__).resolve().parent.parent
+    return [p for p in root.rglob("*.java") if needle.lower() in p.name.lower()]
 
 
 def main():

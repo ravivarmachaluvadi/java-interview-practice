@@ -63,8 +63,15 @@ MAX_FILES = 20000                # per folder tree; a whole drive would be point
 MAX_VIEW = 2 * 1024 * 1024       # bytes; bigger files are not opened
 OUTPUT_CAP = 256 * 1024          # bytes of program output sent back to the page
 MAX_TIMEOUT = 60                 # seconds; the page offers 5 / 10 / 30 / 60
+IS_WIN, IS_MAC = os.name == "nt", sys.platform == "darwin"
+# Tray icon, shortcuts and start-at-login are Windows extras; everything else is portable.
 STARTUP_LNK = pathlib.Path(os.environ.get("APPDATA", "")) / \
-    "Microsoft/Windows/Start Menu/Programs/Startup/Code Viewer.lnk"
+    "Microsoft/Windows/Start Menu/Programs/Startup/Code Viewer.lnk" if IS_WIN else None
+
+
+def autostart_on():
+    """True/False on Windows; None where start-at-login is not supported."""
+    return STARTUP_LNK.exists() if IS_WIN else None
 
 
 # ---------------------------------------------------------------- state: folders + progress
@@ -331,6 +338,12 @@ def search(rid, q, regex, case):
 
 def pick_folder():
     """Native folder chooser, shown on top of the browser."""
+    if IS_MAC:
+        # Tk may only open windows on the main thread on macOS, and this runs on a
+        # request thread, so ask the system dialog through AppleScript instead.
+        r = subprocess.run(["osascript", "-e", 'POSIX path of (choose folder with prompt '
+                            '"Open a folder in Code Viewer")'], capture_output=True, text=True)
+        return r.stdout.strip() or None
     import tkinter
     from tkinter import filedialog
     root = tkinter.Tk()
@@ -343,12 +356,23 @@ def pick_folder():
     return path or None
 
 
-def reveal(rid, rel):
-    p = resolve(rid, rel) if rel else root_path(rid)
-    if p.is_file():
-        subprocess.Popen(["explorer", "/select,", str(p)])
-    else:
+def open_path(p):
+    """Open a folder in the system file manager."""
+    if IS_WIN:
         os.startfile(p)
+    else:
+        subprocess.Popen(["open" if IS_MAC else "xdg-open", str(p)])
+
+
+def reveal(rid, rel):
+    """Show the file selected in Explorer / Finder (Linux: open its folder)."""
+    p = resolve(rid, rel) if rel else root_path(rid)
+    if p.is_file() and IS_WIN:
+        subprocess.Popen(["explorer", "/select,", str(p)])
+    elif p.is_file() and IS_MAC:
+        subprocess.Popen(["open", "-R", str(p)])
+    else:
+        open_path(p if p.is_dir() else p.parent)
 
 
 # ---------------------------------------------------------------- compile + run
@@ -474,7 +498,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name,
-                                       "autostart": STARTUP_LNK.exists()})
+                                       "autostart": autostart_on(), "platform": sys.platform})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":
@@ -532,7 +556,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
             if path == "/api/autostart":
                 set_autostart(bool(req.get("enabled")))
-                return self.send_json({"autostart": STARTUP_LNK.exists()})
+                return self.send_json({"autostart": autostart_on()})
         except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as e:
             return self.send_json({"error": str(e)}, 400)
         self.send(404, "Not found")
@@ -595,7 +619,9 @@ def make_shortcut(lnk, args):
 
 def install_shortcuts():
     """Desktop + Start-menu shortcuts that start the tray version."""
-    ps = "[Environment]::GetFolderPath('Desktop'); [Environment]::GetFolderPath('Programs')"
+    if not IS_WIN:
+        sys.exit("Shortcuts are Windows-only. On macOS or Linux run tools/codeview from a terminal.")
+    ps ="[Environment]::GetFolderPath('Desktop'); [Environment]::GetFolderPath('Programs')"
     dirs = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True,
                           text=True, check=True).stdout.splitlines()
     for d in dirs:
@@ -606,6 +632,8 @@ def install_shortcuts():
 
 
 def set_autostart(enabled):
+    if not IS_WIN:
+        raise ValueError("Start-at-login is only set up on Windows")
     if enabled:
         make_shortcut(STARTUP_LNK, "--tray --no-open")
     elif STARTUP_LNK.exists():
@@ -634,8 +662,9 @@ def run_tray(server, url, open_browser):
 
     menu = pystray.Menu(
         pystray.MenuItem("Open Code Viewer", lambda *_: webbrowser.open(url), default=True),
-        pystray.MenuItem("Open repo folder", lambda *_: os.startfile(REPO)),
-        pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: STARTUP_LNK.exists()),
+        pystray.MenuItem("Open repo folder", lambda *_: open_path(REPO)),
+        pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
+                         visible=IS_WIN),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit Code Viewer", quit_))
     image = Image.open(ICON) if ICON.exists() else draw_icon()
@@ -656,8 +685,10 @@ def main():
     if a.install_shortcuts:
         return install_shortcuts()
     if a.autostart:
+        if not IS_WIN:
+            sys.exit("--autostart is Windows-only. On macOS or Linux run tools/codeview from a terminal.")
         set_autostart(a.autostart == "on")
-        print(f"  start with Windows: {'on' if STARTUP_LNK.exists() else 'off'}  ({STARTUP_LNK})")
+        print(f"  start with Windows: {'on' if autostart_on() else 'off'}  ({STARTUP_LNK})")
         return
     if already_running(a.port):
         url = f"http://127.0.0.1:{a.port}/"

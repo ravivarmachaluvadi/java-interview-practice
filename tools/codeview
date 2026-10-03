@@ -1,3 +1,9 @@
 #!/bin/sh
-# Read and run the practice files in a browser: tree, coloured code, Run button.
-exec python "$(cygpath -w "$(dirname "$0")/codeview.py")" "$@"
+# Read, practise and run the practice files in a browser: tree, coloured code, Run button.
+# Works from macOS/Linux terminals and from Git Bash on Windows.
+here=$(cd "$(dirname "$0")" && pwd)
+if command -v cygpath >/dev/null 2>&1; then
+  # Git Bash on Windows: plain python (python3 there is often the Microsoft Store stub)
+  exec python "$(cygpath -w "$here/codeview.py")" "$@"
+fi
+exec "$(command -v python3 || command -v python)" "$here/codeview.py" "$@"
