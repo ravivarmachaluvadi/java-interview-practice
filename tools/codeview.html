@@ -302,6 +302,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <button class="icon" id="moreBtn" title="More">⋯</button>
       <div class="menu" id="menu" hidden>
         <button data-act="wrap">Wrap long lines <kbd>Alt+Z</kbd></button>
+        <button data-act="minimap"><span id="minimapLabel">Hide minimap</span> <kbd>Alt+N</kbd></button>
         <button data-act="bigger">Bigger text</button>
         <button data-act="smaller">Smaller text</button>
         <hr>
@@ -352,6 +353,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
   <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts are kept the same way. Done / Revise marks are saved on this PC in tools\codeview-state.json.</p>
@@ -418,7 +420,7 @@ const S = {
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
-  theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), show: store.get('show', 'all'),
+  theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
 let editor = null;
 
@@ -902,7 +904,7 @@ function initEditor() {
     fontFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace", fontSize: S.font, lineHeight: 1.6,
     readOnly: true,
     readOnlyMessage: { value: 'Read-only. Press **Edit** (Ctrl+E) to change it, or **Practice** (Alt+P) to write the solution yourself.' },
-    minimap: { enabled: true, renderCharacters: false }, scrollBeyondLastLine: false, smoothScrolling: true,
+    minimap: { enabled: S.minimap, renderCharacters: false }, scrollBeyondLastLine: false, smoothScrolling: true,
     stickyScroll: { enabled: true }, bracketPairColorization: { enabled: true },
     guides: { bracketPairs: 'active', indentation: true }, padding: { top: 10, bottom: 10 },
     wordWrap: S.wrap ? 'on' : 'off', tabSize: 4, mouseWheelZoom: true, renderLineHighlight: 'all',
@@ -915,6 +917,7 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | C.KeyB, toggleSide);
   editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
   editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
+  editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
@@ -1358,6 +1361,12 @@ function lineLink(text, n) {
 
 /* ------------------------------------------------------------ toolbar, menu, keys */
 function toggleWrap() { S.wrap = !S.wrap; store.set('wrap', S.wrap); editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' }); }
+function toggleMinimap() {
+  S.minimap = !S.minimap; store.set('minimap', S.minimap);
+  editor.updateOptions({ minimap: { enabled: S.minimap, renderCharacters: false } });
+  $('#minimapLabel').textContent = S.minimap ? 'Hide minimap' : 'Show minimap';
+}
+$('#minimapLabel').textContent = S.minimap ? 'Hide minimap' : 'Show minimap';
 function setFont(d) { S.font = clamp(S.font + d, 10, 26); store.set('font', S.font); editor.updateOptions({ fontSize: S.font }); }
 $('#editBtn').onclick = toggleEdit;
 $('#saveBtn').onclick = () => save();
@@ -1375,6 +1384,7 @@ $('#menu').addEventListener('click', async e => {
   const c = S.cur;
   switch (b.dataset.act) {
     case 'wrap': toggleWrap(); break;
+    case 'minimap': toggleMinimap(); break;
     case 'bigger': setFont(1); break;
     case 'smaller': setFont(-1); break;
     case 'copy': {
@@ -1427,6 +1437,7 @@ document.addEventListener('keydown', e => {
   else if (mod && k === 's') { e.preventDefault(); save(); }
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
   else if (e.altKey && e.code === 'KeyM') { e.preventDefault(); cycleProgress(); }
+  else if (e.altKey && e.code === 'KeyN') { e.preventDefault(); toggleMinimap(); }
   else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; }
 });
 
