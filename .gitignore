@@ -19,6 +19,10 @@
 !/tools/*.py
 !/tools/mustknow.json
 !/tools/runjava
+!/tools/codeview
+!/tools/codeview.cmd
+!/tools/codeview.html
+!/tools/codeview.ico
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---
 

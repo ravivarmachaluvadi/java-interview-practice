@@ -67,6 +67,19 @@ why the filename never has to match the class name.
 **Requires JDK 21 or newer.** All 566 standalone files compile on JDK 21, except the two
 Tricky MCQ files that are meant not to compile.
 
+### In a browser
+
+```bash
+tools/codeview                      # or double-click tools\codeview.cmd
+tools/codeview --install-shortcuts  # "Code Viewer" on the Desktop and Start menu, runs in the tray
+```
+
+It opens http://127.0.0.1:8025 with every file in a tree, code coloured as in IntelliJ, and a Run
+button (`Ctrl+Enter`) that compiles the same way as `runjava` and ticks each `expected` line that
+matches. **Edit** changes a copy kept in the browser, never the repo file, and the Scratch pad is
+for new code. It needs internet, because the editor loads from a CDN, and the tray mode needs
+`pip install pystray`.
+
 ### Why not `java Foo.java`
 
 The JDK single-file launcher looks for a class named after the **file**. Files here are
