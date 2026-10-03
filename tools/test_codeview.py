@@ -117,6 +117,15 @@ class LogTest(unittest.TestCase):
     def test_empty_log_is_not_reported(self):
         self.assertIsNone(codeview.unclosed_run(""))
 
+    def test_parent_name_is_found(self):
+        self.assertTrue(codeview.process_name(os.getpid()).lower().startswith("python"))
+
+    @unittest.skipUnless(os.name == "nt", "Windows process names")
+    def test_name_of_a_process_this_user_cannot_open(self):
+        """3 Oct: a restart through Task Scheduler logged 'parent ?', because a normal
+        user may not open svchost. Process 4 (System) is closed to us the same way."""
+        self.assertEqual(codeview.process_name(4), "System")
+
 
 class ProgressTest(unittest.TestCase):
     def setUp(self):

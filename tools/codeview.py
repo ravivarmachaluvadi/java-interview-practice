@@ -136,25 +136,40 @@ def unclosed_run(text):
 
 
 def process_name(pid):
-    """The executable name of a process, or '' when it has gone or cannot be read."""
+    """The executable name of a process, or '' when it has gone or cannot be read.
+
+    Windows: read from the system's process list, not by opening the process, because a
+    normal user may not open svchost - and Task Scheduler (svchost) is exactly the parent
+    worth naming (3 Oct: the first try logged 'parent ?')."""
     if IS_WIN:
         import ctypes
         from ctypes import wintypes
+
+        class Entry(ctypes.Structure):                     # PROCESSENTRY32W
+            _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                        ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                        ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                        ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", ctypes.c_long),
+                        ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
         k32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        k32.OpenProcess.restype = wintypes.HANDLE
-        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
-        k32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
-                                                   ctypes.POINTER(wintypes.DWORD))
+        k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        k32.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+        k32.Process32FirstW.argtypes = k32.Process32NextW.argtypes = (wintypes.HANDLE, ctypes.POINTER(Entry))
         k32.CloseHandle.argtypes = (wintypes.HANDLE,)
-        h = k32.OpenProcess(0x1000, False, pid)            # PROCESS_QUERY_LIMITED_INFORMATION
-        if not h:
+        snap = k32.CreateToolhelp32Snapshot(0x2, 0)        # TH32CS_SNAPPROCESS
+        if not snap or snap == wintypes.HANDLE(-1).value:
             return ""
         try:
-            buf, size = ctypes.create_unicode_buffer(1024), wintypes.DWORD(1024)
-            ok = k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size))
-            return pathlib.Path(buf.value).name if ok else ""
+            e = Entry()
+            e.dwSize = ctypes.sizeof(Entry)
+            more = k32.Process32FirstW(snap, ctypes.byref(e))
+            while more:
+                if e.th32ProcessID == pid:
+                    return e.szExeFile
+                more = k32.Process32NextW(snap, ctypes.byref(e))
+            return ""
         finally:
-            k32.CloseHandle(h)
+            k32.CloseHandle(snap)
     try:
         return pathlib.Path(f"/proc/{pid}/comm").read_text().strip()
     except OSError:
