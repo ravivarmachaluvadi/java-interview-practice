@@ -7,7 +7,7 @@ offline copy of the page's libraries.
 Everything runs against temporary files: the env vars below are set before codeview is
 imported, so the real tools/codeview-state.json and codeview.log are never touched.
 """
-import base64, hashlib, io, json, os, pathlib, re, sys, tarfile, tempfile, threading, unittest
+import base64, hashlib, io, json, os, pathlib, re, shutil, sys, tarfile, tempfile, threading, unittest
 import urllib.error, urllib.request
 from collections import Counter
 
@@ -283,6 +283,13 @@ class HttpTest(unittest.TestCase):
         finally:
             p.unlink()
             p.parent.rmdir()
+
+
+def tearDownModule():
+    for h in list(codeview.log.handlers):      # Windows will not delete an open log file
+        h.close()
+        codeview.log.removeHandler(h)
+    shutil.rmtree(TMP, ignore_errors=True)
 
 
 if __name__ == "__main__":
