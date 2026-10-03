@@ -72,13 +72,23 @@ Tricky MCQ files that are meant not to compile.
 ```bash
 tools/codeview                      # or double-click tools\codeview.cmd
 tools/codeview --install-shortcuts  # "Code Viewer" on the Desktop and Start menu, runs in the tray
+tools/codeview --autostart on       # start the tray version with Windows
 ```
 
-It opens http://127.0.0.1:8025 with every file in a tree, code coloured as in IntelliJ, and a Run
-button (`Ctrl+Enter`) that compiles the same way as `runjava` and ticks each `expected` line that
-matches. **Edit** changes a copy kept in the browser, never the repo file, and the Scratch pad is
-for new code. It needs internet, because the editor loads from a CDN, and the tray mode needs
-`pip install pystray`.
+It opens http://127.0.0.1:8025:
+
+| Feature | How |
+|---|---|
+| Read | every file in a tree, coloured as in IntelliJ; `Ctrl+P` finds a file by name |
+| Run | `Ctrl+Enter` compiles like `runjava` and ticks each `expected` line that matches |
+| Practice | hides the solution bodies and approach notes; all cases passing marks the file done |
+| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* |
+| Search | `Ctrl+Shift+F` searches inside every file |
+| Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; **+** creates a file from the template |
+| Folders | the folder menu opens any other folder, not just this repo |
+
+Progress is stored in `tools/codeview-state.json`, which is git-ignored. The editor loads from a
+CDN, so the viewer needs internet, and tray mode needs `pip install pystray`.
 
 ### Why not `java Foo.java`
 

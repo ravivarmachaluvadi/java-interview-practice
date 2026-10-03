@@ -12,7 +12,7 @@
 :root {
   --bg: #ffffff; --panel: #f7f8fa; --border: #e3e5e9; --text: #1e1f22; --muted: #6c707e;
   --accent: #3574f0; --hover: #e9edf5; --active: #d5e1ff; --out-bg: #fbfbfc;
-  --ok: #1f8a3b; --bad: #d13438; --warn: #a86300;
+  --ok: #1f8a3b; --bad: #d13438; --warn: #a86300; --mark: #ffe08a;
   --tA: #1b7f5a; --tA-bg: #dcf3e8; --tB: #2a62c9; --tB-bg: #dde8fb;
   --tC: #9a5b00; --tC-bg: #fbecd2; --tD: #c0322f; --tD-bg: #fbdedd;
   --code: 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
@@ -23,7 +23,7 @@
   :root:not([data-theme="light"]) {
     --bg: #1e1f22; --panel: #2b2d30; --border: #393b40; --text: #dfe1e5; --muted: #8c9099;
     --hover: #35383d; --active: #2e436e; --out-bg: #1b1c1f;
-    --ok: #5fb865; --bad: #f2676b; --warn: #e3a33b;
+    --ok: #5fb865; --bad: #f2676b; --warn: #e3a33b; --mark: #6b5a1e;
     --tA: #6fd3a6; --tA-bg: #1f3a2f; --tB: #8db4ff; --tB-bg: #23324f;
     --tC: #f0b85a; --tC-bg: #3d3020; --tD: #ff8f8c; --tD-bg: #46262a;
     color-scheme: dark;
@@ -32,7 +32,7 @@
 :root[data-theme="dark"] {
   --bg: #1e1f22; --panel: #2b2d30; --border: #393b40; --text: #dfe1e5; --muted: #8c9099;
   --hover: #35383d; --active: #2e436e; --out-bg: #1b1c1f;
-  --ok: #5fb865; --bad: #f2676b; --warn: #e3a33b;
+  --ok: #5fb865; --bad: #f2676b; --warn: #e3a33b; --mark: #6b5a1e;
   --tA: #6fd3a6; --tA-bg: #1f3a2f; --tB: #8db4ff; --tB-bg: #23324f;
   --tC: #f0b85a; --tC-bg: #3d3020; --tD: #ff8f8c; --tD-bg: #46262a;
   color-scheme: dark;
@@ -42,7 +42,7 @@ html, body { height: 100%; margin: 0; }
 body {
   background: var(--bg); color: var(--text); font: 13px/1.45 var(--ui);
   display: grid; overflow: hidden;
-  grid-template-columns: var(--side-w, 300px) 4px minmax(0, 1fr);
+  grid-template-columns: var(--side-w, 310px) 4px minmax(0, 1fr);
   grid-template-rows: 44px minmax(0, 1fr);
 }
 body.dragging { user-select: none; cursor: grabbing; }
@@ -50,15 +50,23 @@ body.dragging { user-select: none; cursor: grabbing; }
 
 button, select {
   font: 500 12px var(--ui); color: var(--text); background: transparent;
-  border: 1px solid var(--border); border-radius: 6px; height: 28px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; height: 28px; padding: 0 10px; cursor: pointer; white-space: nowrap;
 }
 button:hover, select:hover { background: var(--hover); }
 button:disabled { opacity: .45; cursor: default; background: transparent; }
 button.on { background: var(--active); border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 0 14px; }
 button.primary:hover:not(:disabled) { filter: brightness(1.12); background: var(--accent); }
-button.icon { width: 30px; padding: 0; font-size: 14px; }
+button.icon { width: 30px; padding: 0; font-size: 14px; flex: none; }
+button.good { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+button.warnb { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+button.practice-on { color: #fff; background: #7a4fd6; border-color: #7a4fd6; }
 select { padding: 0 6px; }
+input[type="text"], input:not([type]) {
+  box-sizing: border-box; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font: 13px var(--ui); outline: none; width: 100%;
+}
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 
 /* ---- top bar ---- */
 header.top {
@@ -68,19 +76,25 @@ header.top {
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
 .logo { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff;
         display: grid; place-items: center; font: 600 11px var(--code); }
-.pill { font: 500 11px var(--ui); color: var(--muted); border: 1px solid var(--border);
-        border-radius: 99px; padding: 2px 8px; }
+.pill { font: 500 11px var(--ui); color: var(--muted); border: 1px solid var(--border); border-radius: 99px; padding: 2px 8px; }
 .spacer { flex: 1; }
 
 /* ---- sidebar ---- */
 aside.side { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
-.search { padding: 8px; border-bottom: 1px solid var(--border); }
-.search input {
-  width: 100%; box-sizing: border-box; height: 30px; padding: 0 10px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg); color: var(--text); font: 13px var(--ui); outline: none;
-}
-.search input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
-.tree, .results { flex: 1; overflow: auto; padding: 4px 0 16px; }
+.side-head { display: flex; gap: 6px; padding: 8px 8px 0; }
+.side-head select { flex: 1; min-width: 0; font-weight: 600; }
+.panel { margin: 8px 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); display: grid; gap: 6px; }
+.panel .row-btns { display: flex; gap: 6px; }
+.panel small { color: var(--muted); }
+.tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--border); }
+.tabs button { border: 0; border-radius: 6px 6px 0 0; border-bottom: 2px solid transparent; height: 30px; color: var(--muted); }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
+.pane { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.search { padding: 8px 8px 0; display: grid; gap: 6px; }
+.search .line { display: flex; gap: 6px; align-items: center; }
+.search .line select { flex: 1; }
+.search label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.tree, .results, .sres { flex: 1; overflow: auto; padding: 6px 0 16px; }
 .row {
   display: flex; align-items: center; gap: 6px; min-height: 24px; padding-right: 10px;
   white-space: nowrap; cursor: pointer; color: var(--text); text-decoration: none; user-select: none;
@@ -93,37 +107,60 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .row.dir .nm { font-weight: 500; }
 .row .cnt { color: var(--muted); font-size: 11px; }
 .row .star { color: #e0a100; font-size: 11px; }
+.row .st { font-size: 11px; font-weight: 700; }
+.row .st.done { color: var(--ok); } .row .st.revise { color: var(--warn); }
 .row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex: none; display: none; }
 .row.drafted .dot { display: inline-block; }
-.tier, .ext {
-  flex: none; font: 600 10px/1 var(--code); padding: 3px 4px; border-radius: 4px; min-width: 22px; text-align: center;
-}
+.tier, .ext { flex: none; font: 600 10px/1 var(--code); padding: 3px 4px; border-radius: 4px; min-width: 22px; text-align: center; }
 .tier.A { color: var(--tA); background: var(--tA-bg); }
 .tier.B { color: var(--tB); background: var(--tB-bg); }
 .tier.C { color: var(--tC); background: var(--tC-bg); }
 .tier.D { color: var(--tD); background: var(--tD-bg); }
 .ext { color: var(--muted); border: 1px solid var(--border); font-weight: 500; }
-.results .row { flex-wrap: wrap; row-gap: 0; padding-top: 3px; padding-bottom: 3px; padding-left: 10px; }
+.results .row { flex-wrap: wrap; padding: 3px 10px; }
 .results .sub { flex-basis: 100%; padding-left: 34px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
-.side-foot { padding: 6px 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+.sres .fh { display: flex; gap: 6px; align-items: center; padding: 6px 10px 2px; font-weight: 600; cursor: pointer; }
+.sres .fh .cnt { color: var(--muted); font-weight: 400; font-size: 11px; }
+.sres .fh .p { color: var(--muted); font-weight: 400; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sres .hit { display: flex; gap: 8px; padding: 2px 10px 2px 18px; font: 12px/1.5 var(--code); cursor: pointer; white-space: pre; overflow: hidden; }
+.sres .hit:hover { background: var(--hover); }
+.sres .hit .ln { color: var(--muted); min-width: 34px; text-align: right; flex: none; }
+.sres .hit .tx { overflow: hidden; text-overflow: ellipsis; }
+.sres mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.sres .note { padding: 10px 12px; color: var(--muted); }
+.side-foot { padding: 6px 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.side-foot b { color: var(--text); font-weight: 600; }
 .vsplit { cursor: col-resize; background: var(--border); }
-.vsplit:hover, body.dragging .vsplit.live { background: var(--accent); }
+.vsplit:hover, .vsplit.live { background: var(--accent); }
 
 /* ---- main column ---- */
-main { display: grid; min-width: 0; min-height: 0; grid-template-rows: 42px minmax(0, 1fr) 4px var(--out-h, 230px); }
-main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
+main { display: grid; min-width: 0; min-height: 0; grid-template-rows: 42px auto minmax(0, 1fr) 4px var(--out-h, 230px); }
+main.out-collapsed { grid-template-rows: 42px auto minmax(0, 1fr) 4px 36px; }
+/* fixed rows: the banner is display:none most of the time, and auto-placement would
+   then shift every later child up one row */
+main > .bar { grid-row: 1; } main > .banner { grid-row: 2; } main > .stage { grid-row: 3; }
+main > .hsplit { grid-row: 4; } main > .out { grid-row: 5; }
 .bar { display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--border); min-width: 0; }
 .crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .crumbs b { color: var(--text); font-weight: 600; }
 .badge { flex: none; font-size: 11px; border-radius: 99px; padding: 2px 8px; color: var(--muted); border: 1px solid var(--border); }
 .badge.draft { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
 .badge.scratch { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
-.tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.badge.practice { color: #7a4fd6; border-color: #7a4fd6; }
+.tools { display: flex; align-items: center; gap: 6px; flex: none; position: relative; }
+.banner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border);
+          background: color-mix(in srgb, var(--warn) 14%, var(--bg)); }
+.banner span { flex: 1; }
+.menu { position: absolute; top: 34px; right: 0; z-index: 25; min-width: 220px; padding: 4px; border-radius: 8px;
+        background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25); }
+.menu button { display: flex; width: 100%; border: 0; justify-content: space-between; gap: 16px; height: 30px; }
+.menu button kbd { color: var(--muted); font: 11px var(--code); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .stage { position: relative; min-height: 0; }
 #editor { position: absolute; inset: 0; }
 .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
 .hsplit { cursor: row-resize; background: var(--border); }
-.hsplit:hover { background: var(--accent); }
+.hsplit:hover, .hsplit.live { background: var(--accent); }
 
 /* ---- rendered markdown ---- */
 .md { position: absolute; inset: 0; overflow: auto; padding: 24px 40px 60px; font-size: 14px; line-height: 1.6; }
@@ -143,10 +180,10 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
 .out { display: flex; flex-direction: column; min-height: 0; background: var(--out-bg); }
 .out-head { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; flex: none; border-bottom: 1px solid var(--border); }
 .out-head strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.status { font-weight: 600; }
+.status { font-weight: 600; white-space: nowrap; }
 .status.ok { color: var(--ok); } .status.bad { color: var(--bad); } .status.run { color: var(--accent); }
 .meta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.verdict { font-weight: 600; font-size: 12px; border-radius: 99px; padding: 2px 8px; }
+.verdict { font-weight: 600; font-size: 12px; border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
 .verdict.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
 .verdict.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
 #stdin {
@@ -162,25 +199,24 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
 .ln.err { color: var(--bad); } .ln.warn { color: var(--warn); } .ln.note { color: var(--muted); font-style: italic; }
 .ln a { color: inherit; text-decoration: underline dotted; cursor: pointer; }
 .hint { color: var(--muted); font-family: var(--ui); }
-.hint kbd, .help kbd {
-  font: 11px var(--code); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel);
-}
+kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel); }
 .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
 @keyframes s { to { transform: rotate(360deg); } }
 
 /* ---- help + toast ---- */
 .help {
-  position: fixed; top: 50px; right: 12px; z-index: 20; width: 340px; padding: 14px 16px; border-radius: 10px;
+  position: fixed; top: 50px; right: 12px; z-index: 20; width: 360px; padding: 14px 16px; border-radius: 10px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25);
 }
 .help h3 { margin: 0 0 8px; font-size: 13px; }
 .help table { border-collapse: collapse; width: 100%; }
-.help td { padding: 4px 0; vertical-align: top; } .help td:first-child { white-space: nowrap; padding-right: 12px; }
+.help td { padding: 3px 0; vertical-align: top; } .help td:first-child { white-space: nowrap; padding-right: 12px; }
 .help p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.help label { display: flex; gap: 8px; align-items: center; margin-top: 12px; cursor: pointer; }
 .toast {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30; padding: 8px 14px; border-radius: 8px;
   background: var(--text); color: var(--bg); font-size: 12.5px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
-  opacity: 0; transition: opacity .15s; pointer-events: none;
+  opacity: 0; transition: opacity .15s; pointer-events: none; max-width: 70vw;
 }
 .toast.show { opacity: 1; }
 </style>
@@ -191,13 +227,58 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
   <span class="pill" id="jdk">JDK …</span>
   <span class="spacer"></span>
   <button class="icon" id="themeBtn" title="Light / dark">◐</button>
-  <button class="icon" id="helpBtn" title="Shortcuts">?</button>
+  <button class="icon" id="helpBtn" title="Shortcuts and settings">?</button>
 </header>
 
 <aside class="side">
-  <div class="search"><input id="filter" placeholder="Find a file…   Ctrl+P" autocomplete="off" spellcheck="false"></div>
-  <div class="tree" id="tree"></div>
-  <div class="results" id="results" hidden></div>
+  <div class="side-head">
+    <select id="rootSel" title="Which folder to show"></select>
+    <button class="icon" id="newBtn" title="New file in this folder">+</button>
+  </div>
+  <div class="panel" id="rootPanel" hidden>
+    <input id="rootPath" placeholder="Paste a folder path, or Browse" spellcheck="false">
+    <div class="row-btns">
+      <button id="browseBtn">Browse…</button>
+      <span class="spacer"></span>
+      <button id="cancelRootBtn">Cancel</button>
+      <button class="primary" id="addRootBtn">Open</button>
+    </div>
+  </div>
+  <div class="panel" id="newPanel" hidden>
+    <input id="newPath" placeholder="folder/C16_MyProblem.java" spellcheck="false">
+    <small>Enter creates it (Java files get the usual template). Esc cancels. A new folder name in the path is created too.</small>
+  </div>
+  <div class="tabs">
+    <button data-tab="files" class="on">Files</button>
+    <button data-tab="search" title="Ctrl+Shift+F">Search in code</button>
+  </div>
+  <div class="pane" id="filesPane">
+    <div class="search">
+      <input id="filter" placeholder="Find a file…   Ctrl+P" autocomplete="off" spellcheck="false">
+      <div class="line">
+        <select id="showSel" title="Which files to list">
+          <option value="all">Show: all files</option>
+          <option value="must">Show: ★ must-know</option>
+          <option value="todo">Show: not done yet</option>
+          <option value="mustTodo">Show: ★ must-know, not done</option>
+          <option value="revise">Show: to revise</option>
+          <option value="done">Show: done</option>
+        </select>
+      </div>
+    </div>
+    <div class="tree" id="tree"></div>
+    <div class="results" id="results" hidden></div>
+  </div>
+  <div class="pane" id="searchPane" hidden>
+    <div class="search">
+      <input id="sq" placeholder="Search inside every file…" autocomplete="off" spellcheck="false">
+      <div class="line">
+        <label title="Match case"><input type="checkbox" id="sCase"> Match case</label>
+        <label title="Regular expression"><input type="checkbox" id="sRegex"> Regex</label>
+      </div>
+    </div>
+    <div class="sres" id="sres"></div>
+  </div>
   <div class="side-foot" id="count">Loading files…</div>
 </aside>
 <div class="vsplit" id="vsplit"></div>
@@ -209,12 +290,21 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
     <span class="spacer"></span>
     <div class="tools">
       <button id="srcBtn" hidden title="Show the markdown source">Source</button>
-      <button id="editBtn" title="Edit a copy (Ctrl+E). The repo file is never changed.">Edit</button>
-      <button id="resetBtn" hidden title="Throw away your edits">Reset</button>
-      <button id="wrapBtn" title="Wrap long lines (Alt+Z)">Wrap</button>
-      <button id="fontDown" title="Smaller text">A−</button>
-      <button id="fontUp" title="Larger text">A+</button>
-      <button id="copyBtn" title="Copy the whole file">Copy</button>
+      <button id="practiceBtn" hidden title="Hide the solution and write it yourself (Alt+P)">Practice</button>
+      <button id="progBtn" hidden title="Mark this file done / to revise (Alt+M)">○ Mark done</button>
+      <button id="editBtn" title="Edit (Ctrl+E). Changes stay a draft until you Save.">Edit</button>
+      <button id="saveBtn" hidden title="Write your edit to the file (Ctrl+S)">Save</button>
+      <button id="resetBtn" hidden title="Throw away your edit">Reset</button>
+      <button class="icon" id="moreBtn" title="More">⋯</button>
+      <div class="menu" id="menu" hidden>
+        <button data-act="wrap">Wrap long lines <kbd>Alt+Z</kbd></button>
+        <button data-act="bigger">Bigger text</button>
+        <button data-act="smaller">Smaller text</button>
+        <hr>
+        <button data-act="copy">Copy whole file</button>
+        <button data-act="reveal">Show in File Explorer</button>
+        <button data-act="reload">Reload from disk</button>
+      </div>
       <select id="mainSel" hidden title="Which class's main() to run"></select>
       <select id="timeoutSel" title="Stop the program after">
         <option value="5">5 s</option><option value="10" selected>10 s</option>
@@ -223,6 +313,7 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
       <button class="primary" id="runBtn" title="Compile and run (Ctrl+Enter)">▶ Run</button>
     </div>
   </div>
+  <div class="banner" id="banner" hidden><span id="bannerText"></span><span id="bannerBtns"></span></div>
   <div class="stage">
     <div id="editor"></div>
     <article class="md" id="md" hidden></article>
@@ -248,15 +339,18 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
 <div class="help" id="help" hidden>
   <h3>Shortcuts</h3>
   <table>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Find a file by name or folder</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Find a file by name</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit a copy / lock again</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Search inside the file</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+wheel</td><td>Zoom the code</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
-  <p>Edits are kept in this browser only, per file. The repo file is never changed. An orange dot in the tree marks a file you have edited.</p>
-  <p>Output lines shaped <code>label: actual&nbsp;&nbsp;expected X</code> get a ✓ or ✗.</p>
+  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts are kept the same way. Done / Revise marks are saved on this PC in tools\codeview-state.json.</p>
+  <label><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -268,7 +362,7 @@ main.out-collapsed { grid-template-rows: 42px minmax(0, 1fr) 4px 36px; }
 'use strict';
 const MONACO = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
 const SCRATCH = 'scratch';
-const SCRATCH_TEMPLATE = `// Scratch pad: kept in this browser, never written to the repo.
+const SCRATCH_TEMPLATE = `// Scratch pad: kept in this browser, never written to a file.
 // Ctrl+Enter compiles and runs it. JDK 25 lets a file be just a main() method.
 
 void main() {
@@ -278,47 +372,77 @@ void main() {
 }
 `;
 const TIER = { A: 'A: building block', B: 'B: easy', C: 'C: medium', D: 'D: hard' };
-const LANG = { java: 'java', md: 'markdown', sql: 'sql', xml: 'xml', json: 'json', yml: 'yaml', yaml: 'yaml', properties: 'ini', txt: 'plaintext' };
+const LANG = {
+  java: 'java', kt: 'kotlin', kts: 'kotlin', scala: 'scala', groovy: 'java', gradle: 'java', md: 'markdown',
+  sql: 'sql', xml: 'xml', json: 'json', yml: 'yaml', yaml: 'yaml', toml: 'ini', ini: 'ini', cfg: 'ini',
+  properties: 'ini', txt: 'plaintext', csv: 'plaintext', py: 'python', js: 'javascript', mjs: 'javascript',
+  ts: 'typescript', tsx: 'typescript', jsx: 'javascript', go: 'go', rs: 'rust', c: 'c', h: 'cpp', cpp: 'cpp',
+  cs: 'csharp', sh: 'shell', ps1: 'powershell', bat: 'bat', cmd: 'bat', html: 'html', css: 'css', ahk: 'plaintext',
+};
+const STATUS_NEXT = { undefined: 'done', done: 'revise', revise: 'none' };
 
 const $ = s => document.querySelector(s);
 const store = {
   get(k, d) { try { const v = localStorage.getItem('cv:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('cv:' + k, JSON.stringify(v)); } catch {} },
   del(k) { try { localStorage.removeItem('cv:' + k); } catch {} },
+  has(k) { try { return localStorage.getItem('cv:' + k) !== null; } catch { return false; } },
 };
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const encPath = p => p.split('/').map(encodeURIComponent).join('/');
 const norm = s => s.trim().replace(/\s+/g, ' ');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const qs = o => new URLSearchParams(o).toString();
 
 const S = {
-  tree: null, files: [], byPath: new Map(),
-  cur: null, pending: null, originals: new Map(), models: new Map(), views: new Map(),
-  editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(),
-  openDirs: new Set(store.get('openDirs', ['AAScratches'])), mdSource: false, running: false,
-  hits: [], hitIdx: 0, theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false),
+  info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), progress: {},
+  cur: null, pending: null,
+  originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), skeletons: new Map(),
+  views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
+  openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
+  theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), show: store.get('show', 'all'),
 };
 let editor = null;
 
-/* ------------------------------------------------------------ layout prefs */
-document.body.style.setProperty('--side-w', store.get('sideW', 300) + 'px');
-$('#main').style.setProperty('--out-h', store.get('outH', 230) + 'px');
-if (store.get('outCollapsed', false)) $('#main').classList.add('out-collapsed');
-
-function isDark() {
-  return S.theme === 'dark' || (S.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+async function api(url, body) {
+  const opt = body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CodeView': '1' }, body: JSON.stringify(body),
+  };
+  let r;
+  try { r = await fetch(url, opt); } catch { throw new Error('Cannot reach the Code Viewer server. Is it still running?'); }
+  let j;
+  try { j = await r.json(); } catch { throw new Error('Server answered ' + r.status); }
+  if (!r.ok && r.status !== 409) throw new Error(j.error || 'Server answered ' + r.status);
+  j._status = r.status;
+  return j;
 }
+const keyOf = p => p === SCRATCH ? SCRATCH : S.root + '/' + p;
+const rootObj = () => S.roots.find(r => r.id === S.root) || S.roots[0];
+
+/* ------------------------------------------------------------ layout prefs + theme */
+document.body.style.setProperty('--side-w', store.get('sideW', 310) + 'px');
+$('#main').style.setProperty('--out-h', store.get('outH', 230) + 'px');
+if (store.get('outCollapsed', false)) { $('#main').classList.add('out-collapsed'); $('#outToggle').textContent = '▴'; }
+$('#showSel').value = S.show;
+
+function isDark() { return S.theme === 'dark' || (S.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches); }
 function applyTheme() {
-  if (S.theme === 'auto') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = S.theme;
+  if (S.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = S.theme;
   if (window.monaco) monaco.editor.setTheme(isDark() ? 'idea-dark' : 'idea-light');
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 applyTheme();
 
 /* ------------------------------------------------------------ boot */
-const treeReady = loadTree().catch(e => { $('#count').textContent = 'Could not load the file list: ' + e; });
-fetch('/api/info').then(r => r.json()).then(i => { $('#jdk').textContent = 'JDK ' + i.jdk; }).catch(() => {});
+const boot = (async () => {
+  S.info = await api('/api/info');
+  $('#jdk').textContent = 'JDK ' + S.info.jdk;
+  $('#autostartChk').checked = !!S.info.autostart;
+  await loadRoots();
+  const fromHash = parseHash();
+  await switchRoot(fromHash.root || store.get('root', null) || S.roots[0].id, false);
+})().catch(e => { $('#count').textContent = e.message; });
 
 window.MonacoEnvironment = {
   getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
@@ -327,7 +451,7 @@ window.MonacoEnvironment = {
 require.config({ paths: { vs: MONACO + '/vs' } });
 require(['vs/editor/editor.main'], async () => {
   initEditor();
-  await treeReady;
+  await boot;
   $('#stageMsg').hidden = true;
   route();
 }, err => {
@@ -335,21 +459,374 @@ require(['vs/editor/editor.main'], async () => {
 });
 window.addEventListener('hashchange', route);
 
+/* ------------------------------------------------------------ folders (roots) */
+async function loadRoots() {
+  S.roots = await api('/api/roots');
+  renderRootSel();
+}
+function renderRootSel() {
+  const sel = $('#rootSel');
+  sel.textContent = '';
+  for (const r of S.roots) sel.append(new Option('📁 ' + r.name, r.id));
+  sel.append(new Option('──────────', '', false, false));
+  sel.lastChild.disabled = true;
+  sel.append(new Option('Open another folder…', '__add'));
+  const cur = rootObj();
+  if (cur && !cur.default) sel.append(new Option('Remove "' + cur.name + '" from this list', '__remove'));
+  if (S.root) sel.value = S.root;
+  sel.title = cur ? cur.path : '';
+}
+$('#rootSel').addEventListener('change', async e => {
+  const v = e.target.value;
+  e.target.value = S.root;
+  if (v === '__add') { $('#rootPanel').hidden = false; $('#rootPath').focus(); return; }
+  if (v === '__remove') {
+    const r = rootObj();
+    try { await api('/api/roots', { action: 'remove', id: r.id }); } catch (err) { return toast(err.message); }
+    await loadRoots();
+    return switchRoot(S.roots[0].id, true);
+  }
+  if (v && v !== S.root) switchRoot(v, true);
+});
+$('#browseBtn').onclick = async () => {
+  $('#browseBtn').disabled = true;
+  try { const r = await api('/api/pick-folder', {}); if (r.path) $('#rootPath').value = r.path; }
+  catch (err) { toast(err.message); }
+  $('#browseBtn').disabled = false;
+};
+$('#cancelRootBtn').onclick = () => { $('#rootPanel').hidden = true; };
+async function addRoot() {
+  const p = $('#rootPath').value.trim().replace(/^"|"$/g, '');
+  if (!p) return toast('Paste a folder path or press Browse');
+  try {
+    const r = await api('/api/roots', { action: 'add', path: p });
+    S.roots = r.roots;
+    $('#rootPanel').hidden = true; $('#rootPath').value = '';
+    await switchRoot(r.added.id, true);
+  } catch (err) { toast(err.message); }
+}
+$('#addRootBtn').onclick = addRoot;
+$('#rootPath').addEventListener('keydown', e => { if (e.key === 'Enter') addRoot(); if (e.key === 'Escape') $('#rootPanel').hidden = true; });
+
+async function switchRoot(id, openSomething) {
+  if (!S.roots.some(r => r.id === id)) id = S.roots[0].id;
+  S.root = id;
+  store.set('root', id);
+  const r = rootObj();
+  S.openDirs = new Set(store.get('openDirs:' + id, r.default ? ['AAScratches'] : []));
+  renderRootSel();
+  S.treeSig = '';
+  await Promise.all([loadTree(), loadProgress()]);
+  renderTree();
+  if (openSomething) {
+    const last = store.get('last:' + id, null);
+    const pick = last && S.byPath.has(last) ? last
+      : S.byPath.has('README.md') ? 'README.md' : (S.files[0] && S.files[0].path);
+    if (pick) go(pick); else { S.cur = null; toast('No viewable files in ' + r.name); }
+  }
+  if ($('#searchPane').hidden === false && $('#sq').value) runSearch();
+}
+
+/* ------------------------------------------------------------ tree + progress */
+async function loadTree() {
+  const t = await api('/api/tree?' + qs({ root: S.root }));
+  delete t._status;
+  const sig = JSON.stringify(t);
+  if (sig === S.treeSig) return false;
+  S.treeSig = sig; S.tree = t; S.files = []; S.byPath.clear();
+  (function index(n, prefix) {
+    for (const d of n.dirs) { d.path = prefix ? prefix + '/' + d.name : d.name; index(d, d.path); }
+    for (const f of n.files) { S.files.push(f); S.byPath.set(f.path, f); }
+  })(t, '');
+  return true;
+}
+async function loadProgress() {
+  const p = await api('/api/progress?' + qs({ root: S.root }));
+  delete p._status;
+  S.progress = p;
+}
+const statusOf = path => (S.progress[path] || {}).s;
+const isJava = f => f.name.endsWith('.java');
+function visible(f) {
+  const st = statusOf(f.path);
+  switch (S.show) {
+    case 'must': return !!f.must;
+    case 'todo': return isJava(f) && st !== 'done';
+    case 'mustTodo': return !!f.must && st !== 'done';
+    case 'revise': return st === 'revise';
+    case 'done': return st === 'done';
+    default: return true;
+  }
+}
+function stats(n) {
+  let java = 0, done = 0, shown = 0;
+  for (const d of n.dirs) { const s = stats(d); java += s.java; done += s.done; shown += s.shown; }
+  for (const f of n.files) {
+    if (isJava(f)) { java++; if (statusOf(f.path) === 'done') done++; }
+    if (visible(f)) shown++;
+  }
+  n._s = { java, done, shown };
+  return n._s;
+}
+function renderTree() {
+  if (!S.tree) return;
+  const root = $('#tree'), top = root.scrollTop;
+  stats(S.tree);
+  root.textContent = '';
+  root.append(fileRow({ path: SCRATCH, name: 'Scratch pad' }, 0, true));
+  build(S.tree, 0, root);
+  if (S.show !== 'all' && !S.tree._s.shown) {
+    const d = document.createElement('div'); d.className = 'row'; d.style.cssText = 'padding-left:12px;color:var(--muted)';
+    d.textContent = 'No files match this "Show" choice.'; root.append(d);
+  }
+  root.scrollTop = top;
+  markActive(false);
+  renderFooter();
+  if ($('#filter').value.trim()) doFilter();
+}
+function build(node, depth, parent) {
+  const filtered = S.show !== 'all';
+  for (const d of node.dirs) {
+    if (filtered && !d._s.shown) continue;
+    const open = filtered || S.openDirs.has(d.path);
+    const row = document.createElement('div');
+    row.className = 'row dir' + (open ? ' open' : '');
+    row.dataset.dir = d.path;
+    row.style.paddingLeft = (8 + depth * 14) + 'px';
+    const s = d._s;
+    const cnt = filtered ? s.shown : s.done ? `${s.done}/${s.java}` : s.java || '';
+    row.innerHTML = `<span class="caret">▶</span><span class="nm"></span><span class="cnt" title="${s.done} of ${s.java} Java files done">${cnt}</span>`;
+    row.querySelector('.nm').textContent = d.name;
+    const kids = document.createElement('div');
+    kids.hidden = !open;
+    parent.append(row, kids);
+    build(d, depth + 1, kids);
+  }
+  for (const f of node.files) if (visible(f)) parent.append(fileRow(f, depth));
+}
+function fileRow(f, depth, pinned) {
+  const a = document.createElement('a');
+  a.className = 'row file' + (hasDraftStored(f.path) ? ' drafted' : '');
+  a.href = '#/' + (pinned ? SCRATCH : S.root + '/' + encPath(f.path));
+  a.dataset.path = f.path;
+  a.title = pinned ? 'A blank file for trying anything' : f.path;
+  a.style.paddingLeft = (22 + depth * 14) + 'px';
+  a.innerHTML = fileInner(f, pinned);
+  return a;
+}
+function fileInner(f, pinned) {
+  if (pinned) return '<span class="ext"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" style="vertical-align:-1px"><path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3z"/></svg></span><span class="nm">Scratch pad</span><span class="dot"></span>';
+  const st = statusOf(f.path);
+  const stHtml = st === 'done' ? '<span class="st done" title="Done">✓</span>' : st === 'revise' ? '<span class="st revise" title="To revise">↻</span>' : '';
+  const tail = stHtml + (f.must ? '<span class="star" title="Must-know">★</span>' : '') + '<span class="dot" title="Unsaved edit or practice attempt"></span>';
+  const m = f.name.match(/^([A-D])(\d\d)_(.+?)(?:\.java)?$/);
+  if (m) return `<span class="tier ${m[1]}" title="${TIER[m[1]]}">${m[1]}${m[2]}</span><span class="nm">${esc(m[3])}</span>` + tail;
+  const ext = (f.name.match(/\.([^.]+)$/) || [, ''])[1];
+  return `<span class="ext">${esc(ext.slice(0, 4))}</span><span class="nm">${esc(f.name)}</span>` + tail;
+}
+function renderFooter() {
+  let java = 0, done = 0, must = 0, mustDone = 0, rev = 0;
+  for (const f of S.files) {
+    const st = statusOf(f.path);
+    if (isJava(f)) { java++; if (st === 'done') done++; }
+    if (f.must) { must++; if (st === 'done') mustDone++; }
+    if (st === 'revise') rev++;
+  }
+  const r = rootObj();
+  $('#count').innerHTML = java
+    ? `Done <b>${done}</b>/${java}` + (must ? ` · ★ must-know <b>${mustDone}</b>/${must}` : '') + ` · to revise <b>${rev}</b>`
+    : `${S.files.length} files in ${esc(r ? r.name : '')}`;
+}
+$('#tree').addEventListener('click', e => {
+  const r = e.target.closest('.row.dir');
+  if (r) toggleDir(r.dataset.dir);
+});
+function toggleDir(p, force) {
+  const open = force ?? !S.openDirs.has(p);
+  if (open) S.openDirs.add(p); else S.openDirs.delete(p);
+  const row = document.querySelector(`#tree .row.dir[data-dir="${CSS.escape(p)}"]`);
+  if (row) { row.classList.toggle('open', open); row.nextElementSibling.hidden = !open; }
+  store.set('openDirs:' + S.root, [...S.openDirs]);
+}
+function markActive(scroll = true) {
+  document.querySelectorAll('#tree .row.active').forEach(r => r.classList.remove('active'));
+  if (!S.cur) return;
+  if (S.cur.path !== SCRATCH) {
+    const parts = S.cur.path.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const d = parts.slice(0, i).join('/');
+      if (S.show === 'all' && !S.openDirs.has(d)) toggleDir(d, true);
+    }
+  }
+  const row = document.querySelector(`#tree .row.file[data-path="${CSS.escape(S.cur.path)}"]`);
+  if (row) { row.classList.add('active'); if (scroll) row.scrollIntoView({ block: 'nearest' }); }
+}
+$('#showSel').addEventListener('change', e => { S.show = e.target.value; store.set('show', S.show); renderTree(); });
+
+async function setProgress(path, status, pass) {
+  try {
+    const entry = await api('/api/progress', { root: S.root, path, status, pass });
+    delete entry._status;
+    if (Object.keys(entry).length) S.progress[path] = entry; else delete S.progress[path];
+    renderTree();
+    refreshBar();
+  } catch (e) { toast(e.message); }
+}
+function cycleProgress() {
+  const c = S.cur;
+  if (!c || c.path === SCRATCH) return;
+  const next = STATUS_NEXT[statusOf(c.path)];
+  setProgress(c.path, next);
+  toast(next === 'done' ? 'Marked done ✓' : next === 'revise' ? 'Marked to revise ↻' : 'Mark cleared');
+}
+
+/* auto-refresh: files added, renamed or edited elsewhere show up without a reload */
+async function refreshFromDisk() {
+  if (document.visibilityState !== 'visible' || !S.root || !editor) return;
+  try { if (await loadTree()) renderTree(); } catch { return; }
+  const c = S.cur;
+  if (!c || c.path === SCRATCH || c.mode === 'practice' || hasDraft(c)) return;
+  let d;
+  try { d = await api('/api/file?' + qs({ root: S.root, path: c.path })); } catch { return; }
+  if (S.cur !== c || d.hash === S.hashes.get(c.key)) return;
+  S.originals.set(c.key, d.text); S.hashes.set(c.key, d.hash);
+  const m = S.models.get(c.key);
+  if (m && editor.getModel() === m) { const vs = editor.saveViewState(); m.setValue(d.text); editor.restoreViewState(vs); }
+  else if (c.kind === 'md' && !c.source) renderMd(c.path, d.text);
+}
+window.addEventListener('focus', refreshFromDisk);
+setInterval(refreshFromDisk, 20000);
+
+/* ------------------------------------------------------------ filter (Ctrl+P) */
+const filter = $('#filter');
+function focusFilter() { showTab('files'); filter.focus(); filter.select(); }
+filter.addEventListener('input', doFilter);
+filter.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    S.hitIdx = clamp(S.hitIdx + (e.key === 'ArrowDown' ? 1 : -1), 0, Math.max(0, S.hits.length - 1));
+    paintHits();
+  } else if (e.key === 'Enter') {
+    const f = S.hits[S.hitIdx];
+    if (f) { go(f.path); filter.value = ''; doFilter(); editor && editor.focus(); }
+  } else if (e.key === 'Escape') { filter.value = ''; doFilter(); editor && editor.focus(); }
+});
+function doFilter() {
+  const q = filter.value.trim().toLowerCase();
+  const res = $('#results');
+  if (!q) { res.hidden = true; $('#tree').hidden = false; return; }
+  const toks = q.split(/\s+/);
+  const nameHit = f => toks.every(t => f.name.toLowerCase().includes(t));
+  S.hits = S.files.filter(f => toks.every(t => f.path.toLowerCase().includes(t)))
+    .sort((a, b) => (nameHit(b) - nameHit(a)) || a.path.localeCompare(b.path)).slice(0, 300);
+  S.hitIdx = 0;
+  res.textContent = '';
+  if (!S.hits.length) res.innerHTML = '<div class="row" style="padding-left:12px;color:var(--muted)">No file name matches</div>';
+  for (const f of S.hits) {
+    const a = fileRow(f, 0);
+    a.style.paddingLeft = '';
+    a.insertAdjacentHTML('beforeend', '<span class="sub"></span>');
+    a.querySelector('.sub').textContent = f.path.split('/').slice(0, -1).join(' / ');
+    res.append(a);
+  }
+  res.hidden = false; $('#tree').hidden = true;
+  paintHits();
+}
+function paintHits() {
+  const rows = $('#results').querySelectorAll('.row.file');
+  rows.forEach((r, i) => r.classList.toggle('kb', i === S.hitIdx));
+  if (rows[S.hitIdx]) rows[S.hitIdx].scrollIntoView({ block: 'nearest' });
+}
+$('#results').addEventListener('click', () => setTimeout(() => { filter.value = ''; doFilter(); }, 0));
+
+/* ------------------------------------------------------------ search in code */
+function showTab(t) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  $('#filesPane').hidden = t !== 'files';
+  $('#searchPane').hidden = t !== 'search';
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  showTab(b.dataset.tab);
+  if (b.dataset.tab === 'search') $('#sq').focus();
+}));
+function openSearch() {
+  showTab('search');
+  const sel = editor && editor.getModel() && editor.getModel().getValueInRange(editor.getSelection());
+  if (sel && !sel.includes('\n') && sel.length < 80) $('#sq').value = sel;
+  $('#sq').focus(); $('#sq').select();
+  if ($('#sq').value) runSearch();
+}
+let searchSeq = 0;
+async function runSearch() {
+  const q = $('#sq').value, box = $('#sres'), seq = ++searchSeq;
+  if (!q.trim()) { box.innerHTML = '<div class="note">Type to search inside every file in this folder.</div>'; return; }
+  box.innerHTML = '<div class="note"><span class="spin"></span>Searching…</div>';
+  let r;
+  try { r = await api('/api/search?' + qs({ root: S.root, q, regex: $('#sRegex').checked ? 1 : 0, case: $('#sCase').checked ? 1 : 0 })); }
+  catch (e) { if (seq === searchSeq) box.innerHTML = `<div class="note">${esc(e.message)}</div>`; return; }
+  if (seq !== searchSeq) return;
+  box.textContent = '';
+  const head = document.createElement('div'); head.className = 'note';
+  head.textContent = r.matches ? `${r.matches} matches in ${r.files.length} files` + (r.capped ? ' (stopped at 2000)' : '') : 'No matches';
+  box.append(head);
+  for (const f of r.files) {
+    const fh = document.createElement('div'); fh.className = 'fh';
+    const name = f.path.split('/').pop();
+    fh.innerHTML = `<span>${esc(name)}</span><span class="cnt">${f.hits.length}</span><span class="p">${esc(f.path.split('/').slice(0, -1).join(' / '))}</span>`;
+    fh.onclick = () => openHit(f.path, f.hits[0]);
+    box.append(fh);
+    for (const h of f.hits) {
+      const d = document.createElement('div'); d.className = 'hit';
+      const t = h.text;
+      d.innerHTML = `<span class="ln">${h.line}</span><span class="tx">${esc(t.slice(0, h.off).trimStart())}<mark>${esc(t.slice(h.off, h.off + h.len))}</mark>${esc(t.slice(h.off + h.len))}</span>`;
+      d.onclick = () => openHit(f.path, h);
+      box.append(d);
+    }
+  }
+}
+function openHit(path, h) {
+  S.pendingReveal = { key: keyOf(path), line: h.line, col: h.col, len: h.len };
+  go(path);
+}
+$('#sq').addEventListener('input', debounce(runSearch, 350));
+$('#sq').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); if (e.key === 'Escape') editor && editor.focus(); });
+$('#sCase').addEventListener('change', runSearch);
+$('#sRegex').addEventListener('change', runSearch);
+
+/* ------------------------------------------------------------ new file */
+function openNewPanel() {
+  if (!S.root) return;
+  const dir = S.cur && S.cur.path !== SCRATCH ? S.cur.path.split('/').slice(0, -1).join('/') : '';
+  $('#newPanel').hidden = false;
+  const inp = $('#newPath');
+  inp.value = dir ? dir + '/' : '';
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+$('#newBtn').onclick = () => { if ($('#newPanel').hidden) openNewPanel(); else $('#newPanel').hidden = true; };
+$('#newPath').addEventListener('keydown', async e => {
+  if (e.key === 'Escape') { $('#newPanel').hidden = true; return; }
+  if (e.key !== 'Enter') return;
+  try {
+    const r = await api('/api/new', { root: S.root, path: $('#newPath').value });
+    $('#newPanel').hidden = true;
+    await loadTree(); renderTree();
+    S.editing.add(keyOf(r.path));
+    go(r.path);
+    toast('Created ' + r.path + '. Write it, then Ctrl+S to save.');
+  } catch (err) { toast(err.message); }
+});
+
 /* ------------------------------------------------------------ editor */
 function initEditor() {
   monaco.editor.defineTheme('idea-dark', {
     base: 'vs-dark', inherit: true,
     rules: [
-      { token: '', foreground: 'BCBEC4' },
-      { token: 'keyword', foreground: 'CF8E6D' },
-      { token: 'string', foreground: '6AAB73' },
-      { token: 'string.escape', foreground: 'CF8E6D' },
-      { token: 'number', foreground: '2AACB8' },
-      { token: 'comment', foreground: '7A7E85', fontStyle: 'italic' },
-      { token: 'comment.doc', foreground: '5F826B', fontStyle: 'italic' },
-      { token: 'annotation', foreground: 'B3AE60' },
-      { token: 'identifier', foreground: 'BCBEC4' },
-      { token: 'delimiter', foreground: 'BCBEC4' },
+      { token: '', foreground: 'BCBEC4' }, { token: 'keyword', foreground: 'CF8E6D' },
+      { token: 'string', foreground: '6AAB73' }, { token: 'string.escape', foreground: 'CF8E6D' },
+      { token: 'number', foreground: '2AACB8' }, { token: 'comment', foreground: '7A7E85', fontStyle: 'italic' },
+      { token: 'comment.doc', foreground: '5F826B', fontStyle: 'italic' }, { token: 'annotation', foreground: 'B3AE60' },
+      { token: 'identifier', foreground: 'BCBEC4' }, { token: 'delimiter', foreground: 'BCBEC4' },
     ],
     colors: {
       'editor.background': '#1E1F22', 'editor.foreground': '#BCBEC4', 'editorGutter.background': '#1E1F22',
@@ -362,14 +839,10 @@ function initEditor() {
   monaco.editor.defineTheme('idea-light', {
     base: 'vs', inherit: true,
     rules: [
-      { token: '', foreground: '080808' },
-      { token: 'keyword', foreground: '0033B3' },
-      { token: 'string', foreground: '067D17' },
-      { token: 'string.escape', foreground: '0037A6' },
-      { token: 'number', foreground: '1750EB' },
-      { token: 'comment', foreground: '8C8C8C', fontStyle: 'italic' },
-      { token: 'comment.doc', foreground: '8C8C8C', fontStyle: 'italic' },
-      { token: 'annotation', foreground: '9E880D' },
+      { token: '', foreground: '080808' }, { token: 'keyword', foreground: '0033B3' },
+      { token: 'string', foreground: '067D17' }, { token: 'string.escape', foreground: '0037A6' },
+      { token: 'number', foreground: '1750EB' }, { token: 'comment', foreground: '8C8C8C', fontStyle: 'italic' },
+      { token: 'comment.doc', foreground: '8C8C8C', fontStyle: 'italic' }, { token: 'annotation', foreground: '9E880D' },
       { token: 'identifier', foreground: '080808' },
     ],
     colors: {
@@ -381,34 +854,38 @@ function initEditor() {
     model: null, theme: isDark() ? 'idea-dark' : 'idea-light', automaticLayout: true,
     fontFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace", fontSize: S.font, lineHeight: 1.6,
     readOnly: true,
-    readOnlyMessage: { value: 'Read-only. Press **Edit** (Ctrl+E) to change a copy. The repo file is never touched.' },
+    readOnlyMessage: { value: 'Read-only. Press **Edit** (Ctrl+E) to change it, or **Practice** (Alt+P) to write the solution yourself.' },
     minimap: { enabled: true, renderCharacters: false }, scrollBeyondLastLine: false, smoothScrolling: true,
     stickyScroll: { enabled: true }, bracketPairColorization: { enabled: true },
     guides: { bracketPairs: 'active', indentation: true }, padding: { top: 10, bottom: 10 },
     wordWrap: S.wrap ? 'on' : 'off', tabSize: 4, mouseWheelZoom: true, renderLineHighlight: 'all',
   });
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, run);
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, toggleEdit);
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, focusFilter);
-  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, toggleWrap);
+  const K = monaco.KeyMod, C = monaco.KeyCode;
+  editor.addCommand(K.CtrlCmd | C.Enter, run);
+  editor.addCommand(K.CtrlCmd | C.KeyE, toggleEdit);
+  editor.addCommand(K.CtrlCmd | C.KeyS, save);
+  editor.addCommand(K.CtrlCmd | C.KeyP, focusFilter);
+  editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
+  editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
+  editor.addCommand(K.Alt | C.KeyP, togglePractice);
+  editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
 }
 
-function modelFor(path, text, lang) {
-  let m = S.models.get(path);
-  const draft = store.get('draft:' + path, null);
+function modelFor(k, text, lang) {
+  let m = S.models.get(k);
+  const draft = store.get('draft:' + k, null);
   if (!m) {
     m = monaco.editor.createModel(draft ?? text, lang);
-    m.onDidChangeContent(debounce(() => saveDraft(path, m), 250));
-    S.models.set(path, m);
-    if (draft !== null) S.editing.add(path);
+    m.onDidChangeContent(debounce(() => saveDraft(k, m), 250));
+    S.models.set(k, m);
+    if (draft !== null) S.editing.add(k);
   } else if (draft === null && m.getValue() !== text) {
-    m.setValue(text);              // the file changed on disk, e.g. edited in IntelliJ
+    m.setValue(text);              // the file changed on disk since it was last shown
   }
   return m;
 }
-
 function scratchModel() {
   let m = S.models.get(SCRATCH);
   if (!m) {
@@ -418,219 +895,162 @@ function scratchModel() {
   }
   return m;
 }
-
-function saveDraft(path, m) {
-  const v = m.getValue(), same = v === S.originals.get(path);
-  if (same) store.del('draft:' + path); else store.set('draft:' + path, v);
-  markDraft(path, !same);
-  if (S.cur && S.cur.path === path) refreshBar();
+function saveDraft(k, m) {
+  const same = m.getValue() === S.originals.get(k);
+  if (same) store.del('draft:' + k); else store.set('draft:' + k, m.getValue());
+  if (k.startsWith(S.root + '/')) markDraft(k.slice(S.root.length + 1));
+  if (S.cur && S.cur.key === k) refreshBar();
 }
-function hasDraft(path) {
-  const m = S.models.get(path);
-  if (path === SCRATCH) return !!m && m.getValue() !== SCRATCH_TEMPLATE;
-  if (m && S.originals.has(path)) return m.getValue() !== S.originals.get(path);
-  try { return localStorage.getItem('cv:draft:' + path) !== null; } catch { return false; }
+function hasDraft(c) {
+  if (!c) return false;
+  if (c.path === SCRATCH) { const m = S.models.get(SCRATCH); return !!m && m.getValue() !== SCRATCH_TEMPLATE; }
+  if (c.mode === 'practice') { const m = S.pmodels.get(c.key); return !!m && m.getValue() !== S.skeletons.get(c.key); }
+  const m = S.models.get(c.key);
+  return m && S.originals.has(c.key) ? m.getValue() !== S.originals.get(c.key) : store.has('draft:' + c.key);
 }
-function markDraft(path, on) {
+function hasDraftStored(path) {
+  if (path === SCRATCH) return store.has('scratch');
+  const k = keyOf(path);
+  return store.has('draft:' + k) || store.has('practice:' + k);
+}
+function markDraft(path) {
+  const on = hasDraftStored(path);
   document.querySelectorAll(`.row.file[data-path="${CSS.escape(path)}"]`).forEach(r => r.classList.toggle('drafted', on));
 }
 
-/* ------------------------------------------------------------ tree */
-async function loadTree() {
-  const r = await fetch('/api/tree');
-  if (!r.ok) throw new Error(r.status);
-  const t = await r.json();
-  S.tree = t; S.files = []; S.byPath.clear();
-  let java = 0, must = 0;
-  (function index(n, prefix) {
-    for (const d of n.dirs) {
-      d.path = prefix ? prefix + '/' + d.name : d.name;
-      index(d, d.path);
-      d.count = d.dirs.reduce((a, x) => a + x.count, 0) + d.files.filter(f => f.name.endsWith('.java')).length;
-    }
-    for (const f of n.files) {
-      S.files.push(f); S.byPath.set(f.path, f);
-      if (f.name.endsWith('.java')) java++;
-      if (f.must) must++;
-    }
-  })(t, '');
-  renderTree();
-  $('#count').textContent = `${java} Java files · ${must} must-know ★ · ${S.files.length - java} notes`;
+/* ------------------------------------------------------------ routing + opening */
+function parseHash() {
+  let h = location.hash.replace(/^#\/?/, '');
+  try { h = decodeURIComponent(h); } catch {}
+  if (!h) return {};
+  if (h === SCRATCH) return { path: SCRATCH };
+  const [first, ...rest] = h.split('/');
+  if (S.roots.some(r => r.id === first) && rest.length) return { root: first, path: rest.join('/') };
+  return { path: h };                       // old-style link: a path inside the default folder
 }
-
-function renderTree() {
-  const root = $('#tree');
-  root.textContent = '';
-  root.append(fileRow({ path: SCRATCH, name: 'Scratch pad' }, 0, true));
-  build(S.tree, 0, root);
-  markActive();
-}
-function build(node, depth, parent) {
-  for (const d of node.dirs) {
-    const open = S.openDirs.has(d.path);
-    const row = document.createElement('div');
-    row.className = 'row dir' + (open ? ' open' : '');
-    row.dataset.dir = d.path;
-    row.style.paddingLeft = (8 + depth * 14) + 'px';
-    row.innerHTML = '<span class="caret">▶</span><span class="nm"></span>' + (d.count ? `<span class="cnt">${d.count}</span>` : '');
-    row.querySelector('.nm').textContent = d.name;
-    const kids = document.createElement('div');
-    kids.hidden = !open;
-    parent.append(row, kids);
-    build(d, depth + 1, kids);
-  }
-  for (const f of node.files) parent.append(fileRow(f, depth));
-}
-function fileRow(f, depth, pinned) {
-  const a = document.createElement('a');
-  a.className = 'row file' + (hasDraft(f.path) ? ' drafted' : '');
-  a.href = '#/' + encPath(f.path);
-  a.dataset.path = f.path;
-  a.title = pinned ? 'A blank file for trying anything' : f.path;
-  a.style.paddingLeft = (22 + depth * 14) + 'px';
-  a.innerHTML = fileInner(f, pinned);
-  return a;
-}
-function fileInner(f, pinned) {
-  if (pinned) return '<span class="ext"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" style="vertical-align:-1px"><path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3z"/></svg></span><span class="nm">Scratch pad</span><span class="dot"></span>';
-  const m = f.name.match(/^([A-D])(\d\d)_(.+?)(?:\.java)?$/);
-  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  if (m) return `<span class="tier ${m[1]}" title="${TIER[m[1]]}">${m[1]}${m[2]}</span><span class="nm">${esc(m[3])}</span>`
-    + (f.must ? '<span class="star" title="Must-know">★</span>' : '') + '<span class="dot" title="Edited in this browser"></span>';
-  const ext = (f.name.match(/\.([^.]+)$/) || [, ''])[1];
-  return `<span class="ext">${esc(ext.slice(0, 4))}</span><span class="nm">${esc(f.name)}</span><span class="dot"></span>`;
-}
-$('#tree').addEventListener('click', e => {
-  const r = e.target.closest('.row.dir');
-  if (r) toggleDir(r.dataset.dir);
-});
-function toggleDir(p, force) {
-  const open = force ?? !S.openDirs.has(p);
-  if (open) S.openDirs.add(p); else S.openDirs.delete(p);
-  const row = document.querySelector(`.row.dir[data-dir="${CSS.escape(p)}"]`);
-  if (row) { row.classList.toggle('open', open); row.nextElementSibling.hidden = !open; }
-  store.set('openDirs', [...S.openDirs]);
-}
-function markActive() {
-  document.querySelectorAll('.row.active').forEach(r => r.classList.remove('active'));
-  if (!S.cur) return;
-  const parts = S.cur.path.split('/');
-  for (let i = 1; i < parts.length; i++) {
-    const d = parts.slice(0, i).join('/');
-    if (!S.openDirs.has(d)) toggleDir(d, true);
-  }
-  const row = document.querySelector(`#tree .row.file[data-path="${CSS.escape(S.cur.path)}"]`);
-  if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest' }); }
-}
-
-/* ------------------------------------------------------------ filter */
-const filter = $('#filter');
-function focusFilter() { filter.focus(); filter.select(); }
-filter.addEventListener('input', doFilter);
-filter.addEventListener('keydown', e => {
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault();
-    S.hitIdx = clamp(S.hitIdx + (e.key === 'ArrowDown' ? 1 : -1), 0, Math.max(0, S.hits.length - 1));
-    paintHits();
-  } else if (e.key === 'Enter') {
-    const f = S.hits[S.hitIdx];
-    if (f) { go(f.path); filter.value = ''; doFilter(); editor && editor.focus(); }
-  } else if (e.key === 'Escape') {
-    filter.value = ''; doFilter(); editor && editor.focus();
-  }
-});
-function doFilter() {
-  const q = filter.value.trim().toLowerCase();
-  const res = $('#results');
-  if (!q) { res.hidden = true; $('#tree').hidden = false; return; }
-  const toks = q.split(/\s+/);
-  const nameHit = f => toks.every(t => f.name.toLowerCase().includes(t));
-  S.hits = S.files.filter(f => toks.every(t => f.path.toLowerCase().includes(t)))
-    .sort((a, b) => (nameHit(b) - nameHit(a)) || a.path.localeCompare(b.path)).slice(0, 300);
-  S.hitIdx = 0;
-  res.textContent = '';
-  if (!S.hits.length) res.innerHTML = '<div class="row" style="padding-left:12px;color:var(--muted)">No match</div>';
-  for (const f of S.hits) {
-    const a = document.createElement('a');
-    a.className = 'row file' + (hasDraft(f.path) ? ' drafted' : '');
-    a.href = '#/' + encPath(f.path);
-    a.dataset.path = f.path;
-    a.innerHTML = fileInner(f) + '<span class="sub"></span>';
-    a.querySelector('.sub').textContent = f.path.split('/').slice(0, -1).join(' / ');
-    res.append(a);
-  }
-  res.hidden = false; $('#tree').hidden = true;
-  paintHits();
-}
-function paintHits() {
-  const rows = $('#results').querySelectorAll('.row.file');
-  rows.forEach((r, i) => r.classList.toggle('kb', i === S.hitIdx));
-  if (rows[S.hitIdx]) rows[S.hitIdx].scrollIntoView({ block: 'nearest' });
-}
-$('#results').addEventListener('click', () => { setTimeout(() => { filter.value = ''; doFilter(); }, 0); });
-
-/* ------------------------------------------------------------ opening files */
 function go(path) {
-  const h = '#/' + encPath(path);
+  const h = '#/' + (path === SCRATCH ? SCRATCH : S.root + '/' + encPath(path));
   if (location.hash === h) route(); else location.hash = h;
 }
-function route() {
-  if (!editor) return;
-  let p = location.hash.replace(/^#\/?/, '');
-  try { p = decodeURIComponent(p); } catch {}
+async function route() {
+  if (!editor || !S.root) return;
+  const t = parseHash();
+  if (t.root && t.root !== S.root) await switchRoot(t.root, false);
+  let p = t.path;
   if (!p) {
-    const last = store.get('last', null);
+    const last = store.get('last:' + S.root, null);
     p = last && (last === SCRATCH || S.byPath.has(last)) ? last : (S.byPath.has('README.md') ? 'README.md' : SCRATCH);
-    history.replaceState(null, '', '#/' + encPath(p));
+    history.replaceState(null, '', '#/' + (p === SCRATCH ? SCRATCH : S.root + '/' + encPath(p)));
   }
   openPath(p);
 }
+const viewKey = () => S.cur ? S.cur.key + ':' + (S.cur.mode || 'file') : '';
+function saveView() { if (S.cur && !$('#editor').hidden && editor.getModel()) S.views.set(viewKey(), editor.saveViewState()); }
+const getMode = k => S.modes.get(k) || store.get('mode:' + k, 'file');
+function setMode(k, m) { S.modes.set(k, m); if (m === 'file') store.del('mode:' + k); else store.set('mode:' + k, m); }
 
 async function openPath(path) {
   const token = S.pending = {};
-  if (S.cur && !$('#editor').hidden && editor.getModel()) S.views.set(S.cur.path, editor.saveViewState());
+  saveView();
+  hideBanner();
   if (path === SCRATCH) {
-    S.cur = { path: SCRATCH, name: 'Scratch pad', kind: 'java' };
+    S.cur = { path: SCRATCH, key: SCRATCH, name: 'Scratch pad', kind: 'java', mode: 'file' };
     showEditor(scratchModel());
     return afterOpen();
   }
   const f = S.byPath.get(path);
-  if (!f) { toast('No such file in the tree: ' + path); return; }
-  let text;
-  try {
-    const r = await fetch('/api/file?path=' + encodeURIComponent(path));
-    if (!r.ok) throw new Error(await r.text());
-    text = await r.text();
-  } catch (e) { toast(String(e.message || e)); return; }
+  if (!f) { toast('No such file here: ' + path); return; }
+  const k = keyOf(path);
+  let d;
+  try { d = await api('/api/file?' + qs({ root: S.root, path })); } catch (e) { toast(e.message); return; }
   if (S.pending !== token) return;            // another file was clicked meanwhile
-  S.originals.set(path, text);
+  S.originals.set(k, d.text); S.hashes.set(k, d.hash);
   const ext = ((path.match(/\.([^./]+)$/) || [])[1] || '').toLowerCase();
-  S.cur = { path, name: f.name, ext, kind: ext === 'md' ? 'md' : ext === 'java' ? 'java' : 'text' };
-  if (S.cur.kind === 'md' && !S.mdSource) renderMd(path, text);
-  else showEditor(modelFor(path, text, LANG[ext] || 'plaintext'));
+  const kind = ext === 'md' ? 'md' : ext === 'java' ? 'java' : 'text';
+  const source = kind === 'md' && (S.mdSource || !!(S.pendingReveal && S.pendingReveal.key === k));
+  S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
+  if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
+  if (S.pending !== token) return;
+  if (S.cur.mode === 'file') {
+    if (kind === 'md' && !source) renderMd(path, d.text);
+    else showEditor(modelFor(k, d.text, LANG[ext] || 'plaintext'));
+  }
   afterOpen();
+}
+function isEditable() {
+  const c = S.cur;
+  return !!c && (c.path === SCRATCH || c.mode === 'practice' || S.editing.has(c.key));
 }
 function showEditor(m) {
   $('#md').hidden = true;
   $('#editor').hidden = false;
   editor.setModel(m);
-  const vs = S.views.get(S.cur.path);
+  const vs = S.views.get(viewKey());
   if (vs) editor.restoreViewState(vs); else editor.setScrollTop(0);
-  editor.updateOptions({ readOnly: !(S.cur.path === SCRATCH || S.editing.has(S.cur.path)) });
+  editor.updateOptions({ readOnly: !isEditable() });
   editor.layout();
 }
+async function showPractice(token) {
+  const c = S.cur, k = c.key;
+  let m = S.pmodels.get(k);
+  if (!m) {
+    if (!S.skeletons.has(k)) {
+      let r;
+      try { r = await api('/api/practice?' + qs({ root: S.root, path: c.path })); } catch (e) { toast(e.message); return false; }
+      if (!r.hidden.length) {
+        toast('Nothing to hide in this file: its code is all in main() or test helpers.');
+        setMode(k, 'file');
+        return false;
+      }
+      S.skeletons.set(k, r.text);
+    }
+    if (token && S.pending !== token) return false;
+    m = monaco.editor.createModel(store.get('practice:' + k, null) ?? S.skeletons.get(k), 'java');
+    m.onDidChangeContent(debounce(() => {
+      if (m.getValue() === S.skeletons.get(k)) store.del('practice:' + k); else store.set('practice:' + k, m.getValue());
+      markDraft(c.path);
+      if (S.cur && S.cur.key === k) refreshBar();
+    }, 250));
+    S.pmodels.set(k, m);
+  }
+  showEditor(m);
+  return true;
+}
+async function togglePractice() {
+  const c = S.cur;
+  if (!c || c.kind !== 'java' || c.path === SCRATCH) return;
+  saveView();
+  if (c.mode === 'practice') {
+    c.mode = 'file'; setMode(c.key, 'file');
+    showEditor(modelFor(c.key, S.originals.get(c.key), 'java'));
+    toast('Showing the original solution. Practice again to get your attempt back.');
+  } else {
+    c.mode = 'practice'; setMode(c.key, 'practice');
+    if (await showPractice()) { toast('Practice: the solution is hidden. Write it, then Ctrl+Enter.'); editor.focus(); }
+    else { c.mode = 'file'; showEditor(modelFor(c.key, S.originals.get(c.key), 'java')); }
+  }
+  refreshBar();
+  renderOutput(S.outputs.get(viewKey()));
+}
 function afterOpen() {
-  store.set('last', S.cur.path);
+  store.set('last:' + S.root, S.cur.path);
   document.title = S.cur.name + ' · Code Viewer';
   markActive();
   refreshBar();
-  renderOutput(S.outputs.get(S.cur.path));
+  renderOutput(S.outputs.get(viewKey()));
+  const pr = S.pendingReveal;
+  if (pr && pr.key === S.cur.key && !$('#editor').hidden) {
+    S.pendingReveal = null;
+    const range = new monaco.Range(pr.line, pr.col, pr.line, pr.col + pr.len);
+    editor.setSelection(range);
+    editor.revealRangeInCenter(range);
+  }
 }
 
 function refreshBar() {
   const c = S.cur;
   if (!c) return;
-  const isScratch = c.path === SCRATCH, rendered = c.kind === 'md' && !S.mdSource;
+  const isScratch = c.path === SCRATCH, practice = c.mode === 'practice', rendered = c.kind === 'md' && !c.source && !practice;
   const crumbs = $('#crumbs');
   crumbs.textContent = '';
   if (isScratch) crumbs.innerHTML = '<b>Scratch pad</b>';
@@ -639,32 +1059,87 @@ function refreshBar() {
     crumbs.append(parts.slice(0, -1).map(p => p + ' / ').join(''));
     const b = document.createElement('b'); b.textContent = parts[parts.length - 1]; crumbs.append(b);
   }
-  crumbs.title = isScratch ? '' : c.path;
-  const drafted = hasDraft(c.path), editing = isScratch || S.editing.has(c.path);
+  crumbs.title = isScratch ? '' : (rootObj().path + '\\' + c.path.replace(/\//g, '\\'));
+  const drafted = hasDraft(c), editing = isScratch || practice || S.editing.has(c.key);
   const [label, cls] = isScratch ? ['Scratch · kept in this browser', 'scratch']
+    : practice ? [drafted ? 'Practice · your attempt' : 'Practice · solution hidden', 'practice']
     : rendered ? ['Rendered markdown', '']
-    : drafted ? ['Edited copy · repo file untouched', 'draft']
-    : editing ? ['Editing a copy', 'draft'] : ['Read-only', ''];
+    : drafted ? ['Edited · not saved', 'draft']
+    : editing ? ['Editing', 'draft'] : ['Read-only', ''];
   const badge = $('#badge');
   badge.hidden = false; badge.textContent = label; badge.className = 'badge ' + cls;
+
   $('#srcBtn').hidden = c.kind !== 'md';
-  $('#srcBtn').textContent = S.mdSource ? 'Rendered' : 'Source';
-  $('#editBtn').hidden = isScratch || rendered;
-  $('#editBtn').textContent = editing ? 'Lock' : 'Edit';
-  $('#editBtn').classList.toggle('on', editing);
+  $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
+  const pb = $('#practiceBtn');
+  pb.hidden = c.kind !== 'java' || isScratch;
+  pb.textContent = practice ? 'Show solution' : 'Practice';
+  pb.classList.toggle('practice-on', practice);
+  const st = statusOf(c.path), gb = $('#progBtn');
+  gb.hidden = isScratch;
+  gb.textContent = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ Mark done';
+  gb.className = st === 'done' ? 'good' : st === 'revise' ? 'warnb' : '';
+  $('#editBtn').hidden = isScratch || practice || rendered;
+  $('#editBtn').textContent = S.editing.has(c.key) ? 'Lock' : 'Edit';
+  $('#editBtn').classList.toggle('on', S.editing.has(c.key));
+  $('#saveBtn').hidden = isScratch || practice || rendered || !drafted;
   $('#resetBtn').hidden = rendered || !drafted;
-  for (const id of ['#wrapBtn', '#fontDown', '#fontUp']) $(id).hidden = rendered;
-  $('#wrapBtn').classList.toggle('on', S.wrap);
   $('#runBtn').disabled = c.kind !== 'java' || S.running;
-  const mains = S.mains.get(c.path);
-  const sel = $('#mainSel');
+  const mains = S.mains.get(viewKey()), sel = $('#mainSel');
   sel.hidden = !(mains && mains.length > 1);
   if (!sel.hidden) {
     sel.textContent = '';
     for (const m of mains) sel.append(new Option('main: ' + m, m));
-    sel.value = S.mainChoice.get(c.path) || mains[0];
+    sel.value = S.mainChoice.get(viewKey()) || mains[0];
   }
 }
+
+/* ------------------------------------------------------------ edit, save, reset */
+function toggleEdit() {
+  const c = S.cur;
+  if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source)) return;
+  if (S.editing.has(c.key)) S.editing.delete(c.key); else S.editing.add(c.key);
+  editor.updateOptions({ readOnly: !isEditable() });
+  if (S.editing.has(c.key)) editor.focus();
+  refreshBar();
+}
+async function save(force) {
+  const c = S.cur;
+  if (!c || c.path === SCRATCH || c.mode === 'practice' || !hasDraft(c)) return;
+  const m = S.models.get(c.key), code = m.getValue();
+  let r;
+  try { r = await api('/api/save', { root: S.root, path: c.path, code, base: S.hashes.get(c.key), force: force === true }); }
+  catch (e) { return toast(e.message); }
+  if (r.conflict) {
+    return showBanner('This file changed on disk after you opened it (another editor?).', [
+      ['Overwrite with mine', () => { hideBanner(); save(true); }],
+      ['Keep the disk version', () => { hideBanner(); store.del('draft:' + c.key); S.models.get(c.key).dispose(); S.models.delete(c.key); openPath(c.path); }],
+    ]);
+  }
+  S.originals.set(c.key, code); S.hashes.set(c.key, r.hash);
+  store.del('draft:' + c.key);
+  markDraft(c.path);
+  refreshBar();
+  toast('Saved ' + c.name);
+}
+function resetDraft() {
+  const c = S.cur;
+  const m = c.path === SCRATCH ? S.models.get(SCRATCH) : c.mode === 'practice' ? S.pmodels.get(c.key) : S.models.get(c.key);
+  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : c.mode === 'practice' ? S.skeletons.get(c.key) : S.originals.get(c.key);
+  if (!m || orig == null) return;
+  m.pushStackElement();
+  m.pushEditOperations([], [{ range: m.getFullModelRange(), text: orig }], () => null);
+  m.pushStackElement();
+  monaco.editor.setModelMarkers(m, 'javac', []);
+  toast(c.mode === 'practice' ? 'Practice reset to the blank version. Ctrl+Z undoes it.' : 'Edit thrown away. Ctrl+Z undoes it.');
+}
+function showBanner(text, actions) {
+  $('#bannerText').textContent = text;
+  const box = $('#bannerBtns'); box.textContent = '';
+  for (const [label, fn] of actions) { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; box.append(b, ' '); }
+  $('#banner').hidden = false;
+}
+function hideBanner() { $('#banner').hidden = true; }
 
 /* ------------------------------------------------------------ markdown */
 function renderMd(path, text) {
@@ -682,12 +1157,10 @@ function renderMd(path, text) {
     let target = href.split('#')[0];
     try { target = decodeURIComponent(target); } catch {}
     const parts = [...dir];
-    for (const seg of target.split('/')) {
-      if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg);
-    }
+    for (const seg of target.split('/')) { if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg); }
     let p = parts.join('/');
     if (!S.byPath.has(p) && S.byPath.has(p + '/README.md')) p += '/README.md';
-    if (S.byPath.has(p)) a.href = '#/' + encPath(p);
+    if (S.byPath.has(p)) a.href = '#/' + S.root + '/' + encPath(p);
   });
   md.querySelectorAll('pre > code').forEach(code => {
     const lang = (code.className.match(/language-(\w+)/) || [])[1];
@@ -708,35 +1181,37 @@ $('#md').addEventListener('click', e => {
 async function run() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || S.running || !editor) return;
-  const path = c.path, model = editor.getModel();
+  const vk = viewKey(), model = editor.getModel(), practice = c.mode === 'practice';
   S.running = true;
   refreshBar();
   $('#main').classList.remove('out-collapsed');
   $('#status').className = 'status run';
   $('#status').innerHTML = '<span class="spin"></span>Compiling and running…';
-  $('#verdict').hidden = true; $('#meta').textContent = '';
+  $('#verdict').hidden = true; $('#meta').textContent = ''; $('#output').textContent = '';
   monaco.editor.setModelMarkers(model, 'javac', []);
   let res;
   try {
-    const r = await fetch('/api/run', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CodeView': '1' },
-      body: JSON.stringify({
-        path: path === SCRATCH ? null : path, code: model.getValue(), stdin: $('#stdin').value,
-        timeout: +$('#timeoutSel').value, main: S.mainChoice.get(path) || null,
-      }),
+    res = await api('/api/run', {
+      root: S.root, path: c.path === SCRATCH ? null : c.path, code: model.getValue(), stdin: $('#stdin').value,
+      timeout: +$('#timeoutSel').value, main: S.mainChoice.get(vk) || null,
     });
-    res = await r.json();
-  } catch (e) {
-    res = { phase: 'compile', ok: false, output: 'Could not reach the codeview server. Is it still running in the terminal?\n' + e };
-  }
+  } catch (e) { res = { phase: 'compile', ok: false, output: e.message }; }
   S.running = false;
   res.at = new Date();
-  S.outputs.set(path, res);
-  if (res.mains) S.mains.set(path, res.mains);
+  S.outputs.set(vk, res);
+  if (res.mains) S.mains.set(vk, res.mains);
   if (res.phase === 'compile' && !res.ok) setMarkers(model, res.output || '', res.file);
-  if (S.cur && S.cur.path === path) { renderOutput(res); refreshBar(); }
+  if (viewKey() === vk) { renderOutput(res); refreshBar(); }
+  if (practice && res.phase === 'run') {
+    const { pass, fail } = countExpected(res.output || '');
+    if (res.ok && pass && !fail) {
+      await setProgress(c.path, 'done', true);
+      toast(`Solved: all ${pass} cases match. Marked done ✓`);
+    } else {
+      setProgress(c.path, null, false);
+    }
+  }
 }
-
 function setMarkers(model, output, file) {
   const lines = output.replace(/\r\n?/g, '\n').split('\n'), markers = [];
   lines.forEach((l, i) => {
@@ -751,6 +1226,16 @@ function setMarkers(model, output, file) {
   });
   monaco.editor.setModelMarkers(model, 'javac', markers);
 }
+const EXPECTED = /^(.*?:\s)(.*?)\s+expected[:=]?\s+(.*)$/;
+function countExpected(output) {
+  let pass = 0, fail = 0;
+  for (const line of output.replace(/\r\n?/g, '\n').split('\n')) {
+    const m = line.match(EXPECTED);
+    if (m && m[2].trim() && !isErrorLine(line)) { if (norm(m[2]) === norm(m[3])) pass++; else fail++; }
+  }
+  return { pass, fail };
+}
+const isErrorLine = line => /^(Exception in thread|Caused by:|\s+at |\s+\.\.\. \d+ more|Error: )/.test(line) || /^[\w.$]+(Exception|Error)(: |$)/.test(line);
 
 function renderOutput(res) {
   const out = $('#output'), status = $('#status'), verdict = $('#verdict'), meta = $('#meta');
@@ -776,7 +1261,6 @@ function renderOutput(res) {
   meta.textContent = bits.join(' · ');
 
   const lines = (res.output || '').replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
-  let pass = 0, fail = 0;
   const frag = document.createDocumentFragment();
   for (const line of lines) {
     const div = document.createElement('div');
@@ -789,11 +1273,10 @@ function renderOutput(res) {
     } else if ((m = line.match(/^(\s+at .*\()(.+?\.java):(\d+)(\).*)$/))) {
       div.classList.add('err');
       if (m[2] === res.file) div.append(m[1], lineLink(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
-    } else if (/^(Exception in thread|Caused by:|\s+\.\.\. \d+ more|Error: )/.test(line) || /^[\w.$]+(Exception|Error)(: |$)/.test(line)) {
+    } else if (isErrorLine(line)) {
       div.classList.add('err'); div.textContent = line;
-    } else if ((m = line.match(/^(.*?:\s)(.*?)\s+expected[:=]?\s+(.*)$/)) && m[2].trim()) {
+    } else if ((m = line.match(EXPECTED)) && m[2].trim()) {
       const ok = norm(m[2]) === norm(m[3]);
-      if (ok) pass++; else fail++;
       div.classList.add(ok ? 'pass' : 'mismatch');
       const mk = document.createElement('span'); mk.className = 'mk'; mk.textContent = ok ? '✓' : '✗';
       div.append(mk, line);
@@ -805,6 +1288,7 @@ function renderOutput(res) {
   if (res.truncated) note('… output cut at 256 KB.');
   if (res.timedOut) note(`Stopped after ${$('#timeoutSel').value} s. An infinite loop, or a program waiting for input? (stdin button above)`);
   out.append(frag);
+  const { pass, fail } = countExpected(res.output || '');
   if (pass + fail) {
     verdict.hidden = false;
     verdict.className = 'verdict ' + (fail ? 'bad' : 'ok');
@@ -824,75 +1308,77 @@ function lineLink(text, n) {
   return a;
 }
 
-/* ------------------------------------------------------------ toolbar actions */
-function toggleEdit() {
-  const c = S.cur;
-  if (!c || c.path === SCRATCH || (c.kind === 'md' && !S.mdSource)) return;
-  if (S.editing.has(c.path)) S.editing.delete(c.path); else S.editing.add(c.path);
-  editor.updateOptions({ readOnly: !S.editing.has(c.path) });
-  if (S.editing.has(c.path)) { editor.focus(); toast('Editing a copy. The repo file is not changed.'); }
-  refreshBar();
-}
-function resetDraft() {
-  const c = S.cur, m = S.models.get(c.path);
-  if (!m) return;
-  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : S.originals.get(c.path);
-  if (orig == null) return;
-  m.pushStackElement();
-  m.pushEditOperations([], [{ range: m.getFullModelRange(), text: orig }], () => null);
-  m.pushStackElement();
-  monaco.editor.setModelMarkers(m, 'javac', []);
-  toast(c.path === SCRATCH ? 'Scratch pad reset. Ctrl+Z undoes it.' : 'Back to the repo version. Ctrl+Z (while editing) undoes it.');
-}
-function toggleWrap() {
-  S.wrap = !S.wrap; store.set('wrap', S.wrap);
-  editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
-  refreshBar();
-}
-function setFont(d) {
-  S.font = clamp(S.font + d, 10, 26); store.set('font', S.font);
-  editor.updateOptions({ fontSize: S.font });
-}
+/* ------------------------------------------------------------ toolbar, menu, keys */
+function toggleWrap() { S.wrap = !S.wrap; store.set('wrap', S.wrap); editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' }); }
+function setFont(d) { S.font = clamp(S.font + d, 10, 26); store.set('font', S.font); editor.updateOptions({ fontSize: S.font }); }
 $('#editBtn').onclick = toggleEdit;
+$('#saveBtn').onclick = () => save();
 $('#resetBtn').onclick = resetDraft;
-$('#wrapBtn').onclick = toggleWrap;
-$('#fontDown').onclick = () => setFont(-1);
-$('#fontUp').onclick = () => setFont(1);
+$('#practiceBtn').onclick = togglePractice;
+$('#progBtn').onclick = cycleProgress;
 $('#runBtn').onclick = run;
-$('#mainSel').onchange = e => S.mainChoice.set(S.cur.path, e.target.value);
-$('#srcBtn').onclick = () => { S.mdSource = !S.mdSource; if (S.cur) openPath(S.cur.path); };
-$('#copyBtn').onclick = async () => {
-  if (!S.cur) return;
-  const text = $('#editor').hidden ? S.originals.get(S.cur.path) : editor.getModel().getValue();
-  try { await navigator.clipboard.writeText(text); toast('Copied ' + text.split('\n').length + ' lines'); }
-  catch { toast('Clipboard blocked by the browser'); }
-};
+$('#mainSel').onchange = e => S.mainChoice.set(viewKey(), e.target.value);
+$('#srcBtn').onclick = () => { if (!S.cur) return; S.mdSource = !S.cur.source; openPath(S.cur.path); };
+$('#moreBtn').onclick = e => { e.stopPropagation(); $('#menu').hidden = !$('#menu').hidden; };
+$('#menu').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  $('#menu').hidden = true;
+  const c = S.cur;
+  switch (b.dataset.act) {
+    case 'wrap': toggleWrap(); break;
+    case 'bigger': setFont(1); break;
+    case 'smaller': setFont(-1); break;
+    case 'copy': {
+      if (!c) break;
+      const text = $('#editor').hidden ? S.originals.get(c.key) : editor.getModel().getValue();
+      try { await navigator.clipboard.writeText(text); toast('Copied ' + text.split('\n').length + ' lines'); } catch { toast('Clipboard blocked by the browser'); }
+      break;
+    }
+    case 'reveal':
+      try { await api('/api/reveal', { root: S.root, path: c && c.path !== SCRATCH ? c.path : '' }); } catch (err) { toast(err.message); }
+      break;
+    case 'reload':
+      if (c && c.path !== SCRATCH) { S.treeSig = ''; await loadTree(); renderTree(); openPath(c.path); toast('Reloaded from disk'); }
+      break;
+  }
+});
 $('#stdinBtn').onclick = () => {
   const t = $('#stdin'); t.hidden = !t.hidden;
   $('#stdinBtn').classList.toggle('on', !t.hidden);
   if (!t.hidden) { $('#main').classList.remove('out-collapsed'); t.focus(); }
 };
-$('#stdin').addEventListener('input', debounce(() => {
-  $('#stdinBtn').textContent = $('#stdin').value ? 'stdin •' : 'stdin';
-}, 150));
-$('#clearBtn').onclick = () => { if (S.cur) S.outputs.delete(S.cur.path); renderOutput(null); };
+$('#stdin').addEventListener('input', debounce(() => { $('#stdinBtn').textContent = $('#stdin').value ? 'stdin •' : 'stdin'; }, 150));
+$('#clearBtn').onclick = () => { S.outputs.delete(viewKey()); renderOutput(null); };
 $('#outToggle').onclick = () => {
   const c = $('#main').classList.toggle('out-collapsed');
   store.set('outCollapsed', c);
   $('#outToggle').textContent = c ? '▴' : '▾';
 };
-if (store.get('outCollapsed', false)) $('#outToggle').textContent = '▴';
 $('#themeBtn').onclick = () => { S.theme = isDark() ? 'light' : 'dark'; store.set('theme', S.theme); applyTheme(); };
 $('#helpBtn').onclick = e => { e.stopPropagation(); $('#help').hidden = !$('#help').hidden; };
-document.addEventListener('click', e => { if (!e.target.closest('#help')) $('#help').hidden = true; });
-
+$('#autostartChk').onchange = async e => {
+  try {
+    const r = await api('/api/autostart', { enabled: e.target.checked });
+    e.target.checked = r.autostart;
+    toast(r.autostart ? 'Code Viewer will start with Windows (tray icon)' : 'Code Viewer will not start with Windows');
+  } catch (err) { toast(err.message); e.target.checked = !e.target.checked; }
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('#help') && !e.target.closest('#helpBtn')) $('#help').hidden = true;
+  if (!e.target.closest('#menu') && !e.target.closest('#moreBtn')) $('#menu').hidden = true;
+});
 document.addEventListener('keydown', e => {
-  if (e.defaultPrevented || e.target.closest('.monaco-editor')) return;
+  if (e.defaultPrevented || (e.target.closest && e.target.closest('.monaco-editor'))) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
-  if (mod && k === 'p') { e.preventDefault(); focusFilter(); }
+  if (mod && e.shiftKey && k === 'f') { e.preventDefault(); openSearch(); }
+  else if (mod && k === 'p') { e.preventDefault(); focusFilter(); }
   else if (mod && k === 'enter') { e.preventDefault(); run(); }
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
-  else if (k === 'escape') $('#help').hidden = true;
+  else if (mod && k === 's') { e.preventDefault(); save(); }
+  else if (e.altKey && k === 'p') { e.preventDefault(); togglePractice(); }
+  else if (e.altKey && k === 'm') { e.preventDefault(); cycleProgress(); }
+  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; }
 });
 
 /* ------------------------------------------------------------ splitters + toast */
@@ -911,7 +1397,7 @@ function dragger(handle, onMove) {
   });
 }
 dragger($('#vsplit'), e => {
-  const w = clamp(e.clientX, 180, Math.min(640, innerWidth - 400));
+  const w = clamp(e.clientX, 200, Math.min(640, innerWidth - 400));
   document.body.style.setProperty('--side-w', w + 'px'); store.set('sideW', w);
 });
 dragger($('#hsplit'), e => {
@@ -924,7 +1410,7 @@ let toastTimer;
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 })();
 </script>

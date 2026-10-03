@@ -22,6 +22,9 @@ older one. JDK 21 is enough: every standalone file compiles on it.
 """
 import os, re, subprocess, sys, tempfile, pathlib
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import javasrc  # noqa: E402  shared main()/package detection, also used by codeview
+
 for _s in (sys.stdout, sys.stderr):
     try:
         _s.reconfigure(encoding="utf-8", errors="replace")
@@ -126,7 +129,9 @@ def main():
             sys.exit(f"Not a file and no match found: {argv[0]}")
 
     text = src.read_text(encoding="utf-8", errors="replace")
-    mains = classes_with_main(text)
+    pkg, mains, public, compact = javasrc.analyse(text)
+    if compact:                        # JDK 25 file that is just `void main()`
+        mains = [src.stem]
 
     if list_only:
         print(f"  {src.name}")
@@ -136,18 +141,28 @@ def main():
     if not mains:
         sys.exit(f"No class in {src.name} declares a main() method - nothing to run.")
 
+    # A file that declares `package a.b;` needs the package root on the sourcepath and
+    # its fully qualified class name at run time - running the bare name fails.
+    srcpath = src.parent
+    for _ in (pkg.split(".") if pkg else []):
+        srcpath = srcpath.parent
     with tempfile.TemporaryDirectory(prefix="runjava_") as out:
+        compile_me = src
+        if public and public + ".java" != src.name:   # javac wants a public type in <Name>.java
+            compile_me = pathlib.Path(out) / "src" / (public + ".java")
+            compile_me.parent.mkdir()
+            compile_me.write_text(text, encoding="utf-8")
         c = subprocess.run([JAVAC, "-nowarn", "-encoding", "UTF-8", "-d", out,
-                            "-sourcepath", str(src.parent), str(src)],
+                            "-sourcepath", str(srcpath), str(compile_me)],
                            capture_output=True, text=True, errors="replace")
         if c.returncode != 0:
             sys.stderr.write(c.stderr or "")
             return c.returncode
-        cls = mains[0]
+        cls = javasrc.pick_main(mains, src.name)
         if len(mains) > 1:
             print(f"  ({len(mains)} classes have main; running '{cls}'. "
-                  f"Others: {', '.join(mains[1:])})")
-        r = subprocess.run([JAVA, "-cp", out, cls] + argv[1:])
+                  f"Others: {', '.join(m for m in mains if m != cls)})")
+        r = subprocess.run([JAVA, "-cp", out, (pkg + "." if pkg else "") + cls] + argv[1:])
         return r.returncode
 
 
