@@ -4,6 +4,7 @@ javasrc - just enough Java source analysis for runjava and codeview.
     analyse(src)            -> package, classes declaring main(), public type, compact-file flag
     pick_main(mains, name)  -> which of those classes to run for a file called `name`
     practice_skeleton(src)  -> the file with every solution method body replaced by a stub
+    practice_hints(src)     -> the header notes practice mode hides, gentlest first
 
 No parser: comments and literals are blanked out first, then braces are counted.
 That is reliable on this repo's 580 files (see tools/codeview's practice check)
@@ -11,6 +12,7 @@ but is not a general Java parser.
 """
 import pathlib
 import re
+import textwrap
 
 TYPE_DECL = re.compile(
     r"^[ \t]*((?:(?:public|protected|private|final|abstract|sealed|non-sealed|static|strictfp)\s+)*)"
@@ -214,24 +216,67 @@ def practice_skeleton(src):
     return hide_hints(out), hidden
 
 
-def hide_hints(src):
-    """Drop the APPROACH / KEY INSIGHT / COMPLEXITY / FOLLOW-UPS sections of the first
-    block comment, keeping PROBLEM, EXAMPLE and RUN."""
+def header_lines(src):
+    """-> (start, end, [(line, section title or None)]) for the first block comment, where
+    the title names the hidden section the line belongs to; (None, None, []) if no header."""
     start = src.find("/*")
     end = src.find("*/", start + 2) if start != -1 else -1
     if start == -1 or end == -1 or start > 400:
-        return src
-    lines, kept, hiding, noted = src[start:end].split("\n"), [], False, False
-    for line in lines:
+        return None, None, []
+    out, title = [], None
+    for line in src[start:end].split("\n"):
         if HIDDEN_SECTIONS.match(line):
-            hiding = True
-            if not noted:
-                kept.append(" *  The approach notes (APPROACH, KEY INSIGHT, COMPLEXITY, ...) are hidden in practice mode.")
-                kept.append(" *")
-                noted = True
+            title = " ".join(line.split("*", 1)[1].split())
+            out.append((line, title))
             continue
         if SHOWN_SECTIONS.match(line):
-            hiding = False
-        if not hiding:
+            title = None
+        out.append((line, title))
+    return start, end, out
+
+
+def hide_hints(src):
+    """Drop the APPROACH / KEY INSIGHT / COMPLEXITY / FOLLOW-UPS sections of the first
+    block comment, keeping PROBLEM, EXAMPLE and RUN."""
+    start, end, lines = header_lines(src)
+    if start is None:
+        return src
+    kept, noted = [], False
+    for line, title in lines:
+        if title is None:
             kept.append(line)
+        elif not noted:
+            kept.append(" *  The approach notes (APPROACH, KEY INSIGHT, COMPLEXITY, ...) are hidden in practice mode.")
+            kept.append(" *  The Hint button shows them one at a time.")
+            kept.append(" *")
+            noted = True
     return src[:start] + "\n".join(kept) + src[end:]
+
+
+# Hints come out gentlest first: the idea, then the method, then its cost. Sections in
+# none of these groups (follow-ups, gotchas, fixes) come last, in file order.
+HINT_ORDER = (("INTUITION", "KEY INSIGHT", "HOW TO REASON ABOUT IT", "WHAT TO NOTICE"),
+              ("APPROACH", "HOW IT WORKS", "SOLUTION", "DESIGN", "KEY DECISIONS", "ANSWER", "ROLES IN THIS CODE"),
+              ("COMPLEXITY",))
+
+
+def practice_hints(src):
+    """-> [{"title", "text"}]: exactly the header sections hide_hints drops, gentlest first."""
+    sections = []
+    for line, title in header_lines(src)[2]:
+        if title is None:
+            continue
+        if HIDDEN_SECTIONS.match(line):
+            sections.append({"title": title, "lines": []})
+        else:
+            sections[-1]["lines"].append(re.sub(r"^\s*\*", "", line).rstrip())
+
+    def rank(s):
+        key = HIDDEN_SECTIONS.match(" * " + s["title"]).group(1)
+        return next((i for i, group in enumerate(HINT_ORDER) if key in group), len(HINT_ORDER))
+
+    out = []
+    for s in sorted(sections, key=rank):
+        text = textwrap.dedent("\n".join(s["lines"])).strip("\n")
+        out.append({"title": s["title"], "text": text})
+    return out

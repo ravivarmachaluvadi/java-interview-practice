@@ -111,7 +111,7 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .row .cnt { color: var(--muted); font-size: 11px; }
 .row .star { color: #e0a100; font-size: 11px; }
 .row .st { font-size: 11px; font-weight: 700; }
-.row .st.done { color: var(--ok); } .row .st.revise { color: var(--warn); }
+.row .st.done { color: var(--ok); } .row .st.revise { color: var(--warn); } .row .st.due { color: var(--accent); }
 .row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex: none; display: none; }
 .row.drafted .dot { display: inline-block; }
 .tier, .ext { flex: none; font: 600 10px/1 var(--code); padding: 3px 4px; border-radius: 4px; min-width: 22px; text-align: center; }
@@ -144,6 +144,15 @@ main.out-collapsed { grid-template-rows: 42px auto minmax(0, 1fr) 4px 36px; }
 main > .bar { grid-row: 1; } main > .banner { grid-row: 2; } main > .stage { grid-row: 3; }
 main > .hsplit { grid-row: 4; } main > .out { grid-row: 5; }
 .bar { display: flex; align-items: center; gap: 8px; padding: 0 10px; border-bottom: 1px solid var(--border); min-width: 0; }
+/* Practice mode has up to ten buttons. When the editor column is narrow (a laptop screen,
+   or a wide file list), drop the badge and use short labels so Run stays on screen and the
+   file name stays readable. Measured 3 Oct: at 1100px wide the full bar pushed Run off. */
+main { container-type: inline-size; }
+.narrow { display: none; }
+@container (max-width: 1100px) {
+  .bar .badge, .wide { display: none; }
+  .narrow { display: inline; }
+}
 .crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .crumbs b { color: var(--text); font-weight: 600; }
 .badge { flex: none; font-size: 11px; border-radius: 99px; padding: 2px 8px; color: var(--muted); border: 1px solid var(--border); }
@@ -154,6 +163,11 @@ main > .hsplit { grid-row: 4; } main > .out { grid-row: 5; }
 .banner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border);
           background: color-mix(in srgb, var(--warn) 14%, var(--bg)); }
 .banner span { flex: 1; }
+.banner[data-kind="down"] { background: color-mix(in srgb, var(--bad) 16%, var(--bg)); }
+button.timer { font: 600 12px var(--code); min-width: 74px; }
+button.timer.paused { color: var(--muted); }
+button.timer.over { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
 .menu { position: absolute; top: 34px; right: 0; z-index: 25; min-width: 220px; padding: 4px; border-radius: 8px;
         background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25); }
 .menu button { display: flex; width: 100%; border: 0; justify-content: space-between; gap: 16px; height: 30px; }
@@ -161,6 +175,26 @@ main > .hsplit { grid-row: 4; } main > .out { grid-row: 5; }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .stage { position: relative; min-height: 0; }
 #editor { position: absolute; inset: 0; }
+/* compare: original solution | your attempt */
+#diffWrap { position: absolute; inset: 0; display: grid; grid-template-rows: 26px minmax(0, 1fr); }
+.diff-head { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel); border-bottom: 1px solid var(--border); }
+.diff-head span { padding: 6px 12px; font: 600 11px var(--ui); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+#diff { position: relative; min-height: 0; }
+/* hints, one at a time */
+/* the notes are hard-wrapped at 95 columns at most (measured 3 Oct), so 96ch of the code
+   font shows them as written; a narrower window still wraps */
+.hintcard {
+  position: absolute; right: 24px; bottom: 14px; z-index: 6; max-height: 62%;
+  font: 12px/1.55 var(--code); width: min(calc(96ch + 30px), calc(100% - 48px));
+  display: flex; flex-direction: column; border-radius: 10px; background: var(--panel);
+  border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25);
+}
+.hintcard header { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--border); font: 600 13px var(--ui); }
+.hintcard header span { flex: 1; }
+.hintcard .body { overflow: auto; padding: 2px 14px 12px; }
+.hintcard h4 { margin: 12px 0 4px; font: 600 11.5px var(--ui); letter-spacing: .05em; color: #7a4fd6; }
+.hintcard pre { margin: 0; white-space: pre-wrap; font: inherit; }
+.hintcard footer { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
 .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); padding: 24px; text-align: center; }
 .hsplit { cursor: row-resize; background: var(--border); }
 .hsplit:hover, .hsplit.live { background: var(--accent); }
@@ -266,6 +300,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
           <option value="todo">Show: not done yet</option>
           <option value="mustTodo">Show: ★ must-know, not done</option>
           <option value="revise">Show: to revise</option>
+          <option value="due">Show: due for review</option>
           <option value="done">Show: done</option>
         </select>
       </div>
@@ -295,7 +330,11 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <div class="tools">
       <button id="srcBtn" hidden title="Show the markdown source">Source</button>
       <button id="practiceBtn" hidden title="Hide the solution and write it yourself (Alt+P)">Practice</button>
+      <button id="timerBtn" class="timer" hidden></button>
+      <button id="hintBtn" hidden title="Show the hidden notes one at a time, gentlest first (Alt+H)">Hint</button>
+      <button id="compareBtn" hidden title="Your attempt next to the original solution, differences marked (Alt+C)">Compare</button>
       <button id="progBtn" hidden title="Mark this file done / to revise (Alt+M)">○ Mark done</button>
+      <button id="nextBtn" hidden title="Next problem to practise (Alt+J): reviews that are due first, then files to revise, then ★ must-know not done, then anything not done">Next ›</button>
       <button id="editBtn" title="Edit (Ctrl+E). Changes stay a draft until you Save.">Edit</button>
       <button id="saveBtn" hidden title="Write your edit to the file (Ctrl+S)">Save</button>
       <button id="resetBtn" hidden title="Throw away your edit">Reset</button>
@@ -309,6 +348,9 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <button data-act="copy">Copy whole file</button>
         <button data-act="reveal">Show in File Explorer</button>
         <button data-act="reload">Reload from disk</button>
+        <hr>
+        <button data-act="limit"><span id="limitLabel">Practice time limit: 30 min</span></button>
+        <button data-act="restartTimer">Restart the practice timer</button>
       </div>
       <select id="mainSel" hidden title="Which class's main() to run"></select>
       <select id="timeoutSel" title="Stop the program after">
@@ -321,7 +363,16 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="banner" id="banner" hidden><span id="bannerText"></span><span id="bannerBtns"></span></div>
   <div class="stage">
     <div id="editor"></div>
+    <div id="diffWrap" hidden>
+      <div class="diff-head"><span>Original solution</span><span>Your attempt</span></div>
+      <div id="diff"></div>
+    </div>
     <article class="md" id="md" hidden></article>
+    <div class="hintcard" id="hintCard" hidden>
+      <header><span id="hintTitle">Hint</span><button class="icon" id="hintClose" title="Close (the hints stay shown; Hint opens them again)">×</button></header>
+      <div class="body" id="hintBody"></div>
+      <footer><button id="hintNext">Show next hint</button></footer>
+    </div>
     <div class="msg" id="stageMsg">Loading the editor…</div>
   </div>
   <div class="hsplit" id="hsplit"></div>
@@ -349,6 +400,9 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Practice: compare your attempt with the solution</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next problem to practise</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
@@ -356,18 +410,21 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
-  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts are kept the same way. Done / Revise marks are saved on this PC in tools\codeview-state.json.</p>
+  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts, their timer and the hints you opened are kept the same way. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
+  <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
 <div class="toast" id="toast"></div>
 
-<!-- marked must load before Monaco's AMD loader, or it registers as an AMD module instead of a global -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+<!-- marked must load before Monaco's AMD loader, or it registers as an AMD module instead of a global.
+     The server fills in this PC's copy (tools/offline.py) once it has one, else cdnjs. -->
+<script src="__CV_MARKED__"></script>
+<script src="__CV_MONACO__/vs/loader.js"></script>
 <script>
 (() => {
 'use strict';
-const MONACO = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+const MONACO = new URL('__CV_MONACO__', location.href).href.replace(/\/$/, '');   // absolute: the worker needs it
+const MONACO_LOCAL = MONACO.startsWith(location.origin + '/');
 const PAGE_VERSION = '__CV_VERSION__';      // filled in by the server; compared with /api/info
 const SCRATCH = 'scratch';
 const SCRATCH_TEMPLATE = `// Scratch pad: kept in this browser, never written to a file.
@@ -402,6 +459,8 @@ const encPath = p => p.split('/').map(encodeURIComponent).join('/');
 const norm = s => s.trim().replace(/\s+/g, ' ');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const qs = o => new URLSearchParams(o).toString();
+/* a label with a shorter form for a narrow bar (see .wide / .narrow in the CSS) */
+const wideNarrow = (wide, narrow) => `<span class="wide">${wide}</span><span class="narrow">${narrow}</span>`;
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /* Show the keys a Mac user presses: Cmd for Ctrl, Option for Alt (the handlers accept both). */
 function macKeys() {
@@ -420,6 +479,7 @@ const S = {
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
+  hintsFor: new Map(), comparing: false, fresh: null,
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
 let editor = null;
@@ -429,7 +489,8 @@ async function api(url, body) {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CodeView': '1' }, body: JSON.stringify(body),
   };
   let r;
-  try { r = await fetch(url, opt); } catch { throw new Error('Cannot reach the Code Viewer server. Is it still running?'); }
+  try { r = await fetch(url, opt); } catch { serverGone(); throw new Error('Cannot reach the Code Viewer server. Is it still running?'); }
+  serverBack();
   let j;
   try { j = await r.json(); } catch { throw new Error('Server answered ' + r.status); }
   if (!r.ok && r.status !== 409) throw new Error(j.error || 'Server answered ' + r.status);
@@ -438,6 +499,30 @@ async function api(url, body) {
 }
 const keyOf = p => p === SCRATCH ? SCRATCH : S.root + '/' + p;
 const rootObj = () => S.roots.find(r => r.id === S.root) || S.roots[0];
+
+/* The server stopped (Quit, or ended from outside - both happened on 3 Oct). Say so at
+   once, with how to start it, instead of failing quietly until the next click. */
+let down = false, downPoll = null, updateShown = false;
+function serverGone() {
+  if (down) return;
+  down = true;
+  const how = (S.info.platform || 'win32') === 'win32'
+    ? 'press the Windows key, type Code Viewer, press Enter' : 'run tools/codeview again in a terminal';
+  showBanner(`Code Viewer has stopped, so Run, Save and the file list do not work. To start it: ${how}. `
+             + 'This tab reconnects by itself and keeps your drafts.', [['Check now', pingServer]], 'down');
+  downPoll = setInterval(pingServer, 5000);
+}
+function serverBack() {
+  if (!down) return;
+  down = false;
+  clearInterval(downPoll);
+  $('#banner').hidden = true; $('#banner').dataset.kind = '';
+  toast('Code Viewer is running again');
+  updateShown = false;            // it may have come back as a newer version
+  checkVersion();
+  refreshFromDisk();
+}
+async function pingServer() { try { await api('/api/info'); } catch {} }
 
 /* ------------------------------------------------------------ layout prefs + theme */
 document.body.style.setProperty('--side-w', store.get('sideW', 310) + 'px');
@@ -487,7 +572,10 @@ require(['vs/editor/editor.main'], async () => {
   $('#stageMsg').hidden = true;
   route();
 }, err => {
-  $('#stageMsg').textContent = 'Could not load the editor from cdnjs.cloudflare.com. This page needs internet access. (' + (err && err.message || err) + ')';
+  $('#stageMsg').textContent = (MONACO_LOCAL
+    ? 'Could not load the editor from this PC\'s offline copy. Delete the CodeViewer\\vendor folder and restart Code Viewer to download it again.'
+    : 'Could not load the editor from cdnjs.cloudflare.com, so this page needs internet for now. Code Viewer keeps its own copy once it has started once with internet.')
+    + ' (' + (err && err.message || err) + ')';
 });
 window.addEventListener('hashchange', route);
 
@@ -579,6 +667,18 @@ async function loadProgress() {
 }
 const statusOf = path => (S.progress[path] || {}).s;
 const isJava = f => f.name.endsWith('.java');
+/* Spaced review: a file marked done is due again after 3 days; each time it is solved
+   again in practice mode (the server counts these as r) the gap grows to 7, 21, 60. */
+const REVIEW_DAYS = [3, 7, 21, 60];
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const daysSince = day => Math.round((Date.parse(ymd(new Date())) - Date.parse(day)) / 86400000);
+function dueIn(path) {            // days until a review is due (0 or less: due now); null if not done
+  const e = S.progress[path];
+  if (!e || e.s !== 'done' || !e.t) return null;
+  return REVIEW_DAYS[Math.min(e.r || 0, REVIEW_DAYS.length - 1)] - daysSince(e.t);
+}
+const isDue = path => { const d = dueIn(path); return d !== null && d <= 0; };
+const mmss = ms => { const s = Math.floor(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 function visible(f) {
   const st = statusOf(f.path);
   switch (S.show) {
@@ -586,6 +686,7 @@ function visible(f) {
     case 'todo': return isJava(f) && st !== 'done';
     case 'mustTodo': return !!f.must && st !== 'done';
     case 'revise': return st === 'revise';
+    case 'due': return isDue(f.path);
     case 'done': return st === 'done';
     default: return true;
   }
@@ -648,8 +749,11 @@ function fileRow(f, depth, pinned) {
 }
 function fileInner(f, pinned) {
   if (pinned) return '<span class="ext"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" style="vertical-align:-1px"><path d="M11 2.5l2.5 2.5L6 12.5 3 13l.5-3z"/></svg></span><span class="nm">Scratch pad</span><span class="dot"></span>';
-  const st = statusOf(f.path);
-  const stHtml = st === 'done' ? '<span class="st done" title="Done">✓</span>' : st === 'revise' ? '<span class="st revise" title="To revise">↻</span>' : '';
+  const st = statusOf(f.path), e = S.progress[f.path] || {}, due = dueIn(f.path);
+  const best = e.best != null ? ` · best time ${mmss(e.best * 1000)}` : '';
+  const stHtml = st === 'done' && due !== null && due <= 0 ? `<span class="st due" title="Due for review: done ${daysSince(e.t)} days ago${best}">◷</span>`
+    : st === 'done' ? `<span class="st done" title="Done ${esc(e.t || '')}${best}${due === null ? '' : ` · review in ${due} day${due === 1 ? '' : 's'}`}">✓</span>`
+    : st === 'revise' ? '<span class="st revise" title="To revise">↻</span>' : '';
   const tail = stHtml + (f.must ? '<span class="star" title="Must-know">★</span>' : '') + '<span class="dot" title="Unsaved edit or practice attempt"></span>';
   const m = f.name.match(/^([A-D])(\d\d)_(.+?)(?:\.java)?$/);
   if (m) return `<span class="tier ${m[1]}" title="${TIER[m[1]]}">${m[1]}${m[2]}</span><span class="nm">${esc(m[3])}</span>` + tail;
@@ -657,16 +761,18 @@ function fileInner(f, pinned) {
   return `<span class="ext">${esc(ext.slice(0, 4))}</span><span class="nm">${esc(f.name)}</span>` + tail;
 }
 function renderFooter() {
-  let java = 0, done = 0, must = 0, mustDone = 0, rev = 0;
+  let java = 0, done = 0, must = 0, mustDone = 0, rev = 0, due = 0;
   for (const f of S.files) {
     const st = statusOf(f.path);
     if (isJava(f)) { java++; if (st === 'done') done++; }
     if (f.must) { must++; if (st === 'done') mustDone++; }
     if (st === 'revise') rev++;
+    if (isDue(f.path)) due++;
   }
   const r = rootObj();
   $('#count').innerHTML = java
     ? `Done <b>${done}</b>/${java}` + (must ? ` · ★ must-know <b>${mustDone}</b>/${must}` : '') + ` · to revise <b>${rev}</b>`
+      + (due ? ` · <span title="Due for review (◷ in the list)">due <b>${due}</b></span>` : '')
     : `${S.files.length} files in ${esc(r ? r.name : '')}`;
 }
 $('#tree').addEventListener('click', e => {
@@ -695,9 +801,9 @@ function markActive(scroll = true) {
 }
 $('#showSel').addEventListener('change', e => { S.show = e.target.value; store.set('show', S.show); renderTree(); });
 
-async function setProgress(path, status, pass) {
+async function setProgress(path, status, pass, extra = {}) {
   try {
-    const entry = await api('/api/progress', { root: S.root, path, status, pass });
+    const entry = await api('/api/progress', { root: S.root, path, status, pass, ...extra });
     delete entry._status;
     if (Object.keys(entry).length) S.progress[path] = entry; else delete S.progress[path];
     renderTree();
@@ -713,7 +819,6 @@ function cycleProgress() {
 }
 
 /* Code Viewer itself was updated since this tab loaded: offer a reload (drafts survive it) */
-let updateShown = false;
 async function checkVersion() {
   if (updateShown) return;
   try {
@@ -920,6 +1025,9 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
+  editor.addCommand(K.Alt | C.KeyH, hintButton);
+  editor.addCommand(K.Alt | C.KeyC, toggleCompare);
+  editor.addCommand(K.Alt | C.KeyJ, nextProblem);
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
 }
@@ -1003,7 +1111,9 @@ function setMode(k, m) { S.modes.set(k, m); if (m === 'file') store.del('mode:' 
 async function openPath(path) {
   const token = S.pending = {};
   saveView();
+  closeCompare(false);
   hideBanner();
+  $('#hintCard').hidden = true;
   if (path === SCRATCH) {
     S.cur = { path: SCRATCH, key: SCRATCH, name: 'Scratch pad', kind: 'java', mode: 'file' };
     showEditor(scratchModel());
@@ -1022,6 +1132,13 @@ async function openPath(path) {
   S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
   if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
   if (S.pending !== token) return;
+  if (S.fresh === k) {               // a review opened by Next: start over if the last attempt was solved
+    S.fresh = null;
+    if (S.cur.mode === 'practice' && timerOf(k).solved) {
+      restartAttempt(k);
+      toast('Review: a fresh attempt with a new timer. Ctrl+Z brings back your last solution.');
+    }
+  }
   if (S.cur.mode === 'file') {
     if (kind === 'md' && !source) renderMd(path, d.text);
     else showEditor(modelFor(k, d.text, LANG[ext] || 'plaintext'));
@@ -1054,6 +1171,7 @@ async function showPractice(token) {
         return false;
       }
       S.skeletons.set(k, r.text);
+      S.hintsFor.set(k, r.hints || []);
     }
     if (token && S.pending !== token) return false;
     m = monaco.editor.createModel(store.get('practice:' + k, null) ?? S.skeletons.get(k), 'java');
@@ -1070,6 +1188,7 @@ async function showPractice(token) {
 async function togglePractice() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || c.path === SCRATCH) return;
+  closeCompare(false);
   saveView();
   if (c.mode === 'practice') {
     c.mode = 'file'; setMode(c.key, 'file');
@@ -1124,11 +1243,11 @@ function refreshBar() {
   $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
   const pb = $('#practiceBtn');
   pb.hidden = c.kind !== 'java' || isScratch;
-  pb.textContent = practice ? 'Show solution' : 'Practice';
+  pb.innerHTML = practice ? wideNarrow('Show solution', 'Solution') : 'Practice';
   pb.classList.toggle('practice-on', practice);
   const st = statusOf(c.path), gb = $('#progBtn');
   gb.hidden = isScratch;
-  gb.textContent = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ Mark done';
+  gb.innerHTML = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ ' + wideNarrow('Mark done', 'Done');
   gb.className = st === 'done' ? 'good' : st === 'revise' ? 'warnb' : '';
   $('#editBtn').hidden = isScratch || practice || rendered;
   $('#editBtn').textContent = S.editing.has(c.key) ? 'Lock' : 'Edit';
@@ -1136,6 +1255,13 @@ function refreshBar() {
   $('#saveBtn').hidden = isScratch || practice || rendered || !drafted;
   $('#resetBtn').hidden = rendered || !drafted;
   $('#runBtn').disabled = c.kind !== 'java' || S.running;
+  const cb = $('#compareBtn');
+  cb.hidden = !practice;
+  cb.textContent = S.comparing ? 'Close compare' : 'Compare';
+  cb.classList.toggle('on', S.comparing);
+  $('#nextBtn').hidden = !S.files.some(isJava);
+  paintTimer();
+  paintHints();
   const mains = S.mains.get(viewKey()), sel = $('#mainSel');
   sel.hidden = !(mains && mains.length > 1);
   if (!sel.hidden) {
@@ -1175,15 +1301,185 @@ async function save(force) {
 }
 function resetDraft() {
   const c = S.cur;
-  const m = c.path === SCRATCH ? S.models.get(SCRATCH) : c.mode === 'practice' ? S.pmodels.get(c.key) : S.models.get(c.key);
-  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : c.mode === 'practice' ? S.skeletons.get(c.key) : S.originals.get(c.key);
+  if (c.mode === 'practice') {
+    restartAttempt(c.key);
+    return toast('Practice reset to the blank version, with a new timer and the hints hidden again. Ctrl+Z brings the code back.');
+  }
+  const m = c.path === SCRATCH ? S.models.get(SCRATCH) : S.models.get(c.key);
+  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : S.originals.get(c.key);
   if (!m || orig == null) return;
+  replaceAll(m, orig);
+  toast('Edit thrown away. Ctrl+Z undoes it.');
+}
+/* as one undoable edit, so Ctrl+Z brings the old text back */
+function replaceAll(m, text) {
   m.pushStackElement();
-  m.pushEditOperations([], [{ range: m.getFullModelRange(), text: orig }], () => null);
+  m.pushEditOperations([], [{ range: m.getFullModelRange(), text }], () => null);
   m.pushStackElement();
   monaco.editor.setModelMarkers(m, 'javac', []);
-  toast(c.mode === 'practice' ? 'Practice reset to the blank version. Ctrl+Z undoes it.' : 'Edit thrown away. Ctrl+Z undoes it.');
 }
+
+/* ------------------------------------------------------------ practice: timer, hints, compare, next */
+/* The timer counts while the file is open in practice mode and this tab is visible, and
+   stops when the attempt is solved. Kept per file in this browser, so a reload keeps it. */
+const LIMITS = [15, 20, 30, 45, 60, 0];          // minutes; 0 = no limit
+let limitMin = store.get('timerLimit', 30);
+const timerOf = k => store.get('timer:' + k, { ms: 0, paused: false, solved: false });
+const setTimer = (k, t) => store.set('timer:' + k, t);
+let lastTick = Date.now(), overToastFor = null;
+setInterval(() => {
+  const now = Date.now(), dt = Math.min(now - lastTick, 2000);   // a sleeping laptop is not practice time
+  lastTick = now;
+  const c = S.cur;
+  if (!c || c.mode !== 'practice' || document.visibilityState !== 'visible') return;
+  const t = timerOf(c.key);
+  if (t.paused || t.solved) return;
+  t.ms += dt;
+  setTimer(c.key, t);
+  paintTimer();
+}, 1000);
+function paintTimer() {
+  const c = S.cur, b = $('#timerBtn');
+  b.hidden = !c || c.mode !== 'practice';
+  if (b.hidden) return;
+  const t = timerOf(c.key), over = !!limitMin && t.ms >= limitMin * 60000;
+  b.innerHTML = (t.solved ? '✓ ' : t.paused ? '⏸ ' : '⏱ ') + mmss(t.ms)
+    + (limitMin && !t.solved ? `<span class="wide"> / ${limitMin}:00</span>` : '');
+  b.className = 'timer' + (t.solved ? ' solved' : over ? ' over' : t.paused ? ' paused' : '');
+  b.title = t.solved ? `Solved in ${mmss(t.ms)}. Reset starts a new attempt with a new timer.`
+    : `Practice timer: click to ${t.paused ? 'resume' : 'pause'}. The time limit is in the ⋯ menu.`;
+  if (over && !t.solved && !t.paused && overToastFor !== c.key) {
+    overToastFor = c.key;
+    toast(`Time is up: ${limitMin} minutes. Keep going, or take a hint.`);
+  }
+}
+$('#timerBtn').onclick = () => {
+  const c = S.cur; if (!c) return;
+  const t = timerOf(c.key);
+  if (t.solved) return toast('Solved. Reset starts a new attempt with a new timer.');
+  t.paused = !t.paused; setTimer(c.key, t); paintTimer();
+};
+function paintLimit() { $('#limitLabel').textContent = 'Practice time limit: ' + (limitMin ? limitMin + ' min' : 'none'); }
+paintLimit();
+
+/* Hints: the header notes practice mode hides, one at a time, gentlest first (the server
+   orders them: KEY INSIGHT, then APPROACH, then COMPLEXITY, then follow-ups). */
+const hintCount = k => store.get('hints:' + k, 0);
+const hintList = () => (S.cur && S.hintsFor.get(S.cur.key)) || [];
+function paintHints() {
+  const c = S.cur, list = hintList(), btn = $('#hintBtn'), card = $('#hintCard');
+  const on = !!c && c.mode === 'practice' && list.length > 0;
+  btn.hidden = !on;
+  if (!on) { card.hidden = true; return; }
+  const n = Math.min(hintCount(c.key), list.length);
+  btn.textContent = n ? `Hints ${n}/${list.length}` : 'Hint';
+  btn.classList.toggle('on', !card.hidden);
+  if (card.hidden) return;
+  $('#hintTitle').textContent = `Hint ${n} of ${list.length}`;
+  const body = $('#hintBody');
+  body.textContent = '';
+  for (const h of list.slice(0, n)) {
+    const t = document.createElement('h4'); t.textContent = h.title;
+    const p = document.createElement('pre'); p.textContent = h.text;
+    body.append(t, p);
+  }
+  $('#hintNext').disabled = n >= list.length;
+  $('#hintNext').textContent = n >= list.length ? 'No more hints' : 'Show next hint';
+  body.scrollTop = body.scrollHeight;
+}
+/* the first press shows hint 1; after that the button only opens and closes the card, so
+   a stray click never gives away more than you asked for */
+function hintButton() {
+  const c = S.cur;
+  if (!c || c.mode !== 'practice' || !hintList().length) return;
+  if (!hintCount(c.key)) return nextHint();
+  $('#hintCard').hidden = !$('#hintCard').hidden;
+  paintHints();
+}
+function nextHint() {
+  const c = S.cur, list = hintList();
+  if (!c || !list.length) return;
+  store.set('hints:' + c.key, Math.min(hintCount(c.key) + 1, list.length));
+  $('#hintCard').hidden = false;
+  paintHints();
+}
+$('#hintBtn').onclick = hintButton;
+$('#hintNext').onclick = nextHint;
+$('#hintClose').onclick = () => { $('#hintCard').hidden = true; paintHints(); };
+
+/* A new attempt: blank code (one undoable edit), timer back to zero, hints hidden again. */
+function restartAttempt(k) {
+  const m = S.pmodels.get(k), blank = S.skeletons.get(k);
+  if (m && blank != null && m.getValue() !== blank) replaceAll(m, blank);
+  store.del('timer:' + k); store.del('hints:' + k);
+  overToastFor = null;
+  $('#hintCard').hidden = true;
+  paintTimer(); paintHints();
+}
+
+/* Compare: the original solution next to your attempt. The right side is the attempt
+   itself, so it stays editable and Run still runs it. */
+let diffEditor = null, diffOrig = null;
+function toggleCompare() { if (S.comparing) closeCompare(); else openCompare(); }
+function openCompare() {
+  const c = S.cur, attempt = c && S.pmodels.get(c.key);
+  if (!c || c.mode !== 'practice' || !attempt) return;
+  if (!diffEditor) {
+    diffEditor = monaco.editor.createDiffEditor($('#diff'), {
+      automaticLayout: true, renderSideBySide: true, originalEditable: false, ignoreTrimWhitespace: true,
+      hideUnchangedRegions: { enabled: true, contextLineCount: 3, minimumLineCount: 5, revealLineCount: 20 },
+      fontFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace", fontSize: S.font, lineHeight: 1.6,
+      minimap: { enabled: false }, scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 }, tabSize: 4,
+      wordWrap: S.wrap ? 'on' : 'off',
+    });
+  }
+  saveView();
+  diffOrig = monaco.editor.createModel(S.originals.get(c.key), 'java');
+  diffEditor.setModel({ original: diffOrig, modified: attempt });
+  diffEditor.updateOptions({ fontSize: S.font, wordWrap: S.wrap ? 'on' : 'off' });
+  S.comparing = true;
+  $('#editor').hidden = true; $('#diffWrap').hidden = false;
+  refreshBar();
+  diffEditor.getModifiedEditor().focus();
+}
+function closeCompare(restore = true) {
+  if (!S.comparing) return;
+  S.comparing = false;
+  $('#diffWrap').hidden = true;
+  diffEditor.setModel(null);                 // detach first: the attempt model must outlive the view
+  if (diffOrig) { diffOrig.dispose(); diffOrig = null; }
+  if (restore) { $('#editor').hidden = false; editor.layout(); editor.focus(); }
+  refreshBar();
+}
+$('#compareBtn').onclick = toggleCompare;
+
+/* Next: due reviews first, then files to revise, then must-know not done, then anything
+   not done, each searched from the file after this one in list order. Opens in practice. */
+function nextProblem() {
+  const java = S.files.filter(isJava);
+  if (!java.length) return toast('No Java files in this folder.');
+  const cur = S.cur && S.cur.path !== SCRATCH ? S.cur.path : null;
+  const at = cur ? java.findIndex(f => f.path === cur) : -1;
+  const order = java.slice(at + 1).concat(java.slice(0, Math.max(at, 0)));
+  const rules = [
+    [f => isDue(f.path), 'due for review'],
+    [f => statusOf(f.path) === 'revise', 'marked to revise'],
+    [f => f.must && statusOf(f.path) !== 'done', '★ must-know, not done yet'],
+    [f => statusOf(f.path) !== 'done', 'not done yet'],
+  ];
+  for (const [test, why] of rules) {
+    const f = order.find(test);
+    if (!f) continue;
+    const k = keyOf(f.path);
+    setMode(k, 'practice');
+    if (why === 'due for review') S.fresh = k;
+    go(f.path);
+    toast(`Next: ${f.name.replace(/\.java$/, '')} (${why})`);
+    return;
+  }
+  toast('Nothing left here: every Java file is done and none is due for review yet.');
+}
+$('#nextBtn').onclick = nextProblem;
 function showBanner(text, actions, kind = '') {
   $('#bannerText').textContent = text;
   const box = $('#bannerBtns'); box.textContent = '';
@@ -1191,8 +1487,8 @@ function showBanner(text, actions, kind = '') {
   $('#banner').dataset.kind = kind;
   $('#banner').hidden = false;
 }
-/* the "updated, reload" bar stays until the reload; other bars go when you move on */
-function hideBanner() { if ($('#banner').dataset.kind !== 'update') $('#banner').hidden = true; }
+/* the "updated, reload" and "stopped" bars stay until they are resolved; others go when you move on */
+function hideBanner() { if (!['update', 'down'].includes($('#banner').dataset.kind)) $('#banner').hidden = true; }
 
 /* ------------------------------------------------------------ markdown */
 function renderMd(path, text) {
@@ -1259,8 +1555,15 @@ async function run() {
   if (practice && res.phase === 'run') {
     const { pass, fail, unchecked } = res.checks || { pass: 0, fail: 0, unchecked: 0 };
     if (res.ok && pass && !fail && !unchecked) {
-      await setProgress(c.path, 'done', true);
-      toast(`Solved: all ${pass} cases match. Marked done ✓`);
+      const t = timerOf(c.key);
+      if (t.solved) return toast(`Still solved: all ${pass} cases match.`);   // counted once per attempt
+      const hints = Math.min(hintCount(c.key), (S.hintsFor.get(c.key) || []).length);
+      t.solved = true; t.paused = false;
+      setTimer(c.key, t);
+      await setProgress(c.path, 'done', true, { secs: Math.round(t.ms / 1000), hints });
+      paintTimer();
+      toast(`Solved in ${mmss(t.ms)}` + (hints ? ` with ${hints} hint${hints > 1 ? 's' : ''}` : '')
+            + `: all ${pass} cases match. Marked done ✓`);
     } else {
       setProgress(c.path, null, false);
       if (res.ok && pass && !fail && unchecked)
@@ -1360,14 +1663,22 @@ function lineLink(text, n) {
 }
 
 /* ------------------------------------------------------------ toolbar, menu, keys */
-function toggleWrap() { S.wrap = !S.wrap; store.set('wrap', S.wrap); editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' }); }
+function toggleWrap() {
+  S.wrap = !S.wrap; store.set('wrap', S.wrap);
+  editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
+  if (diffEditor) diffEditor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
+}
 function toggleMinimap() {
   S.minimap = !S.minimap; store.set('minimap', S.minimap);
   editor.updateOptions({ minimap: { enabled: S.minimap, renderCharacters: false } });
   $('#minimapLabel').textContent = S.minimap ? 'Hide minimap' : 'Show minimap';
 }
 $('#minimapLabel').textContent = S.minimap ? 'Hide minimap' : 'Show minimap';
-function setFont(d) { S.font = clamp(S.font + d, 10, 26); store.set('font', S.font); editor.updateOptions({ fontSize: S.font }); }
+function setFont(d) {
+  S.font = clamp(S.font + d, 10, 26); store.set('font', S.font);
+  editor.updateOptions({ fontSize: S.font });
+  if (diffEditor) diffEditor.updateOptions({ fontSize: S.font });
+}
 $('#editBtn').onclick = toggleEdit;
 $('#saveBtn').onclick = () => save();
 $('#resetBtn').onclick = resetDraft;
@@ -1398,6 +1709,18 @@ $('#menu').addEventListener('click', async e => {
       break;
     case 'reload':
       if (c && c.path !== SCRATCH) { S.treeSig = ''; await loadTree(); renderTree(); openPath(c.path); toast('Reloaded from disk'); }
+      break;
+    case 'limit':
+      limitMin = LIMITS[(LIMITS.indexOf(limitMin) + 1) % LIMITS.length];
+      store.set('timerLimit', limitMin);
+      overToastFor = null;
+      paintLimit(); paintTimer();
+      toast(limitMin ? `Practice time limit: ${limitMin} minutes` : 'No practice time limit');
+      break;
+    case 'restartTimer':
+      if (!c || c.mode !== 'practice') { toast('The timer runs in practice mode (Alt+P).'); break; }
+      store.del('timer:' + c.key); overToastFor = null; paintTimer();
+      toast('Practice timer restarted');
       break;
   }
 });
@@ -1438,7 +1761,10 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
   else if (e.altKey && e.code === 'KeyM') { e.preventDefault(); cycleProgress(); }
   else if (e.altKey && e.code === 'KeyN') { e.preventDefault(); toggleMinimap(); }
-  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; }
+  else if (e.altKey && e.code === 'KeyH') { e.preventDefault(); hintButton(); }
+  else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
+  else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); nextProblem(); }
+  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
 });
 
 /* ------------------------------------------------------------ splitters + toast */

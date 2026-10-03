@@ -19,41 +19,58 @@ THE PAGE
   Edit/Save  Edit (Ctrl+E) changes a draft kept in the browser; Save (Ctrl+S) writes it
              to the file. New file (+) creates one from a template
   Practice   hides the solution bodies and the APPROACH notes; when every expected line
-             matches, the file is marked done
-  Progress   mark each file Done or Revise; counts per folder and overall
+             matches, the file is marked done. While practising: a timer (limit in the
+             menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and
+             Compare (Alt+C) puts your attempt next to the original solution
+  Progress   mark each file Done or Revise; counts per folder and overall. A done file
+             comes back for review after 3, 7, 21 and 60 days (◷ in the list); Next (Alt+J)
+             opens due reviews first, then to-revise, then must-know not done
   Folders    the folder menu opens any other folder, not just this repo
+  Offline    the editor and markdown libraries are downloaded once (tools/offline.py), so
+             the page works without internet after the first start with it
+  Stopped?   an open tab says so at once, with how to start it again
 
 Runs Java the same way as runjava: compile to a temp folder, then run whichever class
 declares main(), so the filename never matters. Newest installed JDK, not JAVA_HOME.
 
 STATE: progress and the folder list live in tools/codeview-state.json (git-ignored,
-backed up by OneDrive). Drafts and practice attempts live in the browser.
+backed up by OneDrive). Drafts, practice attempts, their timers and opened hints live in
+the browser.
+
+LOG: tools/codeview.log (git-ignored) has a line when it starts (with what started it),
+when it stops and why, and any error. A start with no stop before the next start means
+something outside ended it; the next start says so. Tray Quit asks before stopping.
+
+TESTS: python tools/test_codeview.py
 
 SECURITY: this executes code and writes files, so it listens on 127.0.0.1 only, and
 every request must carry this server's own Host; anything that changes something also
 needs the page's X-CodeView header and a same-origin Origin. A web page you happen to
 visit cannot make it run or write anything.
 """
-import argparse, hashlib, json, os, pathlib, re, shutil, subprocess, sys, tempfile, threading, time
-import urllib.request, webbrowser
+import argparse, atexit, hashlib, json, logging, logging.handlers, os, pathlib, re, shutil, subprocess, sys
+import tempfile, threading, time, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 import javasrc  # noqa: E402  main()/package detection and practice skeletons
+import offline  # noqa: E402  local copy of the page's editor + markdown libraries
 import outcheck  # noqa: E402  ticks and crosses for "actual   expected X" output lines
 from runjava import JAVA, JAVAC  # noqa: E402  same newest-JDK pick as the CLI runner
 
 PAGE = HERE / "codeview.html"
 ICON = HERE / "codeview.ico"
 STATE_FILE = pathlib.Path(os.environ.get("CODEVIEW_STATE") or HERE / "codeview-state.json")
+LOG_FILE = pathlib.Path(os.environ.get("CODEVIEW_LOG") or HERE / "codeview.log")
 # A page loaded before an update keeps running its old JavaScript (seen 3 Oct: Run still
 # showed the old crosses). The page carries the version it was served with and compares
 # it with /api/info, so it can offer a reload. Server code counts as of this start-up.
 SERVER_CODE = hashlib.sha1(b"".join((HERE / n).read_bytes() for n in
-                                    ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py"))).hexdigest()
+                                    ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py",
+                                     "offline.py"))).hexdigest()
 
 
 def page_version(html):
@@ -82,6 +99,119 @@ STARTUP_LNK = pathlib.Path(os.environ.get("APPDATA", "")) / \
 def autostart_on():
     """True/False on Windows; None where start-at-login is not supported."""
     return STARTUP_LNK.exists() if IS_WIN else None
+
+
+# ---------------------------------------------------------------- log
+# On 3 Oct it vanished twice and nothing said why. The log has one line when it starts,
+# one when it stops and why, and any error. A start with no matching stop means
+# something outside ended it, and the next start says so.
+
+log = logging.getLogger("codeview")
+_stop_logged = False
+
+
+def setup_log():
+    if any(isinstance(h, logging.handlers.RotatingFileHandler) for h in log.handlers):
+        return
+    try:
+        h = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=200_000, backupCount=1, encoding="utf-8")
+    except OSError:
+        return                                   # no log is better than no viewer
+    h.setFormatter(logging.Formatter("%(asctime)s pid %(process)d %(message)s", "%Y-%m-%d %H:%M:%S"))
+    log.addHandler(h)
+    log.setLevel(logging.INFO)
+    log.propagate = False
+
+
+def unclosed_run(text):
+    """(pid, started at) of the last run in the log if it never logged a stop, else None."""
+    last = None
+    for line in text.splitlines():
+        m = re.match(r"(\S+ \S+) pid (\d+) (started|stopped)\b", line)
+        if m and m.group(3) == "started":
+            last = (m.group(2), m.group(1))
+        elif m and last and m.group(2) == last[0]:
+            last = None
+    return last
+
+
+def process_name(pid):
+    """The executable name of a process, or '' when it has gone or cannot be read."""
+    if IS_WIN:
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        k32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                                   ctypes.POINTER(wintypes.DWORD))
+        k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        h = k32.OpenProcess(0x1000, False, pid)            # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ""
+        try:
+            buf, size = ctypes.create_unicode_buffer(1024), wintypes.DWORD(1024)
+            ok = k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size))
+            return pathlib.Path(buf.value).name if ok else ""
+        finally:
+            k32.CloseHandle(h)
+    try:
+        return pathlib.Path(f"/proc/{pid}/comm").read_text().strip()
+    except OSError:
+        return ""
+
+
+def boot_time():
+    """When this PC last booted (seconds since the epoch), or None."""
+    try:
+        if IS_WIN:
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            k32.GetTickCount64.restype = ctypes.c_ulonglong
+            return time.time() - k32.GetTickCount64() / 1000
+        with open("/proc/stat") as fh:
+            for line in fh:
+                if line.startswith("btime"):
+                    return float(line.split()[1])
+    except (OSError, AttributeError, ValueError):
+        pass
+    return None
+
+
+def log_start(port, mode):
+    try:
+        prev = unclosed_run(LOG_FILE.read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        prev = None
+    boot = boot_time()
+    booted = time.strftime("%Y-%m-%d %H:%M", time.localtime(boot)) if boot else "unknown"
+    if prev:
+        log.info(f"note: the previous run (pid {prev[0]}, started {prev[1]}) never logged a stop, so "
+                 f"something outside ended it: another program, sign-out or shutdown. "
+                 f"This PC last booted {booted}.")
+    ppid = os.getppid()
+    log.info(f"started  {mode}  port {port}  parent {process_name(ppid) or '?'} (pid {ppid})  "
+             f"python {sys.version.split()[0]}  booted {booted}")
+    atexit.register(log_stop, "exited")
+
+
+def log_stop(reason):
+    global _stop_logged
+    if not _stop_logged:
+        _stop_logged = True
+        log.info(f"stopped: {reason}")
+
+
+def log_crashes():
+    """Uncaught errors go to the log: under pythonw there is no console to print them."""
+    def main_thread(kind, err, tb):
+        log.error("crashed", exc_info=(kind, err, tb))
+        log_stop("crashed (the error is above)")
+
+    def other_thread(a):
+        name = a.thread.name if a.thread else "?"
+        log.error(f"thread {name} crashed", exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+    sys.excepthook, threading.excepthook = main_thread, other_thread
 
 
 # ---------------------------------------------------------------- state: folders + progress
@@ -145,11 +275,23 @@ class State:
     def progress(self, rid):
         return self.data["progress"].get(self.root(rid)["path"], {})
 
-    def set_progress(self, rid, rel, status, practice_pass=None):
+    def set_progress(self, rid, rel, status, practice_pass=None, secs=None, hints=None):
+        """Entry keys: s done/revise, t date marked, r reviews passed since first done,
+        practiced/pass last practice run, secs/best/hints the last and best solve."""
         key = self.root(rid)["path"]
+        secs, hints = whole(secs, "secs", 7 * 86400), whole(hints, "hints", 100)
         with self.lock:
             files = self.data["progress"].setdefault(key, {})
             entry = files.get(rel, {})
+            if status == "done" and entry.get("s") == "done" and practice_pass:
+                entry["r"] = entry.get("r", 0) + 1      # solved again: one more review passed
+            elif status in ("revise", "none") or (status == "done" and entry.get("s") != "done"):
+                entry.pop("r", None)
+            if practice_pass and secs is not None:
+                entry["secs"] = secs
+                entry["best"] = min(secs, entry.get("best", secs))
+            if practice_pass and hints is not None:
+                entry["hints"] = hints
             if status in ("done", "revise"):
                 entry["s"] = status
                 entry["t"] = time.strftime("%Y-%m-%d")
@@ -164,6 +306,19 @@ class State:
                 files.pop(rel, None)
             self.save()
             return entry
+
+
+def whole(v, what, most):
+    """None, or a whole number 0..most sent by the page; ValueError for anything else."""
+    if v is None:
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what} must be a whole number") from None
+    if not 0 <= n <= most:
+        raise ValueError(f"{what} must be between 0 and {most}")
+    return n
 
 
 STATE = State()
@@ -495,19 +650,37 @@ def jdk_version():
 
 # ---------------------------------------------------------------- HTTP
 
+VENDOR_TYPES = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+                ".ttf": "font/ttf", ".json": "application/json", ".svg": "image/svg+xml"}
+
+
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if not isinstance(sys.exc_info()[1], ConnectionError):   # a closed tab is not an error
+            log.exception("request failed")
+
+
+def make_server(port):
+    server = Server(("127.0.0.1", port), Handler)
+    port = server.server_address[1]
+    server.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    server.jdk = jdk_version()
+    return server
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "codeview"
 
     def log_message(self, fmt, *args):
         pass
 
-    def send(self, code, body, ctype="text/plain; charset=utf-8"):
+    def send(self, code, body, ctype="text/plain; charset=utf-8", cache="no-store"):
         if isinstance(body, str):
             body = body.encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(body)
@@ -527,8 +700,15 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if u.path == "/":
                 html = PAGE.read_bytes()
-                return self.send(200, html.replace(b"__CV_VERSION__", page_version(html).encode()),
-                                 "text/html; charset=utf-8")
+                body = (html.replace(b"__CV_VERSION__", page_version(html).encode())
+                        .replace(b"__CV_MONACO__", offline.url_for(offline.MONACO).encode())
+                        .replace(b"__CV_MARKED__", offline.url_for(offline.MARKED).encode()))
+                return self.send(200, body, "text/html; charset=utf-8")
+            if u.path.startswith("/vendor/"):
+                p = offline.path_for(unquote(u.path[len("/vendor/"):]))
+                # versioned paths never change, so the browser may keep them
+                return self.send(200, p.read_bytes(), VENDOR_TYPES.get(p.suffix, "application/octet-stream"),
+                                 "public, max-age=31536000, immutable")
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
                                        "autostart": autostart_on(), "platform": sys.platform})
@@ -541,7 +721,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/practice":
                 text = read_file(rid, q.get("path", ""))["text"]
                 skeleton, hidden = javasrc.practice_skeleton(text)
-                return self.send_json({"text": skeleton, "hidden": hidden})
+                return self.send_json({"text": skeleton, "hidden": hidden, "hints": javasrc.practice_hints(text)})
             if u.path == "/api/progress":
                 return self.send_json(STATE.progress(rid))
             if u.path == "/api/search":
@@ -575,7 +755,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
             if path == "/api/progress":
-                return self.send_json(STATE.set_progress(rid, req["path"], req.get("status"), req.get("pass")))
+                return self.send_json(STATE.set_progress(rid, req["path"], req.get("status"), req.get("pass"),
+                                                         req.get("secs"), req.get("hints")))
             if path == "/api/roots":
                 if req.get("action") == "remove":
                     STATE.remove_root(req.get("id", ""))
@@ -673,17 +854,45 @@ def set_autostart(enabled):
         STARTUP_LNK.unlink()
 
 
+def confirm_quit():
+    """Windows: Yes / No first, with No as the default button, because one stray click on
+    Quit stopped the page on 3 Oct. Elsewhere it quits straight away."""
+    if not IS_WIN:
+        return True
+    import ctypes
+    flags = 0x4 | 0x20 | 0x100 | 0x10000 | 0x40000   # YESNO, QUESTION, DEFBUTTON2, SETFOREGROUND, TOPMOST
+    text = ("Stop Code Viewer?\n\nThe page stops working until you start it again: "
+            "press the Windows key, type Code Viewer, press Enter.")
+    return ctypes.windll.user32.MessageBoxW(None, text, "Code Viewer", flags) == 6   # IDYES
+
+
+def quit_from_tray(icon, server, ask=confirm_quit):
+    if not ask():
+        log.info("quit cancelled")
+        return
+    log_stop("Quit from the tray menu")
+    icon.stop()
+    server.shutdown()
+
+
 def run_tray(server, url, open_browser):
     try:
         import pystray
         from PIL import Image
     except ImportError:
+        log_stop("the tray icon needs pystray and Pillow")
         sys.exit("The tray icon needs pystray and Pillow:  pip install pystray pillow")
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    tray = {}
 
-    def quit_(icon, _item):
-        icon.stop()
-        server.shutdown()
+    def serve():
+        try:
+            server.serve_forever()
+        except Exception:                                  # noqa: BLE001 - logged, then the icon goes too
+            log.exception("the web server failed")
+            log_stop("the web server failed (the error is above)")
+            if "icon" in tray:
+                tray["icon"].stop()
+    threading.Thread(target=serve, daemon=True).start()
 
     def toggle_autostart(icon, _item):
         set_autostart(not STARTUP_LNK.exists())
@@ -699,9 +908,10 @@ def run_tray(server, url, open_browser):
         pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
                          visible=IS_WIN),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Quit Code Viewer", quit_))
+        pystray.MenuItem("Quit Code Viewer…", lambda icon, _item: quit_from_tray(icon, server)))
     image = Image.open(ICON) if ICON.exists() else draw_icon()
-    pystray.Icon("codeview", image, f"Code Viewer - {url}", menu).run(setup=setup)
+    tray["icon"] = pystray.Icon("codeview", image, f"Code Viewer - {url}", menu)
+    tray["icon"].run(setup=setup)
 
 
 def main():
@@ -723,8 +933,10 @@ def main():
         set_autostart(a.autostart == "on")
         print(f"  start with Windows: {'on' if autostart_on() else 'off'}  ({STARTUP_LNK})")
         return
+    setup_log()
     if already_running(a.port):
         url = f"http://127.0.0.1:{a.port}/"
+        log.info(f"second launch: already running at {url}" + ("" if a.no_open else ", opened a tab"))
         print(f"codeview is already running at {url} - opening it.")
         if not a.no_open:
             webbrowser.open(url)
@@ -733,16 +945,18 @@ def main():
     server = None
     for port in range(a.port, a.port + 10):
         try:
-            server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+            server = make_server(port)
             break
         except OSError:
             continue
     if server is None:
+        log.info(f"could not start: ports {a.port}-{a.port + 9} are all busy")
         sys.exit(f"Ports {a.port}-{a.port + 9} are all busy.")
     port = server.server_address[1]
-    server.allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
-    server.jdk = jdk_version()
     url = f"http://127.0.0.1:{port}/"
+    log_crashes()
+    log_start(port, "tray" if a.tray else "console")
+    threading.Thread(target=offline.ensure, args=(log.info,), name="offline-copy", daemon=True).start()
     if a.tray:
         return run_tray(server, url, not a.no_open)
 
@@ -755,6 +969,7 @@ def main():
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        log_stop("Ctrl+C")
         print("stopped")
 
 
