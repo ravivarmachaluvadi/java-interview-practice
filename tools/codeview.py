@@ -49,6 +49,15 @@ from runjava import JAVA, JAVAC  # noqa: E402  same newest-JDK pick as the CLI r
 PAGE = HERE / "codeview.html"
 ICON = HERE / "codeview.ico"
 STATE_FILE = pathlib.Path(os.environ.get("CODEVIEW_STATE") or HERE / "codeview-state.json")
+# A page loaded before an update keeps running its old JavaScript (seen 3 Oct: Run still
+# showed the old crosses). The page carries the version it was served with and compares
+# it with /api/info, so it can offer a reload. Server code counts as of this start-up.
+SERVER_CODE = hashlib.sha1(b"".join((HERE / n).read_bytes() for n in
+                                    ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py"))).hexdigest()
+
+
+def page_version(html):
+    return hashlib.sha1(html + SERVER_CODE.encode()).hexdigest()[:12]
 # Started from the tray (pythonw) there is no console, so every javac/java run would
 # flash a new console window. This flag suppresses that; it is 0 off Windows.
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -517,9 +526,11 @@ class Handler(BaseHTTPRequestHandler):
         rid = q.get("root", "")
         try:
             if u.path == "/":
-                return self.send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+                html = PAGE.read_bytes()
+                return self.send(200, html.replace(b"__CV_VERSION__", page_version(html).encode()),
+                                 "text/html; charset=utf-8")
             if u.path == "/api/info":
-                return self.send_json({"jdk": self.server.jdk, "repo": REPO.name,
+                return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
                                        "autostart": autostart_on(), "platform": sys.platform})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())

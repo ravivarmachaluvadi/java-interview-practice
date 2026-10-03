@@ -366,6 +366,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 (() => {
 'use strict';
 const MONACO = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min';
+const PAGE_VERSION = '__CV_VERSION__';      // filled in by the server; compared with /api/info
 const SCRATCH = 'scratch';
 const SCRATCH_TEMPLATE = `// Scratch pad: kept in this browser, never written to a file.
 // Ctrl+Enter compiles and runs it. JDK 25 lets a file be just a main() method.
@@ -709,9 +710,24 @@ function cycleProgress() {
   toast(next === 'done' ? 'Marked done ✓' : next === 'revise' ? 'Marked to revise ↻' : 'Mark cleared');
 }
 
+/* Code Viewer itself was updated since this tab loaded: offer a reload (drafts survive it) */
+let updateShown = false;
+async function checkVersion() {
+  if (updateShown) return;
+  try {
+    const i = await api('/api/info');
+    if (i.version && i.version !== PAGE_VERSION) {
+      updateShown = true;
+      showBanner('Code Viewer was updated since this tab opened. Reload to use the new version - your drafts are kept.',
+                 [['Reload now', () => location.reload()]], 'update');
+    }
+  } catch {}
+}
+
 /* auto-refresh: files added, renamed or edited elsewhere show up without a reload */
 async function refreshFromDisk() {
   if (document.visibilityState !== 'visible' || !S.root || !editor) return;
+  checkVersion();
   try { if (await loadTree()) renderTree(); } catch { return; }
   const c = S.cur;
   if (!c || c.path === SCRATCH || c.mode === 'practice' || hasDraft(c)) return;
@@ -1165,13 +1181,15 @@ function resetDraft() {
   monaco.editor.setModelMarkers(m, 'javac', []);
   toast(c.mode === 'practice' ? 'Practice reset to the blank version. Ctrl+Z undoes it.' : 'Edit thrown away. Ctrl+Z undoes it.');
 }
-function showBanner(text, actions) {
+function showBanner(text, actions, kind = '') {
   $('#bannerText').textContent = text;
   const box = $('#bannerBtns'); box.textContent = '';
   for (const [label, fn] of actions) { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; box.append(b, ' '); }
+  $('#banner').dataset.kind = kind;
   $('#banner').hidden = false;
 }
-function hideBanner() { $('#banner').hidden = true; }
+/* the "updated, reload" bar stays until the reload; other bars go when you move on */
+function hideBanner() { if ($('#banner').dataset.kind !== 'update') $('#banner').hidden = true; }
 
 /* ------------------------------------------------------------ markdown */
 function renderMd(path, text) {
@@ -1214,6 +1232,7 @@ async function run() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || S.running || !editor) return;
   const vk = viewKey(), model = editor.getModel(), practice = c.mode === 'practice';
+  checkVersion();
   S.running = true;
   refreshBar();
   $('#main').classList.remove('out-collapsed');
