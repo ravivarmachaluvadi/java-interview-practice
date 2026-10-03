@@ -46,6 +46,9 @@ body {
   grid-template-rows: 44px minmax(0, 1fr);
 }
 body.dragging { user-select: none; cursor: grabbing; }
+aside.side { grid-column: 1; grid-row: 2; } .vsplit { grid-column: 2; grid-row: 2; } main { grid-column: 3; grid-row: 2; }
+body.side-collapsed { grid-template-columns: 0 0 minmax(0, 1fr); }
+body.side-collapsed aside.side, body.side-collapsed .vsplit { display: none; }
 [hidden] { display: none !important; }
 
 button, select {
@@ -223,6 +226,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 </head>
 <body>
 <header class="top">
+  <button class="icon" id="sideBtn" title="Hide / show the file list (Ctrl+B)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg></button>
   <div class="brand"><span class="logo">{ }</span>Code Viewer</div>
   <span class="pill" id="jdk">JDK …</span>
   <span class="spacer"></span>
@@ -339,6 +343,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 <div class="help" id="help" hidden>
   <h3>Shortcuts</h3>
   <table>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Hide / show the file list</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Find a file by name</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
@@ -444,6 +449,17 @@ function applyTheme() {
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 applyTheme();
+
+/* ------------------------------------------------------------ collapsible file list */
+function setSide(collapsed) {
+  document.body.classList.toggle('side-collapsed', collapsed);
+  $('#sideBtn').classList.toggle('on', !collapsed);
+  store.set('sideCollapsed', collapsed);
+}
+const toggleSide = () => setSide(!document.body.classList.contains('side-collapsed'));
+setSide(store.get('sideCollapsed', false));
+$('#sideBtn').onclick = toggleSide;
+$('#vsplit').addEventListener('dblclick', () => setSide(true));
 
 /* ------------------------------------------------------------ boot */
 const boot = (async () => {
@@ -712,7 +728,7 @@ setInterval(refreshFromDisk, 20000);
 
 /* ------------------------------------------------------------ filter (Ctrl+P) */
 const filter = $('#filter');
-function focusFilter() { showTab('files'); filter.focus(); filter.select(); }
+function focusFilter() { setSide(false); showTab('files'); filter.focus(); filter.select(); }
 filter.addEventListener('input', doFilter);
 filter.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -763,6 +779,7 @@ document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click
   if (b.dataset.tab === 'search') $('#sq').focus();
 }));
 function openSearch() {
+  setSide(false);
   showTab('search');
   const sel = editor && editor.getModel() && editor.getModel().getValueInRange(editor.getSelection());
   if (sel && !sel.includes('\n') && sel.length < 80) $('#sq').value = sel;
@@ -816,7 +833,8 @@ function openNewPanel() {
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 }
-$('#newBtn').onclick = () => { if ($('#newPanel').hidden) openNewPanel(); else $('#newPanel').hidden = true; };
+$('#newBtn').onclick = () => {
+  setSide(false); if ($('#newPanel').hidden) openNewPanel(); else $('#newPanel').hidden = true; };
 $('#newPath').addEventListener('keydown', async e => {
   if (e.key === 'Escape') { $('#newPanel').hidden = true; return; }
   if (e.key !== 'Enter') return;
@@ -878,6 +896,7 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | C.KeyE, toggleEdit);
   editor.addCommand(K.CtrlCmd | C.KeyS, save);
   editor.addCommand(K.CtrlCmd | C.KeyP, focusFilter);
+  editor.addCommand(K.CtrlCmd | C.KeyB, toggleSide);
   editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
   editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
@@ -1386,6 +1405,7 @@ document.addEventListener('keydown', e => {
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
   if (mod && e.shiftKey && k === 'f') { e.preventDefault(); openSearch(); }
   else if (mod && k === 'p') { e.preventDefault(); focusFilter(); }
+  else if (mod && k === 'b') { e.preventDefault(); toggleSide(); }
   else if (mod && k === 'enter') { e.preventDefault(); run(); }
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
   else if (mod && k === 's') { e.preventDefault(); save(); }

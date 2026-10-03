@@ -79,7 +79,7 @@ It opens http://127.0.0.1:8025:
 
 | Feature | How |
 |---|---|
-| Read | every file in a tree, coloured as in IntelliJ; `Ctrl+P` finds a file by name |
+| Read | every file in a tree, coloured as in IntelliJ; `Ctrl+P` finds a file by name; `Ctrl+B` hides the tree |
 | Run | `Ctrl+Enter` compiles like `runjava` and ticks each `expected` line that matches |
 | Practice | hides the solution bodies and approach notes; all cases passing marks the file done |
 | Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* |
