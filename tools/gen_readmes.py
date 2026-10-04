@@ -3,7 +3,7 @@ import pathlib
 Run AFTER phase 3 (final names). Writes 01-DSA, 02-Java-Core, 03-LLD, 04-HLD-System-Design READMEs
 and refreshes the AAScratches/README.md map table.
 """
-import json, re, pathlib, sys
+import json, re, pathlib, subprocess, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from check_headers import parse_header, ROOT
 SCR = pathlib.Path(__file__).resolve().parent
@@ -11,6 +11,25 @@ MK = json.loads((SCR / "mustknow.json").read_text(encoding="utf-8"))
 
 # One-line "what is here" per topic folder (edit freely).
 DESC = {
+    "01-DSA/00-Patterns/01-Arrays-Prefix-Sums": "Patterns: prefix sums and maps, difference arrays, Kadane, cyclic sort, voting, partitions, two-pass, reversal, matrix tricks.",
+    "01-DSA/00-Patterns/02-Two-Pointers": "Patterns: opposite ends on sorted input, palindromes, read/write filters, walking two sequences.",
+    "01-DSA/00-Patterns/03-Sliding-Window": "Patterns: fixed windows, frequency-match windows, longest and shortest variable windows, counting with the at-most trick.",
+    "01-DSA/00-Patterns/04-Hashing": "Patterns: complement lookup, frequency counts and canonical keys, HashSet run detection.",
+    "01-DSA/00-Patterns/05-Binary-Search": "Patterns: boundaries, rotated arrays, searching the answer (minimise and maximise), peaks, matrices, index predicates, two-array partitions.",
+    "01-DSA/00-Patterns/06-Linked-List": "Patterns: fast and slow pointers, in-place reversal, dummy heads, gap pointers, deep copy with a map.",
+    "01-DSA/00-Patterns/07-Stack-Queue-Monotonic": "Patterns: matching stacks, next greater, histogram boundaries, greedy removal, expressions, stack simulation, monotonic deque.",
+    "01-DSA/00-Patterns/08-Heap-TreeMap": "Patterns: top-k, k-way merge, two heaps, heap scheduling, TreeMap floor and ceiling.",
+    "01-DSA/00-Patterns/09-Intervals": "Patterns: merge by start, keep the most by end, sweep line for maximum overlap.",
+    "01-DSA/00-Patterns/10-Trees": "Patterns: traversals, level BFS, bottom-up and top-down DFS, two-tree recursion, BST rules, LCA, build and serialize, views, tree as graph, tree DP.",
+    "01-DSA/00-Patterns/11-Trie": "Patterns: trie basics, trie-guided grid search, bit trie for XOR.",
+    "01-DSA/00-Patterns/12-Graphs": "Patterns: flood fill, components, BFS over states, multi-source BFS, topological sort, colouring, union-find, Dijkstra, Bellman-Ford and Floyd, MST, bridges and SCC.",
+    "01-DSA/00-Patterns/13-Backtracking": "Patterns: subsets, permutations, combination sums, constraint placement, grid paths, string partitions and generation.",
+    "01-DSA/00-Patterns/14-Dynamic-Programming": "Patterns: take or skip, prefix DP, 0/1 and unbounded knapsack, LIS, two-string DP, regex, grid, palindrome, interval, state machine, job scheduling, bitmask.",
+    "01-DSA/00-Patterns/15-Greedy": "Patterns: reachability, sort and pair, running balance, boundaries and two passes.",
+    "01-DSA/00-Patterns/16-Math-Bits": "Patterns: XOR tricks, bit masks and counting, sieve, fast power, gcd.",
+    "01-DSA/00-Patterns/17-Design": "Patterns: LRU and LFU caches, O(1) structure combos, versioned and time-window maps, iterators.",
+    "01-DSA/00-Patterns/18-String-Algorithms": "Patterns: KMP prefix function, rolling hash, careful parsing.",
+    "01-DSA/00-Patterns/19-Range-Queries": "Patterns: Fenwick tree with merge-sort counting, segment tree with lazy propagation.",
     "01-DSA/01-Arrays": "Prefix sums, Kadane, cyclic sort, in-place tricks, rotations.",
     "01-DSA/02-Two-Pointers-Sliding-Window": "Fixed and variable windows, opposite-end pointers, longest or shortest subarray and substring.",
     "01-DSA/03-Binary-Search": "Classic, rotated arrays, lower and upper bound, binary search on the answer space.",
@@ -45,7 +64,8 @@ DESC = {
     "04-HLD-System-Design/code": "Building blocks you can be asked to sketch: ID generator, wide-column store, Merkle tree, erasure coding.",
 }
 NOTES = {
-    "01-DSA": [("DSA memory keypoints", "notes/DSA_Memory_Keypoints.md"), ("DSA memory keypoints II", "notes/DSA_Memory_Keypoints_II.md"),
+    "01-DSA": [("Pattern recognition map (start here)", "notes/Pattern_Recognition_Map.md"),
+               ("DSA memory keypoints", "notes/DSA_Memory_Keypoints.md"), ("DSA memory keypoints II", "notes/DSA_Memory_Keypoints_II.md"),
                ("Classic 150 roadmap", "roadmaps/Classic_150_Roadmap.md"), ("Atlassian question list", "roadmaps/Atlassian_Question_List.md"),
                ("LeetCode 500 links", "roadmaps/LeetCode_500_Links.md")],
     "02-Java-Core": [("Core Java Q&A", "notes/Core_Java_QA.md"), ("Java 9 to 21 Q&A", "notes/Java_9_to_21_QA.md"), ("Java 8 Streams Q&A", "notes/Java8_Streams_QA.md"),
@@ -56,7 +76,7 @@ NOTES = {
 }
 TITLES = {"01-DSA": "DSA practice", "02-Java-Core": "Java Core", "03-LLD": "Low-Level Design", "04-HLD-System-Design": "HLD and System Design"}
 INTRO = {
-    "01-DSA": "Every solved problem, grouped by technique. Inside a folder the filename order **is** the practice order: `A` building blocks, `B` easy, `C` medium, `D` hard, numbered by dependency. Open any file: the header tells you the problem, the approach, the one insight to remember, and the follow-ups; `main()` runs the cases.",
+    "01-DSA": "Start with `00-Patterns`: 110 files, one per pattern, each saying how to recognise the pattern, giving its template, solving one classic problem and coding its variants beside it. The [pattern recognition map](notes/Pattern_Recognition_Map.md) maps problem wording to the right file. The numbered topic folders hold every other solved problem, grouped by technique; inside them the filename order **is** the practice order: `A` building blocks, `B` easy, `C` medium, `D` hard, numbered by dependency. Open any file: the header tells you the problem, the approach, the one insight to remember, and the follow-ups; `main()` runs the cases.",
     "02-Java-Core": "Language and JVM demos, one runnable file each, plus interview Q&A notes.",
     "03-LLD": "The GoF patterns, classic LLD interview problems, and data structures built from scratch. Each pattern file maps every class to its pattern role in the header.",
     "04-HLD-System-Design": "System design notes and a few building blocks in code.",
@@ -65,10 +85,23 @@ INTRO = {
 def link(rel):
     return rel.replace(" ", "%20")
 
+def tracked_java(top):
+    """The .java files git knows about (committed or staged) under top, so untracked work in
+    progress never reaches a committed README. None if git is unavailable."""
+    r = subprocess.run(["git", "ls-files", "--", top], capture_output=True, text=True, cwd=str(ROOT))
+    if r.returncode != 0:
+        return None
+    return {line for line in r.stdout.splitlines() if line.endswith(".java")}
+
 def gen(top):
     topdir = ROOT / top
     folders = {}
+    known = tracked_java(top)
+    if known is None:
+        print(f"{top}: git ls-files failed; listing every file on disk, tracked or not")
     for p in sorted(topdir.rglob("*.java")):
+        if known is not None and p.relative_to(ROOT).as_posix() not in known:
+            continue
         f = p.relative_to(ROOT).as_posix().rsplit("/", 1)[0]
         folders.setdefault(f, []).append(p)
     lines = [f"# {TITLES[top]}", "", INTRO[top], ""]
@@ -111,7 +144,7 @@ def gen(top):
             lines += ["", "**Worth adding next:**", ""] + [f"- {g['problem']}: {g['technique']}" for g in hi]
         lines.append("")
     lines += ["`*` = must-know. Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch.", ""]
-    (topdir / "README.md").write_text("\n".join(lines), encoding="utf-8")
+    (topdir / "README.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
     print(f"{top}: {total} files, {total_mk} must-know, {len(folders)} folders")
 
 if __name__ == "__main__":

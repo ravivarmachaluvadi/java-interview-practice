@@ -1,9 +1,10 @@
 # DSA practice
 
-Every solved problem, grouped by technique. Inside a folder the filename order **is** the practice order: `A` building blocks, `B` easy, `C` medium, `D` hard, numbered by dependency. Open any file: the header tells you the problem, the approach, the one insight to remember, and the follow-ups; `main()` runs the cases.
+Start with `00-Patterns`: 110 files, one per pattern, each saying how to recognise the pattern, giving its template, solving one classic problem and coding its variants beside it. The [pattern recognition map](notes/Pattern_Recognition_Map.md) maps problem wording to the right file. The numbered topic folders hold every other solved problem, grouped by technique; inside them the filename order **is** the practice order: `A` building blocks, `B` easy, `C` medium, `D` hard, numbered by dependency. Open any file: the header tells you the problem, the approach, the one insight to remember, and the follow-ups; `main()` runs the cases.
 
 ## Notes
 
+- [Pattern recognition map (start here)](notes/Pattern_Recognition_Map.md)
 - [DSA memory keypoints](notes/DSA_Memory_Keypoints.md)
 - [DSA memory keypoints II](notes/DSA_Memory_Keypoints_II.md)
 - [Classic 150 roadmap](roadmaps/Classic_150_Roadmap.md)
@@ -14,6 +15,25 @@ Every solved problem, grouped by technique. Inside a folder the filename order *
 
 | Folder | Files | Must-know | What is here |
 |---|---|---|---|
+| [00-Patterns/01-Arrays-Prefix-Sums](00-Patterns/01-Arrays-Prefix-Sums/) | 10 | 4 | Patterns: prefix sums and maps, difference arrays, Kadane, cyclic sort, voting, partitions, two-pass, reversal, matrix tricks. |
+| [00-Patterns/02-Two-Pointers](00-Patterns/02-Two-Pointers/) | 4 | 2 | Patterns: opposite ends on sorted input, palindromes, read/write filters, walking two sequences. |
+| [00-Patterns/03-Sliding-Window](00-Patterns/03-Sliding-Window/) | 5 | 5 | Patterns: fixed windows, frequency-match windows, longest and shortest variable windows, counting with the at-most trick. |
+| [00-Patterns/04-Hashing](00-Patterns/04-Hashing/) | 3 | 3 | Patterns: complement lookup, frequency counts and canonical keys, HashSet run detection. |
+| [00-Patterns/05-Binary-Search](00-Patterns/05-Binary-Search/) | 8 | 4 | Patterns: boundaries, rotated arrays, searching the answer (minimise and maximise), peaks, matrices, index predicates, two-array partitions. |
+| [00-Patterns/06-Linked-List](00-Patterns/06-Linked-List/) | 5 | 3 | Patterns: fast and slow pointers, in-place reversal, dummy heads, gap pointers, deep copy with a map. |
+| [00-Patterns/07-Stack-Queue-Monotonic](00-Patterns/07-Stack-Queue-Monotonic/) | 7 | 5 | Patterns: matching stacks, next greater, histogram boundaries, greedy removal, expressions, stack simulation, monotonic deque. |
+| [00-Patterns/08-Heap-TreeMap](00-Patterns/08-Heap-TreeMap/) | 5 | 3 | Patterns: top-k, k-way merge, two heaps, heap scheduling, TreeMap floor and ceiling. |
+| [00-Patterns/09-Intervals](00-Patterns/09-Intervals/) | 3 | 2 | Patterns: merge by start, keep the most by end, sweep line for maximum overlap. |
+| [00-Patterns/10-Trees](00-Patterns/10-Trees/) | 12 | 5 | Patterns: traversals, level BFS, bottom-up and top-down DFS, two-tree recursion, BST rules, LCA, build and serialize, views, tree as graph, tree DP. |
+| [00-Patterns/11-Trie](00-Patterns/11-Trie/) | 2 | 1 | Patterns: trie basics, trie-guided grid search, bit trie for XOR. |
+| [00-Patterns/12-Graphs](00-Patterns/12-Graphs/) | 11 | 6 | Patterns: flood fill, components, BFS over states, multi-source BFS, topological sort, colouring, union-find, Dijkstra, Bellman-Ford and Floyd, MST, bridges and SCC. |
+| [00-Patterns/13-Backtracking](00-Patterns/13-Backtracking/) | 6 | 3 | Patterns: subsets, permutations, combination sums, constraint placement, grid paths, string partitions and generation. |
+| [00-Patterns/14-Dynamic-Programming](00-Patterns/14-Dynamic-Programming/) | 13 | 6 | Patterns: take or skip, prefix DP, 0/1 and unbounded knapsack, LIS, two-string DP, regex, grid, palindrome, interval, state machine, job scheduling, bitmask. |
+| [00-Patterns/15-Greedy](00-Patterns/15-Greedy/) | 4 | 1 | Patterns: reachability, sort and pair, running balance, boundaries and two passes. |
+| [00-Patterns/16-Math-Bits](00-Patterns/16-Math-Bits/) | 3 | 0 | Patterns: XOR tricks, bit masks and counting, sieve, fast power, gcd. |
+| [00-Patterns/17-Design](00-Patterns/17-Design/) | 4 | 1 | Patterns: LRU and LFU caches, O(1) structure combos, versioned and time-window maps, iterators. |
+| [00-Patterns/18-String-Algorithms](00-Patterns/18-String-Algorithms/) | 3 | 0 | Patterns: KMP prefix function, rolling hash, careful parsing. |
+| [00-Patterns/19-Range-Queries](00-Patterns/19-Range-Queries/) | 2 | 0 | Patterns: Fenwick tree with merge-sort counting, segment tree with lazy propagation. |
 | [01-Arrays](01-Arrays/) | 37 | 11 | Prefix sums, Kadane, cyclic sort, in-place tricks, rotations. |
 | [02-Two-Pointers-Sliding-Window](02-Two-Pointers-Sliding-Window/) | 29 | 10 | Fixed and variable windows, opposite-end pointers, longest or shortest subarray and substring. |
 | [03-Binary-Search](03-Binary-Search/) | 21 | 6 | Classic, rotated arrays, lower and upper bound, binary search on the answer space. |
@@ -34,7 +54,282 @@ Every solved problem, grouped by technique. Inside a folder the filename order *
 | [18-Sorting-Searching-Algorithms](18-Sorting-Searching-Algorithms/) | 14 | 5 | Sorting algorithm implementations, quick select, KMP, Rabin-Karp, segment tree. |
 | [19-Design-Data-Structures](19-Design-Data-Structures/) | 18 | 6 | LeetCode design problems: LRU and LFU cache, min stack, hit counter, time-based KV store. |
 | [20-Scenario-Based-Problems](20-Scenario-Based-Problems/) | 13 | 4 | Real-world style questions from Karat, Atlassian and onsite rounds: logs, votes, ratings, distances. |
-| **Total** | **490** | **152** | |
+| **Total** | **600** | **206** | |
+
+## 00-Patterns/01-Arrays-Prefix-Sums
+
+Patterns: prefix sums and maps, difference arrays, Kadane, cyclic sort, voting, partitions, two-pass, reversal, matrix tricks.
+
+**Do these first:** [P002_PrefixSumHashMap.java](00-Patterns/01-Arrays-Prefix-Sums/P002_PrefixSumHashMap.java), [P004_KadaneBestEndingHere.java](00-Patterns/01-Arrays-Prefix-Sums/P004_KadaneBestEndingHere.java), [P005_CyclicSortIndexAsHash.java](00-Patterns/01-Arrays-Prefix-Sums/P005_CyclicSortIndexAsHash.java), [P008_PrefixSuffixTwoPasses.java](00-Patterns/01-Arrays-Prefix-Sums/P008_PrefixSuffixTwoPasses.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P001_PrefixSumRangeQuery.java](00-Patterns/01-Arrays-Prefix-Sums/P001_PrefixSumRangeQuery.java) | P001 Prefix Sum: Range Query | Canonical LC 303 / Easy | A range sum is the difference of two running totals, so one O(n) pass buys O(1) for every later query. |
+| [P002_PrefixSumHashMap.java](00-Patterns/01-Arrays-Prefix-Sums/P002_PrefixSumHashMap.java) * | P002 Prefix Sum + HashMap | Canonical LC 560 / Medium | "Subarray sums to k" is "two prefix sums differ by k", so the question becomes a two-sum lookup on prefix sums. |
+| [P003_DifferenceArray.java](00-Patterns/01-Arrays-Prefix-Sums/P003_DifferenceArray.java) | P003 Difference Array: Range Updates | Canonical LC 1109 / Medium | The difference array is the inverse of the prefix sum: a range update touches only its two endpoints, and one final prefix pass rebuilds every value. |
+| [P004_KadaneBestEndingHere.java](00-Patterns/01-Arrays-Prefix-Sums/P004_KadaneBestEndingHere.java) * | P004 Kadane: Best Subarray Ending Here | Canonical LC 53 / Medium | A prefix with a negative sum can only hurt whatever follows it, so drop it the moment it goes negative. |
+| [P005_CyclicSortIndexAsHash.java](00-Patterns/01-Arrays-Prefix-Sums/P005_CyclicSortIndexAsHash.java) * | P005 Cyclic Sort: Index as Hash | Canonical LC 448 / Easy | When values live in 1..n the array can be its own hash table: index v - 1 is the bucket for v. |
+| [P006_BoyerMooreVoting.java](00-Patterns/01-Arrays-Prefix-Sums/P006_BoyerMooreVoting.java) | P006 Boyer-Moore Voting | Canonical LC 169 / Easy | Removing two DIFFERENT values never changes which value is the majority of what is left. |
+| [P007_ThreeWayPartition.java](00-Patterns/01-Arrays-Prefix-Sums/P007_ThreeWayPartition.java) | P007 Three-Way Partition (Dutch Flag) | Canonical LC 75 / Medium | Every step shrinks the unknown region by one, so it is a single pass. |
+| [P008_PrefixSuffixTwoPasses.java](00-Patterns/01-Arrays-Prefix-Sums/P008_PrefixSuffixTwoPasses.java) * | P008 Prefix / Suffix Two Passes | Canonical LC 238 / Medium | "Everything except i" = "everything left of i" combined with "everything right of i". |
+| [P009_ReverseTricks.java](00-Patterns/01-Arrays-Prefix-Sums/P009_ReverseTricks.java) | P009 Reverse Tricks: Rotate, Next Permutation | Canonical LC 189 / Medium | Reversal is its own inverse and composes nicely: reversing the whole and then each block swaps the blocks while keeping their insides in order, all with O(1) memory. |
+| [P010_MatrixInPlace.java](00-Patterns/01-Arrays-Prefix-Sums/P010_MatrixInPlace.java) | P010 Matrix Traversal and In-Place Tricks | Canonical LC 54 / Medium | Grid problems become simple once you name the invariant: for spiral it is the four shrinking bounds; for rotation it is "rotate = transpose + mirror"; for in-place updates it is "store the new value somewhere the old val |
+
+## 00-Patterns/02-Two-Pointers
+
+Patterns: opposite ends on sorted input, palindromes, read/write filters, walking two sequences.
+
+**Do these first:** [P011_OppositeEndsSorted.java](00-Patterns/02-Two-Pointers/P011_OppositeEndsSorted.java), [P013_ReadWriteFilter.java](00-Patterns/02-Two-Pointers/P013_ReadWriteFilter.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P011_OppositeEndsSorted.java](00-Patterns/02-Two-Pointers/P011_OppositeEndsSorted.java) * | P011 Two Pointers: Opposite Ends on Sorted | Canonical LC 167 / Medium | When a[lo] + a[hi] is too small, a[lo] cannot pair with ANY remaining value (a[hi] is the biggest left), so discarding it loses nothing. |
+| [P012_PalindromePointers.java](00-Patterns/02-Two-Pointers/P012_PalindromePointers.java) | P012 Two Pointers: Palindrome Check | Canonical LC 125 / Easy | A palindrome is defined pairwise from the outside in, so one comparison per pair decides it. |
+| [P013_ReadWriteFilter.java](00-Patterns/02-Two-Pointers/P013_ReadWriteFilter.java) * | P013 Two Pointers: Read / Write In-Place Filter | Canonical LC 26 / Easy | The write pointer never passes the read pointer, so writing at w never destroys a value that has not been read yet. |
+| [P014_WalkTwoSequences.java](00-Patterns/02-Two-Pointers/P014_WalkTwoSequences.java) | P014 Two Pointers: Walk Two Sequences | Canonical LC 88 / Easy | Filling from the front would overwrite unread nums1 values; the empty slots are at the BACK, so writing largest-first can never overwrite anything still needed. |
+
+## 00-Patterns/03-Sliding-Window
+
+Patterns: fixed windows, frequency-match windows, longest and shortest variable windows, counting with the at-most trick.
+
+**Do these first:** [P015_FixedWindowAggregate.java](00-Patterns/03-Sliding-Window/P015_FixedWindowAggregate.java), [P016_FixedWindowFrequencyMatch.java](00-Patterns/03-Sliding-Window/P016_FixedWindowFrequencyMatch.java), [P017_VariableWindowLongest.java](00-Patterns/03-Sliding-Window/P017_VariableWindowLongest.java), [P018_VariableWindowShortest.java](00-Patterns/03-Sliding-Window/P018_VariableWindowShortest.java), [P019_CountSubarraysAtMost.java](00-Patterns/03-Sliding-Window/P019_CountSubarraysAtMost.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P015_FixedWindowAggregate.java](00-Patterns/03-Sliding-Window/P015_FixedWindowAggregate.java) * | P015 Fixed Sliding Window: Aggregate | Canonical LC 643 / Easy | Two neighbouring windows share k - 1 elements, so each slide costs O(1) instead of re-summing k values. |
+| [P016_FixedWindowFrequencyMatch.java](00-Patterns/03-Sliding-Window/P016_FixedWindowFrequencyMatch.java) * | P016 Fixed Window + Frequency Match | Canonical LC 438 / Medium | Comparing two count arrays costs O(26) per step; a single "letters still unbalanced" counter updated only when a count crosses zero makes each slide O(1). |
+| [P017_VariableWindowLongest.java](00-Patterns/03-Sliding-Window/P017_VariableWindowLongest.java) * | P017 Variable Sliding Window: Longest Valid | Canonical LC 3 / Medium | Because validity is monotonic, once [left, right] is invalid, every window that starts at left and ends later is invalid too, so left can move forward for good. |
+| [P018_VariableWindowShortest.java](00-Patterns/03-Sliding-Window/P018_VariableWindowShortest.java) * | P018 Variable Sliding Window: Shortest Valid | Canonical LC 209 / Medium | This mirrors P017_VariableWindowLongest: there you shrink while INVALID and record after the loop; here you shrink while VALID and record inside it. |
+| [P019_CountSubarraysAtMost.java](00-Patterns/03-Sliding-Window/P019_CountSubarraysAtMost.java) * | P019 Sliding Window: Count Subarrays (At-Most Trick) | Canonical LC 713 / Medium | Count subarrays by their RIGHT end: with monotonic validity, the valid starts for a given end form one contiguous range [left, right]. |
+
+## 00-Patterns/04-Hashing
+
+Patterns: complement lookup, frequency counts and canonical keys, HashSet run detection.
+
+**Do these first:** [P020_ComplementLookup.java](00-Patterns/04-Hashing/P020_ComplementLookup.java), [P021_FrequencyCanonicalKey.java](00-Patterns/04-Hashing/P021_FrequencyCanonicalKey.java), [P022_HashSetRunDetection.java](00-Patterns/04-Hashing/P022_HashSetRunDetection.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P020_ComplementLookup.java](00-Patterns/04-Hashing/P020_ComplementLookup.java) * | P020 HashMap: Complement Lookup | Canonical LC 1 / Easy | Turn "search for a partner" (O(n) each) into "look up a partner" (O(1)) by storing what you have already passed. |
+| [P021_FrequencyCanonicalKey.java](00-Patterns/04-Hashing/P021_FrequencyCanonicalKey.java) * | P021 HashMap: Frequency Count + Canonical Key | Canonical LC 49 / Medium | Define a function that maps every member of an equivalence class to the SAME value and different classes to different values; then a HashMap does the grouping. |
+| [P022_HashSetRunDetection.java](00-Patterns/04-Hashing/P022_HashSetRunDetection.java) * | P022 HashSet: Existence and Run Detection | Canonical LC 128 / Medium | Starting the walk only at run starts means each value is visited at most twice (once in the outer loop, once inside one run), so the nested loop is still O(n) total. |
+
+## 00-Patterns/05-Binary-Search
+
+Patterns: boundaries, rotated arrays, searching the answer (minimise and maximise), peaks, matrices, index predicates, two-array partitions.
+
+**Do these first:** [P023_BoundarySearch.java](00-Patterns/05-Binary-Search/P023_BoundarySearch.java), [P024_RotatedSortedArray.java](00-Patterns/05-Binary-Search/P024_RotatedSortedArray.java), [P025_AnswerSpaceMinimize.java](00-Patterns/05-Binary-Search/P025_AnswerSpaceMinimize.java), [P026_AnswerSpaceMaximize.java](00-Patterns/05-Binary-Search/P026_AnswerSpaceMaximize.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P023_BoundarySearch.java](00-Patterns/05-Binary-Search/P023_BoundarySearch.java) * | P023 Binary Search: First True (Lower / Upper Bound) | Canonical LC 34 / Medium | Every boundary question is "find the first index where a monotonic predicate flips from false to true". |
+| [P024_RotatedSortedArray.java](00-Patterns/05-Binary-Search/P024_RotatedSortedArray.java) * | P024 Binary Search: Rotated Sorted Array | Canonical LC 33 / Medium | A rotated array is two sorted runs; cutting it anywhere leaves at least one sorted half, and a sorted half lets you test membership with two comparisons. |
+| [P025_AnswerSpaceMinimize.java](00-Patterns/05-Binary-Search/P025_AnswerSpaceMinimize.java) * | P025 Binary Search on the Answer: Minimise | Canonical LC 875 / Medium | You are not searching an array; you are searching the range of possible ANSWERS, and "is this answer good enough?" is a yes/no question that flips exactly once. |
+| [P026_AnswerSpaceMaximize.java](00-Patterns/05-Binary-Search/P026_AnswerSpaceMaximize.java) * | P026 Binary Search on the Answer: Maximise | Canonical LC 1552 / Medium | Same machine as P025_AnswerSpaceMinimize, flipped: the predicate is true on the LEFT and false on the right, so you look for the last true. |
+| [P027_SlopePeak.java](00-Patterns/05-Binary-Search/P027_SlopePeak.java) | P027 Binary Search on a Slope: Peaks | Canonical LC 162 / Medium | Binary search does not need a sorted array, only a test that safely discards half. |
+| [P028_MatrixSearch.java](00-Patterns/05-Binary-Search/P028_MatrixSearch.java) | P028 Binary Search in a 2D Matrix | Canonical LC 74 / Medium | The "row starts after the previous row ends" rule makes the matrix one sorted list in disguise. |
+| [P029_IndexValuePredicate.java](00-Patterns/05-Binary-Search/P029_IndexValuePredicate.java) | P029 Binary Search on an Index-Value Relation | Canonical LC 540 / Medium | You cannot binary search for the answer by value, but you can binary search for the first index where an index-based property flips. |
+| [P030_PartitionTwoArrays.java](00-Patterns/05-Binary-Search/P030_PartitionTwoArrays.java) | P030 Binary Search a Partition of Two Arrays | Canonical LC 4 / Hard | Searching for a VALUE is hard here; searching for a CUT is easy, because a wrong cut tells you which way to move (aLeft too big means take fewer from a). |
+
+## 00-Patterns/06-Linked-List
+
+Patterns: fast and slow pointers, in-place reversal, dummy heads, gap pointers, deep copy with a map.
+
+**Do these first:** [P031_FastSlowPointers.java](00-Patterns/06-Linked-List/P031_FastSlowPointers.java), [P032_InPlaceReversal.java](00-Patterns/06-Linked-List/P032_InPlaceReversal.java), [P033_DummyHeadMerge.java](00-Patterns/06-Linked-List/P033_DummyHeadMerge.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P031_FastSlowPointers.java](00-Patterns/06-Linked-List/P031_FastSlowPointers.java) * | P031 Fast and Slow Pointers (Floyd) | Canonical LC 141 / Easy | Relative speed 1 means the gap inside the cycle shrinks by exactly 1 each round, so the pointers cannot jump past each other. |
+| [P032_InPlaceReversal.java](00-Patterns/06-Linked-List/P032_InPlaceReversal.java) * | P032 Linked List In-Place Reversal | Canonical LC 206 / Easy | Reversal is just "flip one arrow at a time" while holding the three nodes around it (prev, cur, next). |
+| [P033_DummyHeadMerge.java](00-Patterns/06-Linked-List/P033_DummyHeadMerge.java) * | P033 Linked List: Dummy Head, Merge and Build | Canonical LC 21 / Easy | A dummy (sentinel) node turns "the list might be empty" and "the head might change" into the general case: there is always a node before the one you are working on. |
+| [P034_GapPointers.java](00-Patterns/06-Linked-List/P034_GapPointers.java) | P034 Linked List: Gap Pointers (n-th from End) | Canonical LC 19 / Medium | You cannot count from the end of a singly linked list, but a fixed GAP between two pointers carries the count for you: when the leader hits the end, the follower is exactly n behind. |
+| [P035_CloneWithMap.java](00-Patterns/06-Linked-List/P035_CloneWithMap.java) | P035 Deep Copy with an Old -> New Map | Canonical LC 138 / Medium | A pointer can name a node whose copy does not exist yet. |
+
+## 00-Patterns/07-Stack-Queue-Monotonic
+
+Patterns: matching stacks, next greater, histogram boundaries, greedy removal, expressions, stack simulation, monotonic deque.
+
+**Do these first:** [P036_MatchingStack.java](00-Patterns/07-Stack-Queue-Monotonic/P036_MatchingStack.java), [P037_NextGreaterElement.java](00-Patterns/07-Stack-Queue-Monotonic/P037_NextGreaterElement.java), [P038_StackBoundariesContribution.java](00-Patterns/07-Stack-Queue-Monotonic/P038_StackBoundariesContribution.java), [P040_ExpressionEvaluation.java](00-Patterns/07-Stack-Queue-Monotonic/P040_ExpressionEvaluation.java), [P042_MonotonicDeque.java](00-Patterns/07-Stack-Queue-Monotonic/P042_MonotonicDeque.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P036_MatchingStack.java](00-Patterns/07-Stack-Queue-Monotonic/P036_MatchingStack.java) * | P036 Stack: Matching and Balancing | Canonical LC 20 / Easy | Nesting is last-in-first-out, which is exactly a stack. |
+| [P037_NextGreaterElement.java](00-Patterns/07-Stack-Queue-Monotonic/P037_NextGreaterElement.java) * | P037 Monotonic Stack: Next Greater / Smaller | Canonical LC 739 / Medium | An element that is blocked by a later, bigger element can never be anyone's "next greater" for the elements further left, so it can be discarded the moment the bigger one arrives. |
+| [P038_StackBoundariesContribution.java](00-Patterns/07-Stack-Queue-Monotonic/P038_StackBoundariesContribution.java) * | P038 Monotonic Stack: Boundaries and Contribution | Canonical LC 84 / Hard | When a bar is popped, BOTH of its limits are known at once: the bar below it on the stack is the previous smaller, and the bar that popped it is the next smaller. |
+| [P039_GreedyRemovalStack.java](00-Patterns/07-Stack-Queue-Monotonic/P039_GreedyRemovalStack.java) | P039 Monotonic Stack: Greedy Removal (Smallest Result) | Canonical LC 402 / Medium | The leftmost position where the result can get smaller dominates everything after it, so greedily make each position as small as possible. |
+| [P040_ExpressionEvaluation.java](00-Patterns/07-Stack-Queue-Monotonic/P040_ExpressionEvaluation.java) * | P040 Stack: Expression Evaluation and Nested Decoding | Canonical LC 150 / Medium | A stack holds "work suspended until something later arrives": operands waiting for an operator, a partial sum waiting for a ')', a prefix waiting for a ']'. |
+| [P041_StackSimulation.java](00-Patterns/07-Stack-Queue-Monotonic/P041_StackSimulation.java) | P041 Stack Simulation: Collisions, Paths, Call Stacks | Canonical LC 735 / Medium | Survivors to the left can only be hit by something arriving from the right, in reverse order of arrival: last in, first hit. |
+| [P042_MonotonicDeque.java](00-Patterns/07-Stack-Queue-Monotonic/P042_MonotonicDeque.java) * | P042 Monotonic Deque: Window Max / Min | Canonical LC 239 / Hard | An element that has a newer, bigger element behind it is useless for every future window. |
+
+## 00-Patterns/08-Heap-TreeMap
+
+Patterns: top-k, k-way merge, two heaps, heap scheduling, TreeMap floor and ceiling.
+
+**Do these first:** [P043_TopK.java](00-Patterns/08-Heap-TreeMap/P043_TopK.java), [P044_KWayMerge.java](00-Patterns/08-Heap-TreeMap/P044_KWayMerge.java), [P045_TwoHeaps.java](00-Patterns/08-Heap-TreeMap/P045_TwoHeaps.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P043_TopK.java](00-Patterns/08-Heap-TreeMap/P043_TopK.java) * | P043 Top-K: Heap, Quickselect, Buckets | Canonical LC 215 / Medium | You never need the whole order, only a boundary. |
+| [P044_KWayMerge.java](00-Patterns/08-Heap-TreeMap/P044_KWayMerge.java) * | P044 Heap: K-Way Merge | Canonical LC 23 / Hard | The overall smallest remaining element is always one of the k current heads, so the heap only ever needs k entries. |
+| [P045_TwoHeaps.java](00-Patterns/08-Heap-TreeMap/P045_TwoHeaps.java) * | P045 Two Heaps: Running Median and Split Choices | Canonical LC 295 / Hard | The median only depends on the BORDER between the halves. |
+| [P046_HeapSchedulingGreedy.java](00-Patterns/08-Heap-TreeMap/P046_HeapSchedulingGreedy.java) | P046 Heap-Driven Greedy Scheduling | Canonical LC 621 / Medium | Always run the task with the most copies left, because it is the one most likely to force idle time later. |
+| [P047_TreeMapFloorCeiling.java](00-Patterns/08-Heap-TreeMap/P047_TreeMapFloorCeiling.java) | P047 Ordered Map: TreeMap floor / ceiling | Canonical LC 729 / Medium | A balanced BST keeps keys sorted under updates, so "neighbours of x" are O(log n) questions. |
+
+## 00-Patterns/09-Intervals
+
+Patterns: merge by start, keep the most by end, sweep line for maximum overlap.
+
+**Do these first:** [P048_MergeIntervals.java](00-Patterns/09-Intervals/P048_MergeIntervals.java), [P049_SortByEndGreedy.java](00-Patterns/09-Intervals/P049_SortByEndGreedy.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P048_MergeIntervals.java](00-Patterns/09-Intervals/P048_MergeIntervals.java) * | P048 Intervals: Sort by Start and Merge | Canonical LC 56 / Medium | After sorting by start, an interval can only overlap the LAST merged block, never an earlier one, so one linear pass finishes the job. |
+| [P049_SortByEndGreedy.java](00-Patterns/09-Intervals/P049_SortByEndGreedy.java) * | P049 Intervals: Sort by End, Keep the Most | Canonical LC 435 / Medium | Among all intervals you could keep next, the one that ENDS first leaves the most room for the rest, so choosing it can never be worse (exchange argument). |
+| [P050_SweepLineMinRooms.java](00-Patterns/09-Intervals/P050_SweepLineMinRooms.java) | P050 Sweep Line: Maximum Overlap / Minimum Rooms | Canonical LC 253 / Medium | Which meeting uses which room does not matter, only how many are running at each moment. |
+
+## 00-Patterns/10-Trees
+
+Patterns: traversals, level BFS, bottom-up and top-down DFS, two-tree recursion, BST rules, LCA, build and serialize, views, tree as graph, tree DP.
+
+**Do these first:** [P052_BfsByLevel.java](00-Patterns/10-Trees/P052_BfsByLevel.java), [P053_BottomUpDfs.java](00-Patterns/10-Trees/P053_BottomUpDfs.java), [P054_TopDownDfsPath.java](00-Patterns/10-Trees/P054_TopDownDfsPath.java), [P056_BstProperty.java](00-Patterns/10-Trees/P056_BstProperty.java), [P058_LowestCommonAncestor.java](00-Patterns/10-Trees/P058_LowestCommonAncestor.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P051_IterativeTraversals.java](00-Patterns/10-Trees/P051_IterativeTraversals.java) | P051 Tree Traversals: Recursive, Iterative, Morris | Canonical LC 94 / Easy | Recursion keeps "where to come back to" on the call stack; an explicit stack holds the same thing. |
+| [P052_BfsByLevel.java](00-Patterns/10-Trees/P052_BfsByLevel.java) * | P052 Tree BFS Level by Level | Canonical LC 102 / Medium | A FIFO queue visits nodes in distance order from the root. |
+| [P053_BottomUpDfs.java](00-Patterns/10-Trees/P053_BottomUpDfs.java) * | P053 Tree DFS Bottom-Up (Return Info from Children) | Canonical LC 543 / Easy | Separate "what I report upward" from "what I record as a candidate answer". |
+| [P054_TopDownDfsPath.java](00-Patterns/10-Trees/P054_TopDownDfsPath.java) * | P054 Tree DFS Top-Down (Carry State to the Children) | Canonical LC 113 / Medium | Pass the ancestors' information DOWN as parameters. |
+| [P055_TwoTreeRecursion.java](00-Patterns/10-Trees/P055_TwoTreeRecursion.java) | P055 Tree Recursion on Two Trees at Once | Canonical LC 100 / Easy | Walk both trees in lock-step with ONE recursion over pairs of nodes. |
+| [P056_BstProperty.java](00-Patterns/10-Trees/P056_BstProperty.java) * | P056 BST Property: Bounds and Sorted Inorder | Canonical LC 98 / Medium | The BST rule is about ALL ancestors, not just the parent, so a local parent-child check is wrong. |
+| [P057_BstModifyBuild.java](00-Patterns/10-Trees/P057_BstModifyBuild.java) | P057 BST: Insert, Delete, Build | Canonical LC 450 / Medium | "Return the new subtree root and assign it to the parent's pointer" removes all parent-tracking: every case, including deleting the root, is handled the same way. |
+| [P058_LowestCommonAncestor.java](00-Patterns/10-Trees/P058_LowestCommonAncestor.java) * | P058 Lowest Common Ancestor | Canonical LC 236 / Medium | One post-order pass answers it: a subtree returns null (nothing found), p or q (one found), or the LCA (both found). |
+| [P059_BuildSerializeTree.java](00-Patterns/10-Trees/P059_BuildSerializeTree.java) | P059 Build a Tree from Traversals / Serialize | Canonical LC 105 / Medium | Preorder (or postorder) tells you WHO is the root; inorder tells you WHAT goes on each side. |
+| [P060_VerticalOrderViews.java](00-Patterns/10-Trees/P060_VerticalOrderViews.java) | P060 Tree Coordinates: Vertical Order and Views | Canonical LC 987 / Hard | Give every node explicit coordinates, and "vertical" questions become sorting and grouping problems. |
+| [P061_TreeAsGraph.java](00-Patterns/10-Trees/P061_TreeAsGraph.java) | P061 Tree as an Undirected Graph (Parent Map + BFS) | Canonical LC 863 / Medium | A tree is a graph whose edges you can only follow downward. |
+| [P062_TreeDp.java](00-Patterns/10-Trees/P062_TreeDp.java) | P062 DP on Trees (State per Node) | Canonical LC 337 / Medium | Returning ALL states of a subtree (not just its best) lets the parent apply its rule without re-visiting anything. |
+
+## 00-Patterns/11-Trie
+
+Patterns: trie basics, trie-guided grid search, bit trie for XOR.
+
+**Do these first:** [P063_TrieBasics.java](00-Patterns/11-Trie/P063_TrieBasics.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P063_TrieBasics.java](00-Patterns/11-Trie/P063_TrieBasics.java) * | P063 Trie (Prefix Tree) | Canonical LC 208 / Medium | Words that share a prefix share the path for it, so a prefix question costs O(length of the prefix), no matter how many words are stored. |
+| [P064_TrieDfsBitTrie.java](00-Patterns/11-Trie/P064_TrieDfsBitTrie.java) | P064 Trie + DFS, and the Bit Trie | Canonical LC 212 / Hard | Running one search per word repeats the same prefixes over and over. |
+
+## 00-Patterns/12-Graphs
+
+Patterns: flood fill, components, BFS over states, multi-source BFS, topological sort, colouring, union-find, Dijkstra, Bellman-Ford and Floyd, MST, bridges and SCC.
+
+**Do these first:** [P065_GridFloodFill.java](00-Patterns/12-Graphs/P065_GridFloodFill.java), [P067_BfsShortestPath.java](00-Patterns/12-Graphs/P067_BfsShortestPath.java), [P068_MultiSourceBfs.java](00-Patterns/12-Graphs/P068_MultiSourceBfs.java), [P069_TopologicalSort.java](00-Patterns/12-Graphs/P069_TopologicalSort.java), [P071_UnionFind.java](00-Patterns/12-Graphs/P071_UnionFind.java), [P072_Dijkstra.java](00-Patterns/12-Graphs/P072_Dijkstra.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P065_GridFloodFill.java](00-Patterns/12-Graphs/P065_GridFloodFill.java) * | P065 Grid DFS / BFS: Flood Fill and Islands | Canonical LC 200 / Medium | A grid is a graph whose edges are implicit (neighbouring cells). |
+| [P066_AdjacencyComponents.java](00-Patterns/12-Graphs/P066_AdjacencyComponents.java) | P066 Graph DFS / BFS on an Adjacency List | Canonical LC 547 / Medium | Every connectivity question reduces to "start a traversal from an unvisited node and mark everything reachable". |
+| [P067_BfsShortestPath.java](00-Patterns/12-Graphs/P067_BfsShortestPath.java) * | P067 BFS Shortest Path (Unweighted, incl. State Space) | Canonical LC 1091 / Medium | BFS explores in rings of equal distance, so the first time it reaches the goal is via a shortest path, as long as every edge has the same cost. |
+| [P068_MultiSourceBfs.java](00-Patterns/12-Graphs/P068_MultiSourceBfs.java) * | P068 Multi-Source BFS | Canonical LC 994 / Medium | Starting BFS from all sources at once is the same as adding one super-source joined to every source. |
+| [P069_TopologicalSort.java](00-Patterns/12-Graphs/P069_TopologicalSort.java) * | P069 Topological Sort (Kahn's BFS) | Canonical LC 210 / Medium | A DAG always has at least one node with no incoming edges; removing it leaves a DAG. |
+| [P070_DfsColoringCycleBipartite.java](00-Patterns/12-Graphs/P070_DfsColoringCycleBipartite.java) | P070 DFS Colouring: Bipartite and Cycle Detection | Canonical LC 785 / Medium | A graph is bipartite exactly when it has no odd-length cycle, and 2-colouring by DFS finds such a cycle as a colour clash. |
+| [P071_UnionFind.java](00-Patterns/12-Graphs/P071_UnionFind.java) * | P071 Union-Find (Disjoint Set Union) | Canonical LC 684 / Medium | DSU answers "same group?" in nearly O(1) (inverse Ackermann) while groups only ever merge. |
+| [P072_Dijkstra.java](00-Patterns/12-Graphs/P072_Dijkstra.java) * | P072 Dijkstra (and 0-1 BFS) | Canonical LC 743 / Medium | With non-negative weights, the closest node in the heap can never be improved later, because any other route goes through nodes that are at least as far. |
+| [P073_BellmanFordFloyd.java](00-Patterns/12-Graphs/P073_BellmanFordFloyd.java) | P073 Bellman-Ford and Floyd-Warshall | Canonical LC 787 / Medium | Bellman-Ford's round number IS the edge count, which is exactly the "at most k stops" constraint Dijkstra cannot express. |
+| [P074_MinimumSpanningTree.java](00-Patterns/12-Graphs/P074_MinimumSpanningTree.java) | P074 Minimum Spanning Tree (Kruskal and Prim) | Canonical LC 1584 / Medium | Cut property: for any split of the nodes into two groups, the cheapest edge crossing the split belongs to some MST. |
+| [P075_BridgesSccEuler.java](00-Patterns/12-Graphs/P075_BridgesSccEuler.java) | P075 Advanced DFS: Bridges, SCC, Euler Path | Canonical LC 1192 / Hard | One DFS with two timestamps per node exposes every "only path" edge: a back edge shows an alternative route, so an edge is a bridge exactly when no back edge from below jumps over it. |
+
+## 00-Patterns/13-Backtracking
+
+Patterns: subsets, permutations, combination sums, constraint placement, grid paths, string partitions and generation.
+
+**Do these first:** [P076_Subsets.java](00-Patterns/13-Backtracking/P076_Subsets.java), [P077_Permutations.java](00-Patterns/13-Backtracking/P077_Permutations.java), [P078_CombinationSum.java](00-Patterns/13-Backtracking/P078_CombinationSum.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P076_Subsets.java](00-Patterns/13-Backtracking/P076_Subsets.java) * | P076 Backtracking: Subsets | Canonical LC 78 / Medium | Moving forward only (i + 1) makes each subset appear exactly once, in one canonical order. |
+| [P077_Permutations.java](00-Patterns/13-Backtracking/P077_Permutations.java) * | P077 Backtracking: Permutations | Canonical LC 46 / Medium | Subsets move forward from `start`; permutations restart from 0 each level and use a `used[]` array instead, because an element later in the input may come first. |
+| [P078_CombinationSum.java](00-Patterns/13-Backtracking/P078_CombinationSum.java) * | P078 Backtracking: Combinations with a Target | Canonical LC 39 / Medium | Passing `start` (never looking back) makes each combination appear once in non-decreasing order. |
+| [P079_ConstraintPlacement.java](00-Patterns/13-Backtracking/P079_ConstraintPlacement.java) | P079 Backtracking: Place Under Constraints | Canonical LC 51 / Hard | Choosing ROWS as the slots removes the row constraint entirely, and indexing diagonals by r - c and anti-diagonals by r + c turns "is this square attacked?" into three array lookups. |
+| [P080_GridPathBacktracking.java](00-Patterns/13-Backtracking/P080_GridPathBacktracking.java) | P080 Backtracking on a Grid Path | Canonical LC 79 / Medium | Unlike flood fill, "visited" here belongs to the CURRENT PATH, not to the whole search: a cell used by one failed attempt must be usable by the next. |
+| [P081_StringPartitionGenerate.java](00-Patterns/13-Backtracking/P081_StringPartitionGenerate.java) | P081 Backtracking on Strings: Partition and Generate | Canonical LC 131 / Medium | A split is a sequence of cut positions, so backtracking over "where does the next piece end?" enumerates every split exactly once. |
+
+## 00-Patterns/14-Dynamic-Programming
+
+Patterns: take or skip, prefix DP, 0/1 and unbounded knapsack, LIS, two-string DP, regex, grid, palindrome, interval, state machine, job scheduling, bitmask.
+
+**Do these first:** [P082_LinearTakeSkip.java](00-Patterns/14-Dynamic-Programming/P082_LinearTakeSkip.java), [P084_ZeroOneKnapsack.java](00-Patterns/14-Dynamic-Programming/P084_ZeroOneKnapsack.java), [P085_UnboundedKnapsack.java](00-Patterns/14-Dynamic-Programming/P085_UnboundedKnapsack.java), [P086_LongestIncreasingSubsequence.java](00-Patterns/14-Dynamic-Programming/P086_LongestIncreasingSubsequence.java), [P087_TwoStringDp.java](00-Patterns/14-Dynamic-Programming/P087_TwoStringDp.java), [P089_GridDp.java](00-Patterns/14-Dynamic-Programming/P089_GridDp.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P082_LinearTakeSkip.java](00-Patterns/14-Dynamic-Programming/P082_LinearTakeSkip.java) * | P082 1D DP: Take or Skip | Canonical LC 198 / Medium | Write the recurrence from "what happens to the LAST item": either it is skipped (the answer is the best for the shorter prefix) or it is taken (so its neighbour is not). |
+| [P083_StringPrefixDp.java](00-Patterns/14-Dynamic-Programming/P083_StringPrefixDp.java) | P083 DP over String Prefixes: Segment and Decode | Canonical LC 139 / Medium | Ask "what is the LAST piece?" instead of "what is the first?". |
+| [P084_ZeroOneKnapsack.java](00-Patterns/14-Dynamic-Programming/P084_ZeroOneKnapsack.java) * | P084 0/1 Knapsack (Subset Sum Family) | Canonical LC 416 / Medium | Iterating the capacity DOWNWARD makes dp[c - w] still hold the value from BEFORE this item, so the item is counted at most once. |
+| [P085_UnboundedKnapsack.java](00-Patterns/14-Dynamic-Programming/P085_UnboundedKnapsack.java) * | P085 Unbounded Knapsack (Coin Change Family) | Canonical LC 322 / Medium | Capacity iterated UPWARD lets dp[a - coin] already include this coin, which is what "unlimited copies" means. |
+| [P086_LongestIncreasingSubsequence.java](00-Patterns/14-Dynamic-Programming/P086_LongestIncreasingSubsequence.java) * | P086 Longest Increasing Subsequence | Canonical LC 300 / Medium | tails[] is always sorted, and keeping each length's SMALLEST tail leaves the most room for later numbers. |
+| [P087_TwoStringDp.java](00-Patterns/14-Dynamic-Programming/P087_TwoStringDp.java) * | P087 Two-String DP (LCS Family) | Canonical LC 1143 / Medium | Every two-string problem asks the same question about the LAST characters: do they match, and if not, which one do we drop / change? |
+| [P088_WildcardRegexDp.java](00-Patterns/14-Dynamic-Programming/P088_WildcardRegexDp.java) | P088 Pattern Matching DP: Wildcard and Regex | Canonical LC 44 / Hard | A '*' is a choice between "consume nothing" and "consume one more character and stay on the same star", which is exactly two neighbouring cells of the table. |
+| [P089_GridDp.java](00-Patterns/14-Dynamic-Programming/P089_GridDp.java) * | P089 Grid DP (Paths Moving Right / Down) | Canonical LC 62 / Medium | Because moves only go right or down, a cell's answer depends only on cells already computed in row-major order, so the grid fills in one pass. |
+| [P090_PalindromeDp.java](00-Patterns/14-Dynamic-Programming/P090_PalindromeDp.java) | P090 Palindromic Substrings: Expand Around Centre | Canonical LC 5 / Medium | A palindrome stays a palindrome when you peel one character from each end, so growing from the centre checks each candidate in O(1) per step and needs no table. |
+| [P091_IntervalDp.java](00-Patterns/14-Dynamic-Programming/P091_IntervalDp.java) | P091 Interval DP (Choose the Split Point) | Canonical LC 312 / Hard | Pick the element that acts LAST (or the first cut) inside the range: then the two sides become independent subproblems. |
+| [P092_StockStateMachine.java](00-Patterns/14-Dynamic-Programming/P092_StockStateMachine.java) | P092 State-Machine DP (Stock Trading) | Canonical LC 309 / Medium | Draw the states as boxes and the allowed moves as arrows; each arrow is one term in a max(). |
+| [P093_WeightedJobScheduling.java](00-Patterns/14-Dynamic-Programming/P093_WeightedJobScheduling.java) | P093 DP + Binary Search on Sorted Jobs | Canonical LC 1235 / Hard | Greedy fails because a long job can be worth more than many short ones. |
+| [P094_BitmaskDp.java](00-Patterns/14-Dynamic-Programming/P094_BitmaskDp.java) | P094 Bitmask DP (Subsets as States) | Canonical LC 698 / Medium | Many different orders lead to the same SET of used items, and from there the future depends only on the set (plus a small extra like the current node). |
+
+## 00-Patterns/15-Greedy
+
+Patterns: reachability, sort and pair, running balance, boundaries and two passes.
+
+**Do these first:** [P095_Reachability.java](00-Patterns/15-Greedy/P095_Reachability.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P095_Reachability.java](00-Patterns/15-Greedy/P095_Reachability.java) * | P095 Greedy Reachability (Jump Game) | Canonical LC 55 / Medium | You never need to know HOW you reach an index, only how far any reachable index can send you. |
+| [P096_SortAndPair.java](00-Patterns/15-Greedy/P096_SortAndPair.java) | P096 Greedy: Sort, Then Pair or Order | Canonical LC 455 / Easy | Exchange argument: if an optimal answer uses a bigger cookie where a smaller one would do, swapping them never hurts. |
+| [P097_RunningBalance.java](00-Patterns/15-Greedy/P097_RunningBalance.java) | P097 Greedy Running Balance | Canonical LC 134 / Medium | If starting at s you run dry at i, then starting anywhere between s and i also runs dry at i (you would arrive at each of those points with at least as much gas as from s). |
+| [P098_BoundariesTwoPasses.java](00-Patterns/15-Greedy/P098_BoundariesTwoPasses.java) | P098 Greedy with Boundaries and Two Passes | Canonical LC 763 / Medium | One pre-pass turns a global constraint ("this letter appears again later") into a number you can max() as you go. |
+
+## 00-Patterns/16-Math-Bits
+
+Patterns: XOR tricks, bit masks and counting, sieve, fast power, gcd.
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P099_XorTricks.java](00-Patterns/16-Math-Bits/P099_XorTricks.java) | P099 XOR Tricks | Canonical LC 136 / Easy | XOR is "addition without carry, mod 2" per bit, so anything appearing an even number of times vanishes. |
+| [P100_BitMasksCounting.java](00-Patterns/16-Math-Bits/P100_BitMasksCounting.java) | P100 Bit Masks and Bit Counting | Canonical LC 191 / Easy | Subtracting 1 flips the lowest set bit and every 0 below it, so ANDing with the original removes exactly that one bit. |
+| [P101_NumberTheory.java](00-Patterns/16-Math-Bits/P101_NumberTheory.java) | P101 Number Theory Basics: Sieve, Fast Power, GCD | Canonical LC 204 / Medium | Each of these tools turns a slow loop into a fast one by reusing structure: the sieve crosses out composites instead of testing each number, fast power squares the base so the exponent halves each step, and Euclid replac |
+
+## 00-Patterns/17-Design
+
+Patterns: LRU and LFU caches, O(1) structure combos, versioned and time-window maps, iterators.
+
+**Do these first:** [P102_LruLfuCache.java](00-Patterns/17-Design/P102_LruLfuCache.java)
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P102_LruLfuCache.java](00-Patterns/17-Design/P102_LruLfuCache.java) * | P102 Design: LRU and LFU Cache | Canonical LC 146 / Medium | Neither structure alone is enough: a map has no order, a list has no O(1) lookup. |
+| [P103_ConstantTimeCombos.java](00-Patterns/17-Design/P103_ConstantTimeCombos.java) | P103 Design: Combine Structures for O(1) Operations | Canonical LC 380 / Medium | When the ORDER of elements does not matter, any deletion can be turned into "delete the last element" by a swap. |
+| [P104_VersionedTimeMap.java](00-Patterns/17-Design/P104_VersionedTimeMap.java) | P104 Design: Versioned and Time-Windowed Data | Canonical LC 981 / Medium | Never overwrite history: append versions, and let a floor search answer "as of". |
+| [P105_IteratorDesign.java](00-Patterns/17-Design/P105_IteratorDesign.java) | P105 Design: Lazy Iterators | Canonical LC 341 / Medium | An iterator is a recursive traversal paused between steps, so its state must live in fields: the explicit stack IS the paused call stack. |
+
+## 00-Patterns/18-String-Algorithms
+
+Patterns: KMP prefix function, rolling hash, careful parsing.
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P106_KmpPrefixFunction.java](00-Patterns/18-String-Algorithms/P106_KmpPrefixFunction.java) | P106 KMP and the Prefix Function | Canonical LC 28 / Easy (Medium with KMP) | After matching k characters, the text's last k characters ARE the pattern's first k. |
+| [P107_RollingHash.java](00-Patterns/18-String-Algorithms/P107_RollingHash.java) | P107 Rolling Hash (Rabin-Karp) | Canonical LC 187 / Medium | Sliding a hash costs O(1) per step because the new hash is the old one minus the leaving character plus the entering one. |
+| [P108_CarefulParsing.java](00-Patterns/18-String-Algorithms/P108_CarefulParsing.java) | P108 Careful Parsing and String Simulation | Canonical LC 8 / Medium | Write the spec as an ordered list of phases and give each phase its own small loop. |
+
+## 00-Patterns/19-Range-Queries
+
+Patterns: Fenwick tree with merge-sort counting, segment tree with lazy propagation.
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [P109_FenwickAndMergeCounting.java](00-Patterns/19-Range-Queries/P109_FenwickAndMergeCounting.java) | P109 Fenwick Tree and Merge-Sort Counting | Canonical LC 307 / Medium | The lowest set bit of i splits 1..n into O(log n) blocks, so every prefix is the sum of at most log n stored blocks and every index belongs to at most log n blocks. |
+| [P110_SegmentTree.java](00-Patterns/19-Range-Queries/P110_SegmentTree.java) | P110 Segment Tree (with Lazy Propagation) | Canonical Range Min Query / Hard | Any interval is a union of O(log n) canonical segments (the tree's nodes), so any ASSOCIATIVE operation can be answered from precomputed segments. |
 
 ## 01-Arrays
 

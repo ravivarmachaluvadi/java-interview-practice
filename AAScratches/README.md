@@ -1,6 +1,6 @@
 # AAScratches: interview practice workspace
 
-578 standalone Java programs and 36 Markdown notes, grouped by subject. Nothing here is a
+688 standalone Java programs and 37 Markdown notes, grouped by subject. Nothing here is a
 build system project: every `.java` file is an IntelliJ-style scratch file that compiles and
 runs on its own.
 
@@ -8,7 +8,7 @@ runs on its own.
 
 | Folder | What is inside | Start here |
 |--------|----------------|------------|
-| [01-DSA](01-DSA/) | 490 solved problems in 20 technique folders, plus notes and roadmaps | [01-DSA/README.md](01-DSA/README.md) |
+| [01-DSA](01-DSA/) | 110 pattern files in `00-Patterns` (one per pattern, with variants) and 490 solved problems in 20 technique folders, plus notes and roadmaps | [Pattern recognition map](01-DSA/notes/Pattern_Recognition_Map.md), then [01-DSA/README.md](01-DSA/README.md) |
 | [02-Java-Core](02-Java-Core/) | 45 files: concurrency, language features, IO, crypto, tricky MCQs, plus Q&A notes | [02-Java-Core/README.md](02-Java-Core/README.md) |
 | [03-LLD](03-LLD/) | 31 files: the GoF patterns, parking lot, Tic-Tac-Toe, hand-built data structures, a workflow executor | [03-LLD/README.md](03-LLD/README.md) |
 | [04-HLD-System-Design](04-HLD-System-Design/) | Building blocks in code, plus system design keypoints and a payment system write-up | [04-HLD-System-Design/README.md](04-HLD-System-Design/README.md) |
@@ -32,9 +32,25 @@ INTERVIEW FOLLOW-UPS   the variants an interviewer asks next
 RUN                    what main() prints
 ```
 
-The title line carries the LeetCode number and difficulty, and `MUST-KNOW` on the 177 files
+The title line carries the LeetCode number and difficulty, and `MUST-KNOW` on the 231 files
 worth doing first. Design pattern, LLD and HLD files swap `KEY INSIGHT` for `KEY DECISIONS`
 and add a section mapping each class to its role.
+
+The 110 pattern files in `01-DSA/00-Patterns` teach one pattern each, so their header has
+five more sections. `PROBLEM` is the pattern's classic problem, and `VARIATIONS` marks the
+variants solved in the same file with `[coded]`:
+
+```
+RECOGNIZE WHEN         the wording and constraints that point to this pattern, and the
+                       look-alike patterns it is NOT
+TEMPLATE               the reusable skeleton in a few lines of pseudo-code
+VARIATIONS             related problems and what changes in the template for each
+PITFALLS               the off-by-ones and traps
+DEEP DIVE              the longer file on the same problem elsewhere in 01-DSA
+```
+
+codeview's Practice mode hides these new sections too, and its Hint button shows
+`RECOGNIZE WHEN` first, then `TEMPLATE`.
 
 `main()` runs two to six cases covering a typical input, an edge case and often a trap, and
 prints the actual result next to the expected one:
@@ -61,6 +77,9 @@ Within a tier, `NN` runs in dependency order: earlier files teach what later one
 **Tier is difficulty, not importance.** Kadane's algorithm is foundational but the problem is
 medium, so it sits in `C` and is flagged must-know.
 
+The pattern files are the exception: `P<NNN>_<Name>.java`, numbered P001 to P110 across all
+of `00-Patterns` in reading order, so a pattern can be named by its number alone.
+
 ## Running a file
 
 ```bash
@@ -69,8 +88,8 @@ tools/runjava A01_ArraySortedOrNot.java     # resolves by name, no path needed
 tools/runjava --find TwoSum                 # locate files
 ```
 
-Do not import this as a Maven, Gradle or IntelliJ project. 566 of 578 files declare no
-package, folder names like `01-Arrays` are not valid Java identifiers, and 20 class names are
+Do not import this as a Maven, Gradle or IntelliJ project. 676 of 688 files declare no
+package, folder names like `01-Arrays` are not valid Java identifiers, and 25 class names are
 declared in more than one file (`TreeNode` in 45, `ListNode` and `Node` in 17 each,
 `Solution` in 14). A project compiles a source root as one unit, so marking any folder as a
 source root produces dozens of duplicate-class errors. These were always scratch files, which
