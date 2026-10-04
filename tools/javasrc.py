@@ -97,8 +97,9 @@ def analyse(src):
 
 
 def pick_main(mains, fname):
-    """Prefer the class the file is named after (A01_TwoSum.java -> TwoSum), else the first."""
-    stem = re.sub(r"^[A-D]\d\d_", "", pathlib.Path(fname).stem)
+    """Prefer the class the file is named after (A01_TwoSum.java -> TwoSum,
+    P017_VariableWindowLongest.java -> VariableWindowLongest), else the first."""
+    stem = re.sub(r"^(?:[A-D]\d\d|P\d{3})_", "", pathlib.Path(fname).stem)
     for m in mains:
         if m == stem:
             return m

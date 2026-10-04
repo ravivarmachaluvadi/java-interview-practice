@@ -78,25 +78,10 @@ JAVAC, JAVA = find_jdk()
 
 
 def classes_with_main(text):
-    """Top-level class names whose body declares main(), outermost-brace aware."""
-    out = []
-    for m in re.finditer(r"^\s*(?:public\s+|final\s+|abstract\s+|sealed\s+)*"
-                         r"(?:class|enum|record)\s+(\w+)", text, re.M):
-        name = m.group(1)
-        start = text.find("{", m.end())
-        if start == -1:
-            continue
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == "{":
-                depth += 1
-            elif text[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    if re.search(r"static\s+void\s+main\s*\(", text[start:i]):
-                        out.append(name)
-                    break
-    return out
+    """Top-level class names whose body declares main(). Delegates to javasrc.analyse, which
+    blanks strings, char literals and comments first, so a '{' inside quotes cannot throw
+    the brace count off (counting raw braces reported "no main" for such files)."""
+    return javasrc.analyse(text)[1]
 
 
 def find_files(needle):
