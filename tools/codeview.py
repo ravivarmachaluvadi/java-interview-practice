@@ -5,7 +5,8 @@ codeview - read, practise and run the practice files (or any folder) in a browse
     tools/codeview                       start on http://127.0.0.1:8025 and open a tab
     tools/codeview --port 9000           use another port
     tools/codeview --no-open             do not open a browser tab
-    tools/codeview --tray                no console window; a tray icon to reopen or quit
+    tools/codeview --tray                no console window; a tray icon to reopen or quit,
+                                         and to pick the browser it opens (Open in)
     tools/codeview --install-shortcuts   "Code Viewer" on the Desktop and Start menu (tray version)
     tools/codeview --autostart on|off    start the tray version when Windows starts
 
@@ -22,10 +23,14 @@ THE PAGE
              matches, the file is marked done. While practising: a timer (limit in the
              menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and
              Compare (Alt+C) puts your attempt next to the original solution
+  Scratch    a pad kept in the browser for any code; its timer starts stopped (click
+             ⏱ Start) and ⋯ → Restart the timer zeroes it for the next problem
   Progress   mark each file Done or Revise; counts per folder and overall. A done file
              comes back for review after 3, 7, 21 and 60 days (◷ in the list); Next (Alt+J)
              opens due reviews first, then to-revise, then must-know not done
   Folders    the folder menu opens any other folder, not just this repo
+  Full screen  the corners button (Alt+Enter) hides the browser's tabs, address and bookmarks
+             bars and the page header, for small screens; hold Esc or Alt+Enter to leave
   Offline    the editor and markdown libraries are downloaded once (tools/offline.py), so
              the page works without internet after the first start with it
   Stopped?   an open tab says so at once, with how to start it again
@@ -33,9 +38,11 @@ THE PAGE
 Runs Java the same way as runjava: compile to a temp folder, then run whichever class
 declares main(), so the filename never matters. Newest installed JDK, not JAVA_HOME.
 
-STATE: progress and the folder list live in tools/codeview-state.json (git-ignored,
-backed up by OneDrive). Drafts, practice attempts, their timers and opened hints live in
-the browser.
+STATE: progress, the folder list and the tray's browser choice live in
+tools/codeview-state.json (git-ignored, backed up by OneDrive). Drafts, practice attempts,
+their timers and opened hints live in the browser, and each browser (and each Chrome
+profile) keeps its own. So the tray's "Open in" menu pins the one to open; until it is
+set, the Windows default browser opens.
 
 LOG: tools/codeview.log (git-ignored) has a line when it starts (with what started it),
 when it stops and why, and any error. A start with no stop before the next start means
@@ -232,7 +239,8 @@ def log_crashes():
 # ---------------------------------------------------------------- state: folders + progress
 
 class State:
-    """tools/codeview-state.json: {"roots": [paths], "progress": {root path: {file: entry}}}."""
+    """tools/codeview-state.json: {"roots": [paths], "progress": {root path: {file: entry}},
+    "browser": browsers() id (absent: the default browser)}."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -247,6 +255,15 @@ class State:
         tmp = STATE_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.data, indent=1, sort_keys=True), encoding="utf-8")
         os.replace(tmp, STATE_FILE)
+
+    def set_browser(self, bid):
+        """The tray's Open-in choice: a browsers() id, or None for the default browser."""
+        with self.lock:
+            if bid:
+                self.data["browser"] = bid
+            else:
+                self.data.pop("browser", None)
+            self.save()
 
     def roots(self):
         """[{id, name, path, default}] - this repo first, then added folders."""
@@ -321,6 +338,35 @@ class State:
                 files.pop(rel, None)
             self.save()
             return entry
+
+    def restore_progress(self, rid, rel, entry):
+        """Put an entry back exactly as /api/progress returned it: the page's Undo after a
+        peek, since marking revise drops r and t and marking done again cannot restore them."""
+        if not isinstance(entry, dict):
+            raise ValueError("restore needs an entry")
+        clean = {}
+        for k, v in entry.items():
+            if k == "s" and v in ("done", "revise"):
+                clean[k] = v
+            elif k in ("t", "practiced") and isinstance(v, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", v):
+                clean[k] = v
+            elif k in ("r", "hints"):
+                clean[k] = whole(v, k, 100)
+            elif k in ("secs", "best"):
+                clean[k] = whole(v, k, 7 * 86400)
+            elif k == "pass" and isinstance(v, bool):
+                clean[k] = v
+            else:
+                raise ValueError(f"cannot restore {k}={v!r}")
+        key = self.root(rid)["path"]
+        with self.lock:
+            files = self.data["progress"].setdefault(key, {})
+            if clean:
+                files[rel] = clean
+            else:
+                files.pop(rel, None)
+            self.save()
+        return clean
 
 
 def whole(v, what, most):
@@ -542,6 +588,48 @@ def open_path(p):
         os.startfile(p)
     else:
         subprocess.Popen(["open" if IS_MAC else "xdg-open", str(p)])
+
+
+# Attempts live in one browser profile's storage. On 4 Oct the tray opened Edge (the Windows
+# default) while every attempt was in Chrome, so the work looked lost. Chromium browsers
+# take --profile-directory, which also lands the tab in the right profile's window.
+BROWSERS = (("Chrome", "Google/Chrome/Application/chrome.exe", "Google/Chrome/User Data"),
+            ("Edge", "Microsoft/Edge/Application/msedge.exe", "Microsoft/Edge/User Data"))
+
+
+def browsers(env=os.environ):
+    """[{id, label, exe, profile}]: every profile of each installed Chrome and Edge, named
+    as the browser's profile menu names it. Empty off Windows."""
+    out = []
+    for name, exe_rel, data_rel in BROWSERS:
+        exe = next((p for p in (pathlib.Path(env[k]) / exe_rel
+                                for k in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA") if env.get(k))
+                    if p.is_file()), None)
+        if not exe:
+            continue
+        try:
+            state = json.loads((pathlib.Path(env.get("LOCALAPPDATA", "")) / data_rel / "Local State")
+                               .read_text(encoding="utf-8"))
+            profiles = {d: (i.get("name") or d) for d, i in state["profile"]["info_cache"].items()}
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            profiles = {"Default": "Default"}
+        for d in sorted(profiles, key=lambda d: (d != "Default", d)):
+            out.append({"id": f"{name.lower()}/{d}", "label": f"{name} ({profiles[d]})",
+                        "exe": str(exe), "profile": d})
+    return out
+
+
+def open_page(url, found=None, launch=subprocess.Popen, fallback=webbrowser.open):
+    """Open the page in the browser picked in the tray's Open-in menu, else the default one."""
+    bid = STATE.data.get("browser")
+    b = next((b for b in (browsers() if found is None else found) if b["id"] == bid), None) if bid else None
+    if b:
+        try:
+            launch([b["exe"], f"--profile-directory={b['profile']}", url])
+            return
+        except OSError:
+            log.exception(f"could not start {b['label']}; opened the default browser instead")
+    fallback(url)
 
 
 def reveal(rid, rel):
@@ -769,6 +857,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(res, 409 if res.get("conflict") else 200)
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
+            if path == "/api/progress" and "restore" in req:
+                return self.send_json(STATE.restore_progress(rid, req["path"], req["restore"]))
             if path == "/api/progress":
                 return self.send_json(STATE.set_progress(rid, req["path"], req.get("status"), req.get("pass"),
                                                          req.get("secs"), req.get("hints")))
@@ -915,10 +1005,26 @@ def run_tray(server, url, open_browser):
     def setup(icon):
         icon.visible = True
         if open_browser:
-            webbrowser.open(url)
+            open_page(url)
+
+    def pick_browser(bid):
+        def act(icon, _item):
+            STATE.set_browser(bid)
+            icon.update_menu()          # the Windows menu is built once; rebuild it for the tick
+        return act
+
+    def open_in_items():
+        found = browsers()
+        ids = {b["id"] for b in found}
+
+        def item(label, bid):
+            return pystray.MenuItem(label, pick_browser(bid), radio=True, checked=lambda _i: (
+                STATE.data.get("browser") if STATE.data.get("browser") in ids else None) == bid)
+        return [item("Default browser", None)] + [item(b["label"], b["id"]) for b in found]
 
     menu = pystray.Menu(
-        pystray.MenuItem("Open Code Viewer", lambda *_: webbrowser.open(url), default=True),
+        pystray.MenuItem("Open Code Viewer", lambda *_: open_page(url), default=True),
+        pystray.MenuItem("Open in", pystray.Menu(open_in_items), visible=IS_WIN),
         pystray.MenuItem("Open repo folder", lambda *_: open_path(REPO)),
         pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
                          visible=IS_WIN),
@@ -954,7 +1060,7 @@ def main():
         log.info(f"second launch: already running at {url}" + ("" if a.no_open else ", opened a tab"))
         print(f"codeview is already running at {url} - opening it.")
         if not a.no_open:
-            webbrowser.open(url)
+            open_page(url)
         return
 
     server = None
@@ -980,7 +1086,7 @@ def main():
     print(f"  JDK  {server.jdk}  ({JAVA})")
     print("  Ctrl+C to stop", flush=True)
     if not a.no_open:
-        webbrowser.open(url)
+        open_page(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

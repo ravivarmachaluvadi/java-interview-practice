@@ -97,6 +97,74 @@ class QuitTest(unittest.TestCase):
         self.assertIn("stopped: Quit from the tray menu", log_text())
 
 
+class BrowserTest(unittest.TestCase):
+    """4 Oct: the tray opened Edge, the Windows default, but every attempt was saved in
+    Chrome's storage, so reopening from the tray looked like the work was gone. The tray's
+    Open-in menu picks the browser and profile, and every way of opening the page uses it."""
+
+    URL = "http://127.0.0.1:8025/"
+
+    def setUp(self):
+        d = pathlib.Path(tempfile.mkdtemp(dir=TMP))
+        self.exe = d / "pf" / "Google/Chrome/Application/chrome.exe"
+        self.exe.parent.mkdir(parents=True)
+        self.exe.write_bytes(b"")
+        data = d / "local" / "Google/Chrome/User Data"
+        data.mkdir(parents=True)
+        (data / "Local State").write_text(json.dumps({"profile": {"info_cache": {
+            "Profile 2": {"name": "Work"}, "Default": {"name": "Ravi"}}}}), encoding="utf-8")
+        self.env = {"PROGRAMFILES": str(d / "pf"), "LOCALAPPDATA": str(d / "local")}
+        codeview.STATE.data = {"roots": [], "progress": {}}
+        self.launched, self.fallback = [], []
+
+    def open(self, launch=None):
+        codeview.open_page(self.URL, found=codeview.browsers(self.env),
+                           launch=launch or self.launched.append, fallback=self.fallback.append)
+
+    def test_each_profile_of_an_installed_browser_is_offered(self):
+        found = codeview.browsers(self.env)
+        self.assertEqual([(b["id"], b["label"]) for b in found],
+                         [("chrome/Default", "Chrome (Ravi)"), ("chrome/Profile 2", "Chrome (Work)")])
+
+    def test_a_browser_that_is_not_installed_is_not_offered(self):
+        self.assertFalse([b for b in codeview.browsers(self.env) if b["id"].startswith("edge/")])
+
+    def test_unreadable_profile_list_still_offers_the_default_profile(self):
+        (pathlib.Path(self.env["LOCALAPPDATA"]) / "Google/Chrome/User Data/Local State").write_text("{")
+        self.assertEqual([b["id"] for b in codeview.browsers(self.env)], ["chrome/Default"])
+
+    def test_chosen_profile_opens_the_page(self):
+        codeview.STATE.set_browser("chrome/Default")
+        self.open()
+        self.assertEqual(self.launched, [[str(self.exe), "--profile-directory=Default", self.URL]])
+        self.assertEqual(self.fallback, [])
+
+    def test_no_choice_uses_the_default_browser(self):
+        self.open()
+        self.assertEqual((self.launched, self.fallback), ([], [self.URL]))
+
+    def test_choice_that_is_no_longer_installed_uses_the_default_browser(self):
+        codeview.STATE.set_browser("edge/Default")
+        self.open()
+        self.assertEqual((self.launched, self.fallback), ([], [self.URL]))
+
+    def test_browser_that_will_not_start_falls_back_and_logs(self):
+        codeview.setup_log()
+        codeview.STATE.set_browser("chrome/Default")
+
+        def broken(_cmd):
+            raise OSError("gone")
+        self.open(launch=broken)
+        self.assertEqual(self.fallback, [self.URL])
+        self.assertIn("could not start Chrome (Ravi)", log_text())
+
+    def test_choice_survives_a_restart(self):
+        codeview.STATE.set_browser("chrome/Profile 2")
+        self.assertEqual(codeview.State().data["browser"], "chrome/Profile 2")
+        codeview.STATE.set_browser(None)
+        self.assertNotIn("browser", codeview.State().data)
+
+
 class LogTest(unittest.TestCase):
     """3 Oct: it vanished with no record of why. The log keeps start and stop lines,
     so a run that started but never logged a stop was ended from outside."""
@@ -159,6 +227,34 @@ class ProgressTest(unittest.TestCase):
             codeview.STATE.set_progress(self.rid, "a/B01_X.java", "done", True, secs="abc")
         with self.assertRaises(ValueError):
             codeview.STATE.set_progress(self.rid, "a/B01_X.java", "done", True, secs=-5)
+
+
+class RestoreTest(unittest.TestCase):
+    """The page's Undo after a peek: marking revise drops the review count and the done
+    date, and marking done again cannot bring them back, so the old entry is put back."""
+
+    def setUp(self):
+        codeview.STATE.data = {"roots": [], "progress": {}}
+        self.rid = codeview.STATE.roots()[0]["id"]
+
+    def test_undo_brings_back_reviews_and_date(self):
+        before = {"s": "done", "t": "2026-09-20", "r": 2, "best": 300, "secs": 320, "hints": 0,
+                  "practiced": "2026-09-20", "pass": True}
+        codeview.STATE.data["progress"][codeview.STATE.root(self.rid)["path"]] = {"a/B01_X.java": dict(before)}
+        codeview.STATE.set_progress(self.rid, "a/B01_X.java", "revise")
+        e = codeview.STATE.restore_progress(self.rid, "a/B01_X.java", before)
+        self.assertEqual(e, before)
+        self.assertEqual(codeview.STATE.progress(self.rid)["a/B01_X.java"], before)
+
+    def test_restoring_nothing_removes_the_entry(self):
+        codeview.STATE.set_progress(self.rid, "a/B01_X.java", "revise")
+        self.assertEqual(codeview.STATE.restore_progress(self.rid, "a/B01_X.java", {}), {})
+        self.assertNotIn("a/B01_X.java", codeview.STATE.progress(self.rid))
+
+    def test_bad_entries_are_refused(self):
+        for bad in ([], {"s": "maybe"}, {"t": "yesterday"}, {"r": -1}, {"pass": "yes"}, {"colour": "red"}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                codeview.STATE.restore_progress(self.rid, "a/B01_X.java", bad)
 
 
 class HintsTest(unittest.TestCase):

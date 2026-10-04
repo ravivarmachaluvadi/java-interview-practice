@@ -49,6 +49,8 @@ body.dragging { user-select: none; cursor: grabbing; }
 aside.side { grid-column: 1; grid-row: 2; } .vsplit { grid-column: 2; grid-row: 2; } main { grid-column: 3; grid-row: 2; }
 body.side-collapsed { grid-template-columns: 0 0 minmax(0, 1fr); }
 body.side-collapsed aside.side, body.side-collapsed .vsplit { display: none; }
+body.full { grid-template-rows: 0 minmax(0, 1fr); }
+body.full header.top { display: none; }
 [hidden] { display: none !important; }
 
 button, select {
@@ -149,8 +151,9 @@ main > .hsplit { grid-row: 4; } main > .out { grid-row: 5; }
    file name stays readable. Measured 3 Oct: at 1100px wide the full bar pushed Run off. */
 main { container-type: inline-size; }
 .narrow { display: none; }
+#backBtn .wide { display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 @container (max-width: 1100px) {
-  .bar .badge, .wide { display: none; }
+  .bar .badge, .wide, #backBtn .wide { display: none; }
   .narrow { display: inline; }
 }
 .crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
@@ -173,6 +176,31 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .menu button { display: flex; width: 100%; border: 0; justify-content: space-between; gap: 16px; height: 30px; }
 .menu button kbd { color: var(--muted); font: 11px var(--code); }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+.menu .ck { display: inline-block; width: 16px; color: var(--accent); font-weight: 700; }
+/* Prev · Next · mode, joined into one control */
+.seg { display: inline-flex; flex: none; }
+.seg button { border-radius: 0; }
+.seg button + button { margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button.icon { width: 26px; }
+.navtag { color: var(--muted); font-weight: 400; }
+/* attempts: practice code and timers kept in this browser */
+.att-head { display: flex; gap: 6px; align-items: center; padding: 8px 8px 0; }
+.att-head label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.att-confirm { margin: 8px 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 6px;
+               background: color-mix(in srgb, var(--warn) 14%, var(--bg)); }
+.att-confirm .row-btns { display: flex; gap: 6px; }
+.att { flex: 1; overflow: auto; padding: 6px 0 16px; }
+.att .row { flex-wrap: wrap; padding: 3px 10px; }
+.att .row input { margin: 0 2px 0 0; flex: none; }
+.att .sub { flex-basis: 100%; padding-left: 22px; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.att .note { padding: 10px 12px; color: var(--muted); }
+.att-foot { padding: 4px 10px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); }
+.chip { flex: none; font-size: 10.5px; font-weight: 600; border-radius: 99px; padding: 1px 7px; }
+.chip.progress { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.chip.solved { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.chip.peeked { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
 .stage { position: relative; min-height: 0; }
 #editor { position: absolute; inset: 0; }
 /* compare: original solution | your attempt */
@@ -264,6 +292,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="brand"><span class="logo">{ }</span>Code Viewer</div>
   <span class="pill" id="jdk">JDK …</span>
   <span class="spacer"></span>
+  <button class="icon" id="fullBtn" title="Full screen: hide the browser's tabs, address and bookmarks bars and this header (Alt+Enter)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
   <button class="icon" id="themeBtn" title="Light / dark">◐</button>
   <button class="icon" id="helpBtn" title="Shortcuts and settings">?</button>
 </header>
@@ -289,6 +318,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="tabs">
     <button data-tab="files" class="on">Files</button>
     <button data-tab="search" title="Ctrl+Shift+F">Search in code</button>
+    <button data-tab="attempts" id="attTab" title="Practice questions you have opened: your code and timers, kept in this browser">Attempts</button>
   </div>
   <div class="pane" id="filesPane">
     <div class="search">
@@ -318,23 +348,44 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     </div>
     <div class="sres" id="sres"></div>
   </div>
+  <div class="pane" id="attemptsPane" hidden>
+    <div class="att-head">
+      <label title="Tick every attempt in the list"><input type="checkbox" id="attAll"> Select all</label>
+      <button id="attSolved" title="Tick the attempts you solved">Select solved</button>
+      <span class="spacer"></span>
+      <button id="attClear" disabled>Clear selected</button>
+    </div>
+    <div class="att-confirm" id="attConfirm" hidden>
+      <span id="attConfirmText"></span>
+      <div class="row-btns"><span class="spacer"></span><button id="attCancel">Cancel</button><button class="primary" id="attDo">Clear</button></div>
+    </div>
+    <div class="att" id="attList"></div>
+    <div class="att-foot" id="attFoot"></div>
+  </div>
   <div class="side-foot" id="count">Loading files…</div>
 </aside>
 <div class="vsplit" id="vsplit"></div>
 
 <main id="main">
   <div class="bar">
+    <button class="icon" id="fullExitBtn" hidden title="Leave full screen (Alt+Enter, or hold Esc)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button>
     <div class="crumbs" id="crumbs"></div>
     <span class="badge" id="badge" hidden></span>
     <span class="spacer"></span>
     <div class="tools">
+      <button id="backBtn" hidden></button>
       <button id="srcBtn" hidden title="Show the markdown source">Source</button>
       <button id="practiceBtn" hidden title="Hide the solution and write it yourself (Alt+P)">Practice</button>
       <button id="timerBtn" class="timer" hidden></button>
       <button id="hintBtn" hidden title="Show the hidden notes one at a time, gentlest first (Alt+H)">Hint</button>
       <button id="compareBtn" hidden title="Your attempt next to the original solution, differences marked (Alt+C)">Compare</button>
       <button id="progBtn" hidden title="Mark this file done / to revise (Alt+M)">○ Mark done</button>
-      <button id="nextBtn" hidden title="Next problem to practise (Alt+J): reviews that are due first, then files to revise, then ★ must-know not done, then anything not done">Next ›</button>
+      <span class="seg" id="navGroup" hidden>
+        <button class="icon" id="prevBtn" title="Previous file (Alt+K)">‹</button>
+        <button id="nextBtn" title="Next file (Alt+J)">Next ›</button>
+        <button class="icon" id="nextModeBtn" title="Choose which files Next and Prev visit">▾</button>
+      </span>
+      <div class="menu" id="nextMenu" hidden></div>
       <button id="editBtn" title="Edit (Ctrl+E). Changes stay a draft until you Save.">Edit</button>
       <button id="saveBtn" hidden title="Write your edit to the file (Ctrl+S)">Save</button>
       <button id="resetBtn" hidden title="Throw away your edit">Reset</button>
@@ -350,7 +401,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <button data-act="reload">Reload from disk</button>
         <hr>
         <button data-act="limit"><span id="limitLabel">Practice time limit: 30 min</span></button>
-        <button data-act="restartTimer">Restart the practice timer</button>
+        <button data-act="restartTimer">Restart the timer</button>
+        <button data-act="lastSolved" id="lastSolvedBtn" hidden title="The code of your last solved attempt, kept when a new attempt started">Bring back my last solution</button>
       </div>
       <select id="mainSel" hidden title="Which class's main() to run"></select>
       <select id="timeoutSel" title="Stop the program after">
@@ -402,15 +454,20 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Practice: compare your attempt with the solution</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next problem to practise</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart)</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>K</kbd></td><td>Previous file, in the same list</td></tr>
+    <tr><td>Browser Back</td><td>Back to the file you were on before</td></tr>
+    <tr><td>← in the Scratch pad</td><td>Back to the file you came from, in the mode you left it; Next and Prev also carry on from that file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
-  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts, their timer and the hints you opened are kept the same way. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
+  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
+  <p>Showing the solution, or Compare, before an attempt is solved marks the file ↻ revise (the bar that says so has Undo). A pass after that does not count as solved until you Reset and solve it fresh.</p>
   <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
@@ -423,7 +480,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 <script>
 (() => {
 'use strict';
-const MONACO = new URL('__CV_MONACO__', location.href).href.replace(/\/$/, '');   // absolute: the worker needs it
+/* localhost and 127.0.0.1 are separate sites to the browser, each with its own storage, so
+   attempts saved under one look lost under the other. Code Viewer always opens 127.0.0.1. */
+if (location.hostname === 'localhost') { location.replace(location.href.replace('//localhost', '//127.0.0.1')); return; }
+const MONACO =new URL('__CV_MONACO__', location.href).href.replace(/\/$/, '');   // absolute: the worker needs it
 const MONACO_LOCAL = MONACO.startsWith(location.origin + '/');
 const PAGE_VERSION = '__CV_VERSION__';      // filled in by the server; compared with /api/info
 const SCRATCH = 'scratch';
@@ -449,7 +509,7 @@ const STATUS_NEXT = { undefined: 'done', done: 'revise', revise: 'none' };
 const $ = s => document.querySelector(s);
 const store = {
   get(k, d) { try { const v = localStorage.getItem('cv:' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('cv:' + k, JSON.stringify(v)); } catch {} },
+  set(k, v) { try { localStorage.setItem('cv:' + k, JSON.stringify(v)); return true; } catch { return false; } },   // false: storage full
   del(k) { try { localStorage.removeItem('cv:' + k); } catch {} },
   has(k) { try { return localStorage.getItem('cv:' + k) !== null; } catch { return false; } },
 };
@@ -462,6 +522,7 @@ const qs = o => new URLSearchParams(o).toString();
 /* a label with a shorter form for a narrow bar (see .wide / .narrow in the CSS) */
 const wideNarrow = (wide, narrow) => `<span class="wide">${wide}</span><span class="narrow">${narrow}</span>`;
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const kb = s => IS_MAC ? s.replace(/Ctrl\+/g, '⌘').replace(/Alt\+/g, '⌥') : s;   // for titles set after macKeys() ran
 /* Show the keys a Mac user presses: Cmd for Ctrl, Option for Alt (the handlers accept both). */
 function macKeys() {
   document.querySelectorAll('kbd').forEach(k => { if (k.textContent === 'Ctrl') k.textContent = '⌘'; else if (k.textContent === 'Alt') k.textContent = '⌥'; });
@@ -479,7 +540,7 @@ const S = {
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
-  hintsFor: new Map(), comparing: false, fresh: null,
+  hintsFor: new Map(), comparing: false, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
 let editor = null;
@@ -548,6 +609,34 @@ const toggleSide = () => setSide(!document.body.classList.contains('side-collaps
 setSide(store.get('sideCollapsed', false));
 $('#sideBtn').onclick = toggleSide;
 $('#vsplit').addEventListener('dblclick', () => setSide(true));
+
+/* ------------------------------------------------------------ full screen */
+/* On a 14-inch laptop the browser's tabs, address bar and bookmarks bar plus this header
+   took a quarter of the height (4 Oct). Full screen hides all four and the taskbar; the
+   file's bar with Run stays. A page cannot hide the browser's bars one by one, only ask
+   for full screen. Esc is locked to the page so closing Find or a hint does not drop out
+   of full screen; holding Esc, ⤡ or Alt+Enter leaves. Refused full screen still hides
+   the header, and the same toggle brings it back. */
+function setFull(on) {
+  document.body.classList.toggle('full', on);
+  $('#fullExitBtn').hidden = !on;
+}
+async function toggleFull() {
+  const on = !document.body.classList.contains('full');
+  setFull(on);
+  try {
+    if (on && !document.fullscreenElement) {
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(() => {});
+    } else if (!on && document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  } catch {}
+  if (editor && !$('#editor').hidden) editor.focus();
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) setFull(false); });
+$('#fullBtn').onclick = toggleFull;
+$('#fullExitBtn').onclick = toggleFull;
 
 /* ------------------------------------------------------------ boot */
 const boot = (async () => {
@@ -755,10 +844,13 @@ function fileInner(f, pinned) {
     : st === 'done' ? `<span class="st done" title="Done ${esc(e.t || '')}${best}${due === null ? '' : ` · review in ${due} day${due === 1 ? '' : 's'}`}">✓</span>`
     : st === 'revise' ? '<span class="st revise" title="To revise">↻</span>' : '';
   const tail = stHtml + (f.must ? '<span class="star" title="Must-know">★</span>' : '') + '<span class="dot" title="Unsaved edit or practice attempt"></span>';
-  const m = f.name.match(/^([A-D])(\d\d)_(.+?)(?:\.java)?$/);
-  if (m) return `<span class="tier ${m[1]}" title="${TIER[m[1]]}">${m[1]}${m[2]}</span><span class="nm">${esc(m[3])}</span>` + tail;
-  const ext = (f.name.match(/\.([^.]+)$/) || [, ''])[1];
-  return `<span class="ext">${esc(ext.slice(0, 4))}</span><span class="nm">${esc(f.name)}</span>` + tail;
+  return nameHtml(f.name) + tail;
+}
+function nameHtml(name) {         // the tier badge (A01) and name, or the extension and name
+  const m = name.match(/^([A-D])(\d\d)_(.+?)(?:\.java)?$/);
+  if (m) return `<span class="tier ${m[1]}" title="${TIER[m[1]]}">${m[1]}${m[2]}</span><span class="nm">${esc(m[3])}</span>`;
+  const ext = (name.match(/\.([^.]+)$/) || [, ''])[1];
+  return `<span class="ext">${esc(ext.slice(0, 4))}</span><span class="nm">${esc(name)}</span>`;
 }
 function renderFooter() {
   let java = 0, done = 0, must = 0, mustDone = 0, rev = 0, due = 0;
@@ -896,6 +988,8 @@ function showTab(t) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   $('#filesPane').hidden = t !== 'files';
   $('#searchPane').hidden = t !== 'search';
+  $('#attemptsPane').hidden = t !== 'attempts';
+  if (t === 'attempts') renderAttempts();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
   showTab(b.dataset.tab);
@@ -1023,11 +1117,13 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
   editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
   editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
+  editor.addCommand(K.Alt | C.Enter, toggleFull);
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
-  editor.addCommand(K.Alt | C.KeyJ, nextProblem);
+  editor.addCommand(K.Alt | C.KeyJ, () => step(1));
+  editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
 }
@@ -1049,14 +1145,14 @@ function scratchModel() {
   let m = S.models.get(SCRATCH);
   if (!m) {
     m = monaco.editor.createModel(store.get('scratch', SCRATCH_TEMPLATE), 'java');
-    m.onDidChangeContent(debounce(() => { store.set('scratch', m.getValue()); refreshBar(); }, 250));
+    m.onDidChangeContent(debounce(() => { if (!store.set('scratch', m.getValue())) storageFull(); refreshBar(); }, 250));
     S.models.set(SCRATCH, m);
   }
   return m;
 }
 function saveDraft(k, m) {
   const same = m.getValue() === S.originals.get(k);
-  if (same) store.del('draft:' + k); else store.set('draft:' + k, m.getValue());
+  if (same) store.del('draft:' + k); else if (!store.set('draft:' + k, m.getValue())) storageFull();
   if (k.startsWith(S.root + '/')) markDraft(k.slice(S.root.length + 1));
   if (S.cur && S.cur.key === k) refreshBar();
 }
@@ -1132,11 +1228,12 @@ async function openPath(path) {
   S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
   if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
   if (S.pending !== token) return;
-  if (S.fresh === k) {               // a review opened by Next: start over if the last attempt was solved
+  if (S.fresh === k) {               // a review opened by Next: start over if the last attempt was solved or peeked
     S.fresh = null;
-    if (S.cur.mode === 'practice' && timerOf(k).solved) {
+    const t = timerOf(k);
+    if (S.cur.mode === 'practice' && (t.solved || t.peeked)) {
       restartAttempt(k);
-      toast('Review: a fresh attempt with a new timer. Ctrl+Z brings back your last solution.');
+      toast('Review: a fresh attempt with a new timer.' + (store.has('lastSolved:' + k) ? ' ⋯ → Bring back my last solution shows what you wrote before.' : ''));
     }
   }
   if (S.cur.mode === 'file') {
@@ -1176,13 +1273,17 @@ async function showPractice(token) {
     if (token && S.pending !== token) return false;
     m = monaco.editor.createModel(store.get('practice:' + k, null) ?? S.skeletons.get(k), 'java');
     m.onDidChangeContent(debounce(() => {
-      if (m.getValue() === S.skeletons.get(k)) store.del('practice:' + k); else store.set('practice:' + k, m.getValue());
+      if (m.isDisposed()) return;                 // cleared from the Attempts tab meanwhile
+      if (m.getValue() === S.skeletons.get(k)) store.del('practice:' + k);
+      else if (!store.set('practice:' + k, m.getValue())) storageFull();
+      touchAttempt(k);
       markDraft(c.path);
       if (S.cur && S.cur.key === k) refreshBar();
     }, 250));
     S.pmodels.set(k, m);
   }
   showEditor(m);
+  touchAttempt(k);
   return true;
 }
 async function togglePractice() {
@@ -1191,9 +1292,10 @@ async function togglePractice() {
   closeCompare(false);
   saveView();
   if (c.mode === 'practice') {
+    const peeked = notePeek(c);
     c.mode = 'file'; setMode(c.key, 'file');
     showEditor(modelFor(c.key, S.originals.get(c.key), 'java'));
-    toast('Showing the original solution. Practice again to get your attempt back.');
+    if (!peeked) toast('Showing the original solution. Practice again to get your attempt back.');
   } else {
     c.mode = 'practice'; setMode(c.key, 'practice');
     if (await showPractice()) { toast('Practice: the solution is hidden. Write it, then Ctrl+Enter.'); editor.focus(); }
@@ -1202,11 +1304,17 @@ async function togglePractice() {
   refreshBar();
   renderOutput(S.outputs.get(viewKey()));
 }
+/* The file you were on before the Scratch pad: the pad's ← button goes back to it, and Next
+   and Prev carry on from it instead of starting at the top of the list (4 Oct). */
+const backFile = () => { const p = store.get('backFile:' + S.root, null); return p && S.byPath.has(p) ? p : null; };
+$('#backBtn').onclick = () => { const p = backFile(); if (p) go(p); };
 function afterOpen() {
   store.set('last:' + S.root, S.cur.path);
+  if (S.cur.path !== SCRATCH) store.set('backFile:' + S.root, S.cur.path);
   document.title = S.cur.name + ' · Code Viewer';
   markActive();
   refreshBar();
+  if (!$('#attemptsPane').hidden) renderAttempts(); else paintAttTab();
   renderOutput(S.outputs.get(viewKey()));
   const pr = S.pendingReveal;
   if (pr && pr.key === S.cur.key && !$('#editor').hidden) {
@@ -1239,6 +1347,12 @@ function refreshBar() {
   const badge = $('#badge');
   badge.hidden = false; badge.textContent = label; badge.className = 'badge ' + cls;
 
+  const back = isScratch ? backFile() : null, bb = $('#backBtn');
+  bb.hidden = !back;
+  if (back) {
+    bb.innerHTML = '← ' + wideNarrow(esc(back.split('/').pop().replace(/\.java$/, '')), 'Back');
+    bb.title = `Back to ${back}, in the mode you left it. Next and Prev also carry on from this file.`;
+  }
   $('#srcBtn').hidden = c.kind !== 'md';
   $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
   const pb = $('#practiceBtn');
@@ -1259,7 +1373,9 @@ function refreshBar() {
   cb.hidden = !practice;
   cb.textContent = S.comparing ? 'Close compare' : 'Compare';
   cb.classList.toggle('on', S.comparing);
-  $('#nextBtn').hidden = !S.files.some(isJava);
+  $('#navGroup').hidden = !S.files.some(isJava);
+  paintNav();
+  $('#lastSolvedBtn').hidden = !practice || !store.has('lastSolved:' + c.key);
   paintTimer();
   paintHints();
   const mains = S.mains.get(viewKey()), sel = $('#mainSel');
@@ -1301,9 +1417,16 @@ async function save(force) {
 }
 function resetDraft() {
   const c = S.cur;
-  if (c.mode === 'practice') {
-    restartAttempt(c.key);
-    return toast('Practice reset to the blank version, with a new timer and the hints hidden again. Ctrl+Z brings the code back.');
+  if (c.mode === 'practice') {          // it sits beside Next: one stray click must not cost an attempt
+    const t = timerOf(c.key);
+    return showBanner(`Start this problem over? Your code, the timer (${mmss(t.ms)}) and the hints you opened are cleared.`, [
+      ['Start over', () => {
+        hideBanner();
+        restartAttempt(c.key);
+        toast('Started over: blank code, a new timer, hints hidden. Ctrl+Z brings the code back.');
+      }],
+      ['Cancel', () => hideBanner()],
+    ], 'reset');
   }
   const m = c.path === SCRATCH ? S.models.get(SCRATCH) : S.models.get(c.key);
   const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : S.originals.get(c.key);
@@ -1321,17 +1444,21 @@ function replaceAll(m, text) {
 
 /* ------------------------------------------------------------ practice: timer, hints, compare, next */
 /* The timer counts while the file is open in practice mode and this tab is visible, and
-   stops when the attempt is solved. Kept per file in this browser, so a reload keeps it. */
+   stops when the attempt is solved. Kept per file in this browser, so a reload keeps it.
+   The Scratch pad has one too (4 Oct), for a problem typed in from elsewhere. It starts
+   stopped, because the pad is also for quick experiments, and nothing marks it solved:
+   click it to start and pause, ⋯ → Restart the timer for the next problem. */
 const LIMITS = [15, 20, 30, 45, 60, 0];          // minutes; 0 = no limit
 let limitMin = store.get('timerLimit', 30);
-const timerOf = k => store.get('timer:' + k, { ms: 0, paused: false, solved: false });
+const timerOf = k => store.get('timer:' + k, { ms: 0, paused: k === SCRATCH, solved: false });
 const setTimer = (k, t) => store.set('timer:' + k, t);
+const timed = c => !!c && (c.mode === 'practice' || c.path === SCRATCH);
 let lastTick = Date.now(), overToastFor = null;
 setInterval(() => {
   const now = Date.now(), dt = Math.min(now - lastTick, 2000);   // a sleeping laptop is not practice time
   lastTick = now;
   const c = S.cur;
-  if (!c || c.mode !== 'practice' || document.visibilityState !== 'visible') return;
+  if (!timed(c) || document.visibilityState !== 'visible') return;
   const t = timerOf(c.key);
   if (t.paused || t.solved) return;
   t.ms += dt;
@@ -1340,17 +1467,20 @@ setInterval(() => {
 }, 1000);
 function paintTimer() {
   const c = S.cur, b = $('#timerBtn');
-  b.hidden = !c || c.mode !== 'practice';
+  b.hidden = !timed(c);
   if (b.hidden) return;
-  const t = timerOf(c.key), over = !!limitMin && t.ms >= limitMin * 60000;
-  b.innerHTML = (t.solved ? '✓ ' : t.paused ? '⏸ ' : '⏱ ') + mmss(t.ms)
-    + (limitMin && !t.solved ? `<span class="wide"> / ${limitMin}:00</span>` : '');
+  const t = timerOf(c.key), over = !!limitMin && t.ms >= limitMin * 60000, scratch = c.path === SCRATCH;
+  b.innerHTML = scratch && t.paused && !t.ms ? '⏱ ' + wideNarrow('Start timer', 'Start')
+    : (t.solved ? '✓ ' : t.paused ? '⏸ ' : '⏱ ') + mmss(t.ms)
+      + (limitMin && !t.solved ? `<span class="wide"> / ${limitMin}:00</span>` : '');
   b.className = 'timer' + (t.solved ? ' solved' : over ? ' over' : t.paused ? ' paused' : '');
-  b.title = t.solved ? `Solved in ${mmss(t.ms)}. Reset starts a new attempt with a new timer.`
+  b.title = t.solved && t.peeked ? `Passed after looking at a solution, so not counted as solved. Reset starts a fresh attempt.`
+    : t.solved ? `Solved in ${mmss(t.ms)}. Reset starts a new attempt with a new timer.`
+    : scratch ? `Scratch timer: click to ${t.paused ? (t.ms ? 'resume' : 'start') : 'pause'}. ⋯ → Restart the timer sets it back to zero; the time limit is in the same menu.`
     : `Practice timer: click to ${t.paused ? 'resume' : 'pause'}. The time limit is in the ⋯ menu.`;
   if (over && !t.solved && !t.paused && overToastFor !== c.key) {
     overToastFor = c.key;
-    toast(`Time is up: ${limitMin} minutes. Keep going, or take a hint.`);
+    toast(`Time is up: ${limitMin} minutes.` + (scratch ? ' Keep going, or stop the timer.' : ' Keep going, or take a hint.'));
   }
 }
 $('#timerBtn').onclick = () => {
@@ -1407,14 +1537,65 @@ $('#hintBtn').onclick = hintButton;
 $('#hintNext').onclick = nextHint;
 $('#hintClose').onclick = () => { $('#hintCard').hidden = true; paintHints(); };
 
-/* A new attempt: blank code (one undoable edit), timer back to zero, hints hidden again. */
+/* A new attempt: blank code (one undoable edit), timer back to zero, hints hidden again.
+   A solved attempt's code is kept first, for ⋯ → Bring back my last solution: Ctrl+Z alone
+   only lasts until the tab reloads. */
 function restartAttempt(k) {
   const m = S.pmodels.get(k), blank = S.skeletons.get(k);
+  if (m && timerOf(k).solved && m.getValue() !== blank) store.set('lastSolved:' + k, m.getValue());
   if (m && blank != null && m.getValue() !== blank) replaceAll(m, blank);
-  store.del('timer:' + k); store.del('hints:' + k);
+  setTimer(k, { ms: 0, paused: false, solved: false, at: Date.now() });
+  store.del('hints:' + k);
   overToastFor = null;
   $('#hintCard').hidden = true;
   paintTimer(); paintHints();
+}
+/* when this attempt was last opened or typed in, for the Attempts tab */
+function touchAttempt(k) { const t = timerOf(k); t.at = Date.now(); setTimer(k, t); }
+
+/* Peek: the solution (or Compare) shown before the attempt is solved marks the file to
+   revise, and a pass after that no longer counts as solved. Only once the attempt has
+   started (code typed, or a minute on the timer), so opening practice and switching
+   straight back is not a peek. Undo puts the old mark back exactly. Returns true if it
+   counted as a peek. */
+const PEEK_AFTER_MS = 60000;
+function notePeek(c) {
+  if (!c || c.mode !== 'practice') return false;
+  const t = timerOf(c.key), m = S.pmodels.get(c.key);
+  const started = (m && m.getValue() !== S.skeletons.get(c.key)) || t.ms >= PEEK_AFTER_MS;
+  if (t.solved || t.peeked || !started) return false;
+  t.peeked = true; setTimer(c.key, t);
+  const before = structuredClone(S.progress[c.path] || {});
+  const marking = before.s !== 'revise' ? setProgress(c.path, 'revise') : null;
+  showBanner('Marked ↻ revise: you looked at the solution before solving it. Reset and solve it fresh to mark it done.', [
+    ['Undo', async () => {
+      hideBanner();
+      await marking;                  // a quick Undo must land after the mark, not before it
+      const t2 = timerOf(c.key); delete t2.peeked; setTimer(c.key, t2);
+      if (before.s !== 'revise') {
+        try {
+          const entry = await api('/api/progress', { root: S.root, path: c.path, restore: before });
+          delete entry._status;
+          if (Object.keys(entry).length) S.progress[c.path] = entry; else delete S.progress[c.path];
+          renderTree();
+          // a server started before this feature ignores restore and leaves the revise mark
+          if ((entry.s || '') !== (before.s || '')) return toast('Undo needs Code Viewer restarted once (Quit from the tray, then start it again). The ↻ revise mark is still on.');
+        } catch (e) { return toast(e.message); }
+      }
+      refreshBar();
+      if (!$('#attemptsPane').hidden) renderAttempts();
+      toast('Undone: not counted as a peek');
+    }],
+  ], 'peek');
+  return true;
+}
+
+function storageFull() {
+  const b = $('#banner');
+  if (!b.hidden && b.dataset.kind === 'full') return;
+  showBanner('Browser storage is full, so this attempt is not being saved. Clear old attempts to make room.', [
+    ['Open Attempts', () => { hideBanner(); setSide(false); showTab('attempts'); }],
+  ], 'full');
 }
 
 /* Compare: the original solution next to your attempt. The right side is the attempt
@@ -1424,6 +1605,7 @@ function toggleCompare() { if (S.comparing) closeCompare(); else openCompare(); 
 function openCompare() {
   const c = S.cur, attempt = c && S.pmodels.get(c.key);
   if (!c || c.mode !== 'practice' || !attempt) return;
+  notePeek(c);
   if (!diffEditor) {
     diffEditor = monaco.editor.createDiffEditor($('#diff'), {
       automaticLayout: true, renderSideBySide: true, originalEditable: false, ignoreTrimWhitespace: true,
@@ -1453,33 +1635,198 @@ function closeCompare(restore = true) {
 }
 $('#compareBtn').onclick = toggleCompare;
 
-/* Next: due reviews first, then files to revise, then must-know not done, then anything
-   not done, each searched from the file after this one in list order. Opens in practice. */
-function nextProblem() {
-  const java = S.files.filter(isJava);
-  if (!java.length) return toast('No Java files in this folder.');
-  const cur = S.cur && S.cur.path !== SCRATCH ? S.cur.path : null;
-  const at = cur ? java.findIndex(f => f.path === cur) : -1;
-  const order = java.slice(at + 1).concat(java.slice(0, Math.max(at, 0)));
-  const rules = [
-    [f => isDue(f.path), 'due for review'],
-    [f => statusOf(f.path) === 'revise', 'marked to revise'],
-    [f => f.must && statusOf(f.path) !== 'done', '★ must-know, not done yet'],
-    [f => statusOf(f.path) !== 'done', 'not done yet'],
-  ];
-  for (const [test, why] of rules) {
-    const f = order.find(test);
-    if (!f) continue;
-    const k = keyOf(f.path);
-    setMode(k, 'practice');
-    if (why === 'due for review') S.fresh = k;
-    go(f.path);
-    toast(`Next: ${f.name.replace(/\.java$/, '')} (${why})`);
-    return;
-  }
-  toast('Nothing left here: every Java file is done and none is due for review yet.');
+/* Prev / Next walk the Java files in tree order, keeping only those the chosen mode wants.
+   Review and Smart have tiers, most urgent first. 4 Oct: the old Next always started with
+   files to revise, so with two of them it bounced between the pair and never reached the
+   next file in the folder. Now Next in a tiered mode passes over files already skipped in
+   this tab until nothing else is left. Prev walks the same files backwards in tree order. */
+const notDone = f => statusOf(f.path) !== 'done';
+const isRevise = f => statusOf(f.path) === 'revise';
+const NEXT_MODES = {
+  todo:     { label: 'Not done yet', tag: 'not done', tiers: [[notDone, '']] },
+  all:      { label: 'Every file, in order', tag: 'all', tiers: [[() => true, '']] },
+  mustTodo: { label: '★ Must-know, not done', tag: '★ not done', tiers: [[f => f.must && notDone(f), '']] },
+  must:     { label: '★ Must-know, all', tag: '★ all', tiers: [[f => !!f.must, '']] },
+  review:   { label: 'Review: due, then to revise', tag: 'review',
+              tiers: [[f => isDue(f.path), 'due for review'], [isRevise, 'to revise']] },
+  smart:    { label: 'Smart: due → revise → ★ → rest', tag: 'smart',
+              tiers: [[f => isDue(f.path), 'due for review'], [isRevise, 'to revise'],
+                      [f => f.must && notDone(f), '★ must-know, not done'], [notDone, 'not done yet']] },
+};
+let nextMode = NEXT_MODES[store.get('nextMode', 'todo')] ? store.get('nextMode', 'todo') : 'todo';
+let nextStay = store.get('nextStay', false);
+const dirOf = p => p.slice(0, p.lastIndexOf('/') + 1);
+
+function step(dir) {
+  const mode = NEXT_MODES[nextMode], here = S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
+  const home = nextStay && here ? dirOf(here) : null, where = home ? ' in this folder' : '';
+  const pos = new Map(S.files.map((f, i) => [f.path, i])), at = here ? pos.get(here) : -1;
+  const wants = f => mode.tiers.some(([test]) => test(f));
+  let pool = S.files.filter(f => isJava(f) && f.path !== here && (!home || dirOf(f.path) === home) && wants(f));
+  if (dir < 0) pool.reverse();
+  const ahead = f => dir > 0 ? pos.get(f.path) > at : pos.get(f.path) < at;
+  const order = pool.filter(ahead).concat(pool.filter(f => !ahead(f)));    // from here on, then wrap
+  if (!order.length) return toast(`Nothing to go to: no other file is "${mode.label}"${where}.`);
+  let pick = order[0], why = '', note = '';
+  if (dir > 0 && mode.tiers.length > 1) {
+    if (here) S.skipped.add(here);
+    const find = () => { for (const [test, w] of mode.tiers) { const f = order.find(f => test(f) && !S.skipped.has(f.path)); if (f) return [f, w]; } return null; };
+    let hit = find();
+    if (!hit) { S.skipped.clear(); if (here) S.skipped.add(here); hit = find() || [order[0], '']; note = ' · every other one seen, starting again with the ones you skipped'; }
+    [pick, why] = hit;
+  } else if (!ahead(pick)) note = dir > 0 ? ` · back to the start${where || ' of the list'}` : ` · back to the end${where || ' of the list'}`;
+  const k = keyOf(pick.path);
+  const practising = !S.cur || S.cur.path === SCRATCH || S.cur.kind !== 'java' || S.cur.mode === 'practice';
+  setMode(k, practising ? 'practice' : 'file');
+  if (practising && (why === 'due for review' || why === 'to revise')) S.fresh = k;
+  go(pick.path);
+  toast(`${dir > 0 ? 'Next' : 'Prev'} (${mode.label}): ${pick.name.replace(/\.java$/, '')}` + (why ? ` · ${why}` : '') + note);
 }
-$('#nextBtn').onclick = nextProblem;
+function paintNav() {
+  const m = NEXT_MODES[nextMode], scope = nextStay ? ', this folder only' : '';
+  // narrow bar: just › (measured 4 Oct: at 1100px the full label left the file name 45px)
+  $('#nextBtn').innerHTML = `<span class="wide">Next<span class="navtag"> · ${esc(m.tag)}${nextStay ? ' · folder' : ''}</span> </span>›`;
+  $('#nextBtn').title = kb(`Next file (Alt+J): ${m.label}${scope}. ▾ changes which files.`);
+  $('#prevBtn').title = kb(`Previous file (Alt+K): ${m.label}${scope}`);
+}
+function renderNextMenu() {
+  const menu = $('#nextMenu');
+  menu.textContent = '';
+  const item = (key, on, label, title) => {
+    const b = document.createElement('button');
+    b.dataset.mode = key; b.title = title || '';
+    b.innerHTML = `<span><span class="ck">${on ? '✓' : ''}</span>${esc(label)}</span>`;
+    menu.append(b);
+  };
+  for (const [key, m] of Object.entries(NEXT_MODES)) item(key, key === nextMode, m.label);
+  menu.append(document.createElement('hr'));
+  item('__stay', nextStay, 'Stay in this folder', 'Next and Prev never leave the folder of the file you are on');
+}
+$('#nextBtn').onclick = () => step(1);
+$('#prevBtn').onclick = () => step(-1);
+$('#nextModeBtn').onclick = e => {
+  e.stopPropagation();
+  const menu = $('#nextMenu');
+  if (menu.hidden) {
+    renderNextMenu();
+    menu.style.right = ($('.tools').getBoundingClientRect().right - e.currentTarget.getBoundingClientRect().right) + 'px';
+  }
+  menu.hidden = !menu.hidden;
+};
+$('#nextMenu').addEventListener('click', e => {
+  const b = e.target.closest('button[data-mode]');
+  if (!b) return;
+  $('#nextMenu').hidden = true;
+  if (b.dataset.mode === '__stay') { nextStay = !nextStay; store.set('nextStay', nextStay); }
+  else { nextMode = b.dataset.mode; store.set('nextMode', nextMode); S.skipped.clear(); }
+  paintNav();
+  toast(`Next and Prev now visit: ${NEXT_MODES[nextMode].label}` + (nextStay ? ', in this folder only' : ''));
+});
+
+/* ------------------------------------------------------------ attempts tab */
+/* Every file of this folder tree with practice code or a timer kept in this browser: the
+   practice questions you have opened. Tick several and clear them in one go. */
+const ATTEMPT_KEYS = ['practice:', 'timer:', 'hints:', 'mode:', 'lastSolved:'];
+function attemptPaths() {
+  const out = new Set(), pre = S.root + '/';
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      for (const p of ['cv:practice:', 'cv:timer:']) if (key.startsWith(p + pre)) out.add(key.slice(p.length + pre.length));
+    }
+  } catch {}
+  return [...out];
+}
+function storageChars() {
+  let n = 0;
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); n += k.length + (localStorage.getItem(k) || '').length; } } catch {}
+  return n;
+}
+function paintAttTab() {
+  const n = attemptPaths().length;
+  $('#attTab').textContent = n ? `Attempts ${n}` : 'Attempts';
+}
+function ago(ms) {
+  if (!ms) return 'opened —';
+  const d = daysSince(ymd(new Date(ms)));
+  return d <= 0 ? 'today ' + new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d === 1 ? 'yesterday' : d + ' days ago';
+}
+function renderAttempts() {
+  const list = $('#attList'), paths = attemptPaths();
+  const rows = paths.map(p => ({ p, t: timerOf(keyOf(p)) })).sort((a, b) => (b.t.at || 0) - (a.t.at || 0) || a.p.localeCompare(b.p));
+  for (const p of [...S.attSel]) if (!paths.includes(p)) S.attSel.delete(p);
+  list.textContent = '';
+  if (!rows.length) list.innerHTML = '<div class="note">No practice attempts kept in this browser. A file you open in practice mode shows up here.</div>';
+  for (const { p, t } of rows) {
+    const k = keyOf(p), f = S.byPath.get(p), name = p.split('/').pop(), hints = hintCount(k);
+    const [label, cls] = t.peeked ? ['Peeked', 'peeked'] : t.solved ? ['Solved', 'solved'] : ['In progress', 'progress'];
+    const row = document.createElement('div');
+    row.className = 'row file' + (S.cur && S.cur.path === p ? ' active' : '');
+    row.dataset.path = p;
+    row.title = f ? 'Open in practice mode' : 'This file is no longer here';
+    row.innerHTML = `<input type="checkbox"${S.attSel.has(p) ? ' checked' : ''}>${nameHtml(name)}<span class="chip ${cls}">${label}</span><span class="sub"></span>`;
+    row.querySelector('.sub').textContent = [p.split('/').slice(0, -1).join(' / '), '⏱ ' + mmss(t.ms || 0),
+      hints ? hints + (hints > 1 ? ' hints' : ' hint') : '', ago(t.at), f ? '' : 'file not found'].filter(Boolean).join(' · ');
+    list.append(row);
+  }
+  const n = S.attSel.size;
+  $('#attClear').disabled = !n;
+  $('#attClear').textContent = n ? `Clear selected (${n})` : 'Clear selected';
+  $('#attAll').checked = !!rows.length && n === rows.length;
+  $('#attAll').indeterminate = n > 0 && n < rows.length;
+  const used = storageChars();
+  $('#attFoot').textContent = `Browser storage used: ${used < 1e5 ? Math.ceil(used / 1e3) + ' K' : (used / 1e6).toFixed(1) + ' M'} of about 5 M characters`;
+  $('#attTab').textContent = rows.length ? `Attempts ${rows.length}` : 'Attempts';
+}
+$('#attList').addEventListener('click', e => {
+  const row = e.target.closest('.row[data-path]');
+  if (!row) return;
+  const p = row.dataset.path;
+  if (e.target.matches('input[type=checkbox]')) {
+    if (e.target.checked) S.attSel.add(p); else S.attSel.delete(p);
+    $('#attConfirm').hidden = true;
+    return renderAttempts();
+  }
+  if (!S.byPath.has(p)) return toast('This file is no longer here. Tick it and clear it.');
+  setMode(keyOf(p), 'practice');
+  go(p);
+});
+$('#attAll').onchange = e => {
+  S.attSel = new Set(e.target.checked ? attemptPaths() : []);
+  $('#attConfirm').hidden = true;
+  renderAttempts();
+};
+$('#attSolved').onclick = () => {
+  S.attSel = new Set(attemptPaths().filter(p => timerOf(keyOf(p)).solved));
+  $('#attConfirm').hidden = true;
+  renderAttempts();
+  if (!S.attSel.size) toast('None of these attempts is solved yet.');
+};
+$('#attClear').onclick = () => {
+  const n = S.attSel.size;
+  if (!n) return;
+  $('#attConfirmText').textContent = `Clear ${n} attempt${n > 1 ? 's' : ''}? The code, timer and hints kept for ${n > 1 ? 'them' : 'it'} go. Done / revise marks stay.`;
+  $('#attConfirm').hidden = false;
+};
+$('#attCancel').onclick = () => { $('#attConfirm').hidden = true; };
+$('#attDo').onclick = () => {
+  const paths = [...S.attSel], openOne = S.cur && paths.includes(S.cur.path) && S.cur.mode === 'practice';
+  if (openOne) { closeCompare(false); editor.setModel(null); }
+  for (const p of paths) {
+    const k = keyOf(p);
+    for (const pre of ATTEMPT_KEYS) store.del(pre + k);
+    const m = S.pmodels.get(k);
+    if (m) { m.dispose(); S.pmodels.delete(k); }
+    S.modes.delete(k); S.views.delete(k + ':practice'); S.outputs.delete(k + ':practice');
+    markDraft(p);
+  }
+  S.attSel.clear();
+  $('#attConfirm').hidden = true;
+  toast(`Cleared ${paths.length} attempt${paths.length > 1 ? 's' : ''}`);
+  if (openOne) { setMode(S.cur.key, 'practice'); openPath(S.cur.path); }   // reopens on a blank attempt
+  renderAttempts();
+};
 function showBanner(text, actions, kind = '') {
   $('#bannerText').textContent = text;
   const box = $('#bannerBtns'); box.textContent = '';
@@ -1556,7 +1903,14 @@ async function run() {
     const { pass, fail, unchecked } = res.checks || { pass: 0, fail: 0, unchecked: 0 };
     if (res.ok && pass && !fail && !unchecked) {
       const t = timerOf(c.key);
-      if (t.solved) return toast(`Still solved: all ${pass} cases match.`);   // counted once per attempt
+      if (t.solved) return toast(`Still ${t.peeked ? 'passes' : 'solved'}: all ${pass} cases match.`);   // counted once per attempt
+      if (t.peeked) {                 // looked at a solution first: a pass, but not a solve
+        t.solved = true; t.paused = false;
+        setTimer(c.key, t);
+        await setProgress(c.path, null, true);     // records the pass, not a time and not done
+        paintTimer();
+        return toast(`All ${pass} cases match, but you looked at a solution first, so it does not count as solved. Reset and solve it fresh to mark it done.`);
+      }
       const hints = Math.min(hintCount(c.key), (S.hintsFor.get(c.key) || []).length);
       t.solved = true; t.paused = false;
       setTimer(c.key, t);
@@ -1718,10 +2072,21 @@ $('#menu').addEventListener('click', async e => {
       toast(limitMin ? `Practice time limit: ${limitMin} minutes` : 'No practice time limit');
       break;
     case 'restartTimer':
-      if (!c || c.mode !== 'practice') { toast('The timer runs in practice mode (Alt+P).'); break; }
-      store.del('timer:' + c.key); overToastFor = null; paintTimer();
-      toast('Practice timer restarted');
+      if (!timed(c)) { toast('The timer runs in practice mode (Alt+P) and in the Scratch pad.'); break; }
+      // a peek stays a peek: restarting the clock does not make the attempt fresh again
+      setTimer(c.key, { ms: 0, paused: false, solved: false, at: Date.now(), ...(timerOf(c.key).peeked ? { peeked: true } : {}) });
+      overToastFor = null; paintTimer();
+      toast(c.path === SCRATCH ? 'Scratch timer restarted from zero' : 'Practice timer restarted');
       break;
+    case 'lastSolved': {
+      const m = c && c.mode === 'practice' && S.pmodels.get(c.key), code = c && store.get('lastSolved:' + c.key, null);
+      if (!m || code == null) break;
+      replaceAll(m, code);
+      const t = timerOf(c.key); t.peeked = true; setTimer(c.key, t);   // your old code is a solution you looked at
+      refreshBar();
+      toast('Your last solution is back (Ctrl+Z undoes it). Running it does not count as solving this one.');
+      break;
+    }
   }
 });
 $('#stdinBtn').onclick = () => {
@@ -1748,6 +2113,7 @@ $('#autostartChk').onchange = async e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#help') && !e.target.closest('#helpBtn')) $('#help').hidden = true;
   if (!e.target.closest('#menu') && !e.target.closest('#moreBtn')) $('#menu').hidden = true;
+  if (!e.target.closest('#nextMenu') && !e.target.closest('#nextModeBtn')) $('#nextMenu').hidden = true;
 });
 document.addEventListener('keydown', e => {
   if (e.defaultPrevented || (e.target.closest && e.target.closest('.monaco-editor'))) return;
@@ -1761,10 +2127,12 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
   else if (e.altKey && e.code === 'KeyM') { e.preventDefault(); cycleProgress(); }
   else if (e.altKey && e.code === 'KeyN') { e.preventDefault(); toggleMinimap(); }
+  else if (e.altKey && k === 'enter') { e.preventDefault(); toggleFull(); }
   else if (e.altKey && e.code === 'KeyH') { e.preventDefault(); hintButton(); }
   else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
-  else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); nextProblem(); }
-  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
+  else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
+  else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }
+  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#nextMenu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
 });
 
 /* ------------------------------------------------------------ splitters + toast */
