@@ -130,7 +130,8 @@ HELPER_CLASS = re.compile(r"(Node|Pair|Edge|Point|Interval|Cell|Entry|Tuple)$")
 # whatever state the previous one set.
 HIDDEN_SECTIONS = re.compile(r"^\s*\*\s*(APPROACH|KEY INSIGHT|COMPLEXITY|INTERVIEW FOLLOW-UPS|FOLLOW-UPS|"
                              r"SOLUTION|INTUITION|GOTCHAS|KEY DECISIONS|HOW IT WORKS|DESIGN|ANSWER|"
-                             r"HOW TO REASON ABOUT IT|FIXES APPLIED|FIXED|ROLES IN THIS CODE|WHAT TO NOTICE)\b")
+                             r"HOW TO REASON ABOUT IT|FIXES APPLIED|FIXED|ROLES IN THIS CODE|WHAT TO NOTICE|"
+                             r"RECOGNIZE WHEN|TEMPLATE|VARIATIONS|PITFALLS|DEEP DIVE)\b")
 SHOWN_SECTIONS = re.compile(r"^\s*\*\s*(PROBLEM|EXAMPLES?|RUN|CONSTRAINTS|INPUT|OUTPUT|QUESTION|OPTIONS|"
                             r"INTENT|WHEN TO USE|WHAT YOU WILL SEE|ROLE IN THE PROJECT|PATTERN)\b")
 
@@ -254,8 +255,11 @@ def hide_hints(src):
 
 
 # Hints come out gentlest first: the idea, then the method, then its cost. Sections in
-# none of these groups (follow-ups, gotchas, fixes) come last, in file order.
-HINT_ORDER = (("INTUITION", "KEY INSIGHT", "HOW TO REASON ABOUT IT", "WHAT TO NOTICE"),
+# none of these groups (follow-ups, gotchas, fixes) come last, in file order. The pattern
+# files (01-DSA/00-Patterns) first say which pattern it is, then show its generic template.
+HINT_ORDER = (("RECOGNIZE WHEN",),
+              ("TEMPLATE",),
+              ("INTUITION", "KEY INSIGHT", "HOW TO REASON ABOUT IT", "WHAT TO NOTICE"),
               ("APPROACH", "HOW IT WORKS", "SOLUTION", "DESIGN", "KEY DECISIONS", "ANSWER", "ROLES IN THIS CODE"),
               ("COMPLEXITY",))
 

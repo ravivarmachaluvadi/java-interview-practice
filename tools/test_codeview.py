@@ -169,6 +169,21 @@ class HintsTest(unittest.TestCase):
         self.assertEqual(hints[0]["text"], "Look up the complement.")
         self.assertEqual(hints[1]["text"], "1. Walk once.\n   indented detail")
 
+    def test_pattern_sections_are_hidden_and_come_back_as_hints(self):
+        """The 00-Patterns files add sections that name the pattern; practice mode must
+        hide them, and the hint for which pattern it is comes before its template."""
+        src = SAMPLE.replace(" * APPROACH  (hash map)", " * RECOGNIZE WHEN\n *   Pair with a sum.\n *\n"
+                             " * TEMPLATE\n *   seen.put(x, i)\n *\n * APPROACH  (hash map)").replace(
+            " * INTERVIEW FOLLOW-UPS", " * VARIATIONS\n *   LC 454 four lists\n *\n"
+            " * PITFALLS\n *   Same index twice.\n *\n * DEEP DIVE\n *   A02_TwoSum\n *\n"
+            " * INTERVIEW FOLLOW-UPS")
+        skeleton, _ = javasrc.practice_skeleton(src)
+        for leaked in ("Pair with a sum", "seen.put", "LC 454", "Same index twice", "A02_TwoSum"):
+            self.assertNotIn(leaked, skeleton)
+        titles = [h["title"] for h in javasrc.practice_hints(src)]
+        self.assertEqual(titles[:4], ["RECOGNIZE WHEN", "TEMPLATE", "KEY INSIGHT", "APPROACH (hash map)"])
+        self.assertEqual(sorted(titles[5:]), ["DEEP DIVE", "INTERVIEW FOLLOW-UPS", "PITFALLS", "VARIATIONS"])
+
     def test_skeleton_mentions_the_hint_button(self):
         skeleton, _ = javasrc.practice_skeleton(SAMPLE)
         self.assertIn("Hint", skeleton)
