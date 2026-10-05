@@ -16,6 +16,14 @@
  *   [1, 2, 3]                               ->  0    monotonic, nothing is enclosed
  *   []                                      ->  0    no bars
  *
+ *   The second example drawn: # = bar, ~ = trapped water (1 + 1 + 2 + 1 + 1 = 6).
+ *
+ *                            #
+ *                #  ~  ~  ~  #  #  ~  #
+ *          #  ~  #  #  ~  #  #  #  #  #  #
+ *       0  1  0  2  1  0  1  3  2  1  2  1    <- height
+ *       0  1  2  3  4  5  6  7  8  9 10 11    <- index
+ *
  * APPROACH  (converging pointers with running maxima)
  *   1. left = 0, right = n - 1, maxLeft = maxRight = 0, water = 0.
  *   2. While left <= right, look at the SHORTER side:
@@ -24,6 +32,23 @@
  *        (or it becomes the new maxLeft). Move left forward.
  *      - else: symmetric on the right using maxRight. Move right back.
  *   3. Return water.
+ *
+ *   The drawn example, step by step. Each row settles the bar on the shorter side: it
+ *   holds (its side's max - its height) water, or it raises that max.
+ *
+ *      L   R  h[L] h[R]  settles      max on that side   water added   total
+ *      0  11    0    1   left  bar 0  maxLeft  0         0 - 0 = 0       0
+ *      1  11    1    1   left  bar 1  maxLeft  0 -> 1    0 (new max)     0
+ *      2  11    0    1   left  bar 2  maxLeft  1         1 - 0 = 1       1
+ *      3  11    2    1   right bar 11 maxRight 0 -> 1    0 (new max)     1
+ *      3  10    2    2   left  bar 3  maxLeft  1 -> 2    0 (new max)     1
+ *      4  10    1    2   left  bar 4  maxLeft  2         2 - 1 = 1       2
+ *      5  10    0    2   left  bar 5  maxLeft  2         2 - 0 = 2       4
+ *      6  10    1    2   left  bar 6  maxLeft  2         2 - 1 = 1       5
+ *      7  10    3    2   right bar 10 maxRight 1 -> 2    0 (new max)     5
+ *      7   9    3    1   right bar 9  maxRight 2         2 - 1 = 1       6
+ *      7   8    3    2   right bar 8  maxRight 2         2 - 2 = 0       6
+ *      7   7    3    3   left  bar 7  maxLeft  2 -> 3    0 (new max)     6
  *
  * KEY INSIGHT
  *   You normally need BOTH the left max and the right max for a bar, which is why the
@@ -45,6 +70,8 @@
  *
  * RUN
  *   main() runs 5 cases (typical, edge, tricky) and prints actual vs expected.
+ *   In the Code Viewer, Visual (Alt+V) plays the approach step by step on any input
+ *   (not in Practice mode).
  */
 import java.util.Arrays;
 

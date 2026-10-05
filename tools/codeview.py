@@ -24,6 +24,9 @@ THE PAGE
              never touched and Save is off. The copy stays in the browser until Discard copy,
              one at a time (Try on another file deletes it); Compare (Alt+C) puts it next to
              the file with every change marked
+  Visual     Alt+V plays the solution step by step on a picture, on the file's EXAMPLE
+             inputs or your own (Trapping Rain Water and Largest Rectangle for now; not in
+             practice mode)
   Practice   hides the solution bodies and the APPROACH notes; when every expected line
              matches, the file is marked done. While practising: a timer (limit in the
              menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and

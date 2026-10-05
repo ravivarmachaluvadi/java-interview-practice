@@ -14,6 +14,17 @@
  *   [5, 4, 3, 2, 1]     ->  9    height 3 x width 3 (bars 5,4,3)
  *   []                  ->  0 [1]                 ->  1
  *
+ *   The first example drawn: R = the largest rectangle, height 5 x width 2 = 10.
+ *
+ *                #
+ *             R  R
+ *             R  R
+ *             R  R     #
+ *       #     R  R  #  #
+ *       #  #  R  R  #  #
+ *       2  1  5  6  2  3    <- height
+ *       0  1  2  3  4  5    <- index
+ *
  * APPROACH  (monotonic increasing stack of indices)
  *   1. Walk i from 0 to n inclusive; treat i == n as a bar of height 0 so
  *      every bar still on the stack gets flushed at the end.
@@ -23,6 +34,21 @@
  *   3. Width for the popped bar = i - stackTop - 1 (or i if the stack is
  *      empty, meaning nothing shorter to the left). Area = height x width.
  *   4. Push i. The stack stays increasing in height bottom to top.
+ *
+ *   The drawn example, step by step. A popped bar's rectangle runs between its
+ *   two shorter neighbours: from the bar now on top of the stack to i.
+ *
+ *      i  h[i]  pop: height x width = area      stack after (index(height))
+ *      0   2    -                             0(2)
+ *      1   1    0(2): 2 x 1 = 2  new best     1(1)
+ *      2   5    -                             1(1) 2(5)
+ *      3   6    -                             1(1) 2(5) 3(6)
+ *      4   2    3(6): 6 x 1 = 6  new best     1(1) 4(2)
+ *               2(5): 5 x 2 = 10  new best
+ *      5   3    -                             1(1) 4(2) 5(3)
+ *      6  end   5(3): 3 x 1 = 3               (empty)
+ *               4(2): 2 x 4 = 8
+ *               1(1): 1 x 6 = 6
  *
  * KEY INSIGHT
  *   Every bar is the limiting height of exactly one maximal rectangle, and
@@ -47,6 +73,8 @@
  * RUN
  *   main() runs 5 cases (typical, all equal, decreasing, empty, single)
  *   and prints actual vs expected.
+ *   In the Code Viewer, Visual (Alt+V) plays the approach step by step on any
+ *   input (not in Practice mode).
  */
 
 import java.util.Arrays;

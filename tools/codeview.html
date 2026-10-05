@@ -209,6 +209,35 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .diff-head { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel); border-bottom: 1px solid var(--border); }
 .diff-head span { padding: 6px 12px; font: 600 11px var(--ui); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 #diff { position: relative; min-height: 0; }
+#visualWrap { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+.vis-head { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.vis-head strong { font: 600 12px var(--ui); margin-right: 4px; }
+.vis-head input { width: 230px; font-family: var(--code); }
+.vis-head .meta { color: var(--muted); font-size: 12px; min-width: 88px; }
+.vis-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 18px 18px; }
+#visSvg { display: block; width: 100%; height: 300px; margin: 4px 0; }
+.vis-legend, .vis-vars { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12px var(--code); color: var(--muted); margin: 6px 0; }
+.vis-vars b { color: var(--text); font-weight: 600; }
+.vis-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.vis-say { font: 14px/1.6 var(--ui); max-width: 92ch; min-height: 4.8em; }
+.vis-say .ok { color: var(--ok); font-weight: 600; } .vis-say .bad { color: var(--bad); font-weight: 600; }
+.vis-err { color: var(--bad); font: 13px var(--ui); }
+/* solid mixes, not opacity: a rectangle's tint behind a bar must not show through it */
+#visSvg .bar, .vis-legend .bar { fill: color-mix(in srgb, var(--muted) 45%, var(--bg)); background: color-mix(in srgb, var(--muted) 45%, var(--bg)); }
+#visSvg .bar.done { fill: color-mix(in srgb, var(--muted) 75%, var(--bg)); }
+#visSvg .bar.instack, .vis-legend .instack { fill: color-mix(in srgb, var(--accent) 60%, var(--bg)); background: color-mix(in srgb, var(--accent) 60%, var(--bg)); }
+#visSvg .water, .vis-legend .water { fill: color-mix(in srgb, var(--accent) 40%, var(--bg)); background: color-mix(in srgb, var(--accent) 40%, var(--bg)); }
+#visSvg .cur { fill: none; stroke: var(--warn); stroke-width: 2.5; }
+.vis-legend .cur { border: 2px solid var(--warn); }
+#visSvg .maxline { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+#visSvg .poprect, .vis-legend .poprect { fill: var(--warn); fill-opacity: .16; stroke: var(--warn); stroke-width: 2; background: color-mix(in srgb, var(--warn) 30%, transparent); }
+#visSvg .bestrect, .vis-legend .bestrect { fill: var(--ok); fill-opacity: .1; stroke: var(--ok); stroke-width: 2; stroke-dasharray: 6 4; border: 2px dashed var(--ok); }
+#visSvg .tint { stroke: none; } #visSvg .edge { fill: none; }
+#visSvg .base { stroke: var(--border); stroke-width: 1.5; }
+#visSvg text { fill: var(--muted); font: 11px var(--code); }
+#visSvg text.ptr { fill: var(--warn); font: 700 13px var(--code); }
+#visSvg text.lbl { fill: var(--accent); font: 600 11px var(--code); }
+#visSvg text.hgt { fill: var(--text); }
 /* hints, one at a time */
 /* the notes are hard-wrapped at 95 columns at most (measured 3 Oct), so 96ch of the code
    font shows them as written; a narrower window still wraps */
@@ -380,6 +409,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <button id="timerBtn" class="timer" hidden></button>
       <button id="hintBtn" hidden title="Show the hidden notes one at a time, gentlest first (Alt+H)">Hint</button>
       <button id="compareBtn" hidden title="Your attempt next to the original solution, differences marked (Alt+C)">Compare</button>
+      <button id="visualBtn" hidden title="Play the solution step by step on a picture (Alt+V)">Visual</button>
       <button id="progBtn" hidden title="Mark this file done / to revise (Alt+M)">○ Mark done</button>
       <span class="seg" id="navGroup" hidden>
         <button class="icon" id="prevBtn" title="Previous file (Alt+K)">‹</button>
@@ -422,6 +452,30 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <div class="diff-head"><span id="diffLeft">Original solution</span><span id="diffRight">Your attempt</span></div>
       <div id="diff"></div>
     </div>
+    <div id="visualWrap" hidden>
+      <div class="vis-head">
+        <strong id="visTitle">Visual</strong>
+        <select id="visExample" title="The examples from this file's EXAMPLE section"></select>
+        <input id="visInput" spellcheck="false" placeholder="your own: 3, 0, 2, 0, 4" title="Your own input: whole numbers (0 or more) separated by commas, up to 40. Enter plays it.">
+        <span class="spacer"></span>
+        <span class="seg">
+          <button class="icon" id="visFirst" title="First step (Home)">«</button>
+          <button class="icon" id="visPrev" title="Previous step (Left arrow)">‹</button>
+          <button id="visPlay" title="Play / pause (Space)">▶ Play</button>
+          <button class="icon" id="visNext" title="Next step (Right arrow)">›</button>
+          <button class="icon" id="visLast" title="Last step (End)">»</button>
+        </span>
+        <select id="visSpeed" title="Playing speed"><option value="1600">0.5x</option><option value="800" selected>1x</option><option value="400">2x</option></select>
+        <span class="meta" id="visCount"></span>
+        <button id="visClose" title="Back to the code (Esc)">Close</button>
+      </div>
+      <div class="vis-body">
+        <div class="vis-say" id="visSay"></div>
+        <div class="vis-vars" id="visVars"></div>
+        <svg id="visSvg" role="img" aria-label="Step picture"></svg>
+        <div class="vis-legend" id="visLegend"></div>
+      </div>
+    </div>
     <article class="md" id="md" hidden></article>
     <div class="hintcard" id="hintCard" hidden>
       <header><span id="hintTitle">Hint</span><button class="icon" id="hintClose" title="Close (the hints stay shown; Hint opens them again)">×</button></header>
@@ -458,6 +512,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy next to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>T</kbd></td><td>Try: a throwaway copy of this file to change and run; never saved. Again to Discard it</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>V</kbd></td><td>Visual: play the solution step by step on a picture, on the file's examples or your own input (some problems; not in practice). Arrows, Space, Home/End and Esc work while it is open</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart)</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>K</kbd></td><td>Previous file, in the same list</td></tr>
     <tr><td>Browser Back</td><td>Back to the file you were on before</td></tr>
@@ -544,7 +599,7 @@ const S = {
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), tmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
-  hintsFor: new Map(), comparing: false, fresh: null, skipped: new Set(), attSel: new Set(),
+  hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
 let editor = null;
@@ -1149,6 +1204,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyH, hintButton);
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
   editor.addCommand(K.Alt | C.KeyT, toggleTry);
+  editor.addCommand(K.Alt | C.KeyV, toggleVisual);
   editor.addCommand(K.Alt | C.KeyJ, () => step(1));
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
@@ -1235,6 +1291,7 @@ async function openPath(path) {
   const token = S.pending = {};
   saveView();
   closeCompare(false);
+  closeVisual(false);
   hideBanner();
   $('#hintCard').hidden = true;
   if (path === SCRATCH) {
@@ -1318,6 +1375,7 @@ async function togglePractice() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || c.path === SCRATCH) return;
   closeCompare(false);
+  closeVisual(false);
   saveView();
   if (c.mode === 'practice') {
     const peeked = notePeek(c);
@@ -1396,6 +1454,7 @@ function toggleTry() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || c.path === SCRATCH || c.mode === 'practice') return;
   closeCompare(false);                 // the diff view holds the copy's model, which Discard disposes
+  closeVisual(false);
   saveView();
   if (c.mode !== 'try') {
     const fileView = editor.saveViewState();
@@ -1505,6 +1564,10 @@ function refreshBar() {
     : 'Your attempt next to the original solution, differences marked (Alt+C)';
   cb.textContent = S.comparing ? 'Close compare' : 'Compare';
   cb.classList.toggle('on', S.comparing);
+  const vb = $('#visualBtn');
+  vb.hidden = !visualFor(c);
+  vb.textContent = S.visual ? 'Close visual' : 'Visual';
+  vb.classList.toggle('on', !!S.visual);
   $('#navGroup').hidden = !S.files.some(isJava);
   paintNav();
   $('#lastSolvedBtn').hidden = !practice || !store.has('lastSolved:' + c.key);
@@ -1742,6 +1805,7 @@ function openCompare() {
   const c = S.cur, trying = c && c.mode === 'try';
   const attempt = c && (trying ? S.tmodels.get(c.key) : c.mode === 'practice' ? S.pmodels.get(c.key) : null);
   if (!attempt) return;
+  closeVisual(false);
   notePeek(c);
   $('#diffLeft').textContent = trying ? 'The file (unchanged)' : 'Original solution';
   $('#diffRight').textContent = trying ? 'Your try copy' : 'Your attempt';
@@ -1774,6 +1838,252 @@ function closeCompare(restore = true) {
   refreshBar();
 }
 $('#compareBtn').onclick = toggleCompare;
+
+/* ------------------------------------------------------------ visual */
+/* Visual (5 Oct): plays a solution step by step on a picture, for the problems in VISUALS,
+   picked by the "LeetCode <n>" on the header's title line. Each trace copies the Java
+   solution's loop line for line and returns one state per step, so Prev / Next only move
+   an index. Not in practice mode: the steps are the answer (the header's EXAMPLE drawing
+   shows the question there). Examples come from the file's own EXAMPLE lines. */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const lcNumber = text => { const m = /LeetCode\s+(\d+)/.exec((text || '').split('\n', 6).join('\n')); return m ? +m[1] : null; };
+function visualExamples(text) {
+  const out = [], seen = new Set();
+  let inEx = false;
+  for (const l of (text || '').split('\n')) {
+    if (l.includes('*/')) break;
+    if (/^\s*\* [A-Z]/.test(l)) { inEx = /^\s*\* EXAMPLES?\b/.test(l); continue; }   // a section title
+    if (!inEx) continue;
+    for (const m of l.matchAll(/\[([\d,\s]*)\]\s*->\s*(\d+)/g)) {
+      const heights = m[1].trim() ? m[1].split(',').map(s => +s.trim()) : [];
+      if (!seen.has(heights.join())) { seen.add(heights.join()); out.push({ heights, expected: +m[2] }); }
+    }
+  }
+  return out;
+}
+
+/* Trapping Rain Water, the two-pointer loop of D01_TrappingRainWater: left <= right, and the
+   left side settles when h[left] <= h[right]. Pointers are drawn where they were when the
+   step decided, the settled bar is outlined. */
+function rainTrace(h) {
+  const n = h.length, water = Array(n).fill(0), done = Array(n).fill(false), steps = [];
+  let l = 0, r = n - 1, ml = 0, mr = 0, total = 0;
+  const snap = (say, x = {}) => steps.push({ l, r, ml, mr, total, water: water.slice(), done: done.slice(), say, ...x });
+  snap(n ? `Start: L at bar 0, R at bar ${n - 1}. maxLeft and maxRight are 0, no water yet.` : 'No bars, so no water.');
+  while (l <= r) {
+    const left = h[l] <= h[r], i = left ? l : r, side = left ? 'maxLeft' : 'maxRight', max = left ? ml : mr;
+    const why = left ? `h[L] = ${h[l]} <= h[R] = ${h[r]}, so the right side has a bar at least this tall: bar ${i} only depends on maxLeft.`
+                     : `h[L] = ${h[l]} > h[R] = ${h[r]}, so the left side has a taller bar: bar ${i} only depends on maxRight.`;
+    let what;
+    if (h[i] >= max) {
+      what = h[i] > max ? `It is taller than ${side} (${max}): no water on it, and ${side} becomes ${h[i]}.`
+                        : `It is as tall as ${side} (${max}): no water on it.`;
+      if (left) ml = h[i]; else mr = h[i];
+    } else {
+      water[i] = max - h[i]; total += water[i];
+      what = `It holds ${side} - its height = ${max} - ${h[i]} = ${water[i]} water.`;
+    }
+    done[i] = true;
+    const at = { l, r };
+    if (left) l++; else r--;
+    steps.push({ ...at, ml, mr, total, water: water.slice(), done: done.slice(), cur: i, say: `${why} ${what}` });
+  }
+  if (n) snap(`L has passed R, so every bar is settled. Total water = ${total}.`, { end: true });
+  return { steps, result: total };
+}
+function drawRain(svg, h, s, W, H) {
+  const n = h.length, top = Math.max(1, ...h.map((x, i) => x + s.water[i]));
+  const geo = barGeo(W, H, n, top);
+  for (let i = 0; i < n; i++) {
+    svgBar(svg, geo, i, h[i], 'bar' + (s.done[i] ? ' done' : ''));
+    if (s.water[i]) svgEl(svg, 'rect', { class: 'water', x: geo.x(i), y: geo.y(h[i] + s.water[i]), width: geo.bw, height: s.water[i] * geo.unit });
+    if (s.cur === i) svgEl(svg, 'rect', { class: 'cur', x: geo.x(i) - 2, y: geo.y(h[i] + s.water[i]) - 2, width: geo.bw + 4, height: (h[i] + s.water[i]) * geo.unit + 4 });
+  }
+  if (!s.end && n) {
+    const lx = geo.x(s.l) + geo.bw / 2, rx = geo.x(s.r) + geo.bw / 2;
+    if (s.ml) { svgEl(svg, 'line', { class: 'maxline', x1: geo.x(0), x2: lx, y1: geo.y(s.ml), y2: geo.y(s.ml) }); svgText(svg, geo.x(0), geo.y(s.ml) - 4, 'maxLeft ' + s.ml, 'lbl'); }
+    if (s.mr) { svgEl(svg, 'line', { class: 'maxline', x1: rx, x2: geo.x(n - 1) + geo.bw, y1: geo.y(s.mr), y2: geo.y(s.mr) }); svgText(svg, geo.x(n - 1) + geo.bw, geo.y(s.mr) - 4, 'maxRight ' + s.mr, 'lbl', 'end'); }
+    svgText(svg, lx, geo.base + 46, s.l === s.r ? 'L R' : 'L', 'ptr', 'middle');
+    if (s.l !== s.r) svgText(svg, rx, geo.base + 46, 'R', 'ptr', 'middle');
+  }
+  barLabels(svg, geo, h);
+}
+
+/* Largest Rectangle in Histogram, the stack loop of D02_LargestRectangleArea: i runs to n
+   (a height-0 bar at the end), and pops while the bar on top is >= the current one. */
+function histTrace(h) {
+  const n = h.length, st = [], steps = [];
+  let best = 0, bestRect = null;
+  const snap = (i, say, x = {}) => steps.push({ i, stack: st.slice(), best, bestRect, say, ...x });
+  snap(-1, n ? 'Start: the stack is empty. It keeps bar indices whose heights increase from bottom to top.' : 'No bars, so the largest area is 0.');
+  for (let i = 0; i <= n; i++) {
+    const cur = i === n ? 0 : h[i];
+    while (st.length && (i === n || h[st[st.length - 1]] >= cur)) {
+      const j = st.pop(), below = st.length ? st[st.length - 1] : -1;
+      const width = below < 0 ? i : i - below - 1, area = h[j] * width, isBest = area > best;
+      if (isBest) { best = area; bestRect = { l: below + 1, r: i - 1, h: h[j] }; }
+      const who = i === n ? 'The end (a bar of height 0)' : `Bar ${i} (height ${cur})`;
+      snap(i, `${who} is not taller than bar ${j} (height ${h[j]}), so pop ${j}: no wider rectangle of height ${h[j]} exists. `
+        + `It spans from ${below < 0 ? 'the first bar (nothing shorter on the left)' : `bar ${below + 1}, just after the shorter bar ${below}`} to bar ${i - 1}: `
+        + `width ${width}, area ${h[j]} x ${width} = ${area}${isBest ? ', the best so far' : ''}.`, { pop: { l: below + 1, r: i - 1, h: h[j] } });
+    }
+    if (i < n) {
+      st.push(i);
+      snap(i, `Push bar ${i} (height ${h[i]}). Every bar on the stack is shorter than the one above it, so each still waits for a shorter bar on its right.`, { pushed: i });
+    }
+  }
+  if (n) snap(n, `Every bar has been popped. Largest rectangle = ${best}.`, { end: true });
+  return { steps, result: best };
+}
+function drawHist(svg, h, s, W, H) {
+  const n = h.length, geo = barGeo(W, H, n + 1, Math.max(1, ...h));
+  const inStack = new Set(s.stack);
+  // rectangles: the tint behind the bars, the outline over them, so the bars stay clean
+  const rects = [s.bestRect && s.bestRect.h && [s.bestRect, 'bestrect'], s.pop && s.pop.h && s.pop.r >= s.pop.l && [s.pop, 'poprect']].filter(Boolean);
+  const rect = (r, cls) => svgEl(svg, 'rect', { class: cls, x: geo.x(r.l) - 3, y: geo.y(r.h), width: geo.x(r.r) - geo.x(r.l) + geo.bw + 6, height: r.h * geo.unit });
+  for (const [r, cls] of rects) rect(r, cls + ' tint');
+  for (let i = 0; i < n; i++) svgBar(svg, geo, i, h[i], 'bar' + (inStack.has(i) ? ' instack' : ''));
+  for (const [r, cls] of rects) rect(r, cls + ' edge');
+  if (s.i >= 0 && !s.end) svgText(svg, geo.x(s.i) + geo.bw / 2, geo.base + 46, s.i === n ? 'i (end)' : 'i', 'ptr', 'middle');
+  barLabels(svg, geo, h);
+}
+
+/* drawing helpers: one column per bar, heights scaled to the space, index under each bar */
+function barGeo(W, H, cols, top) {
+  const pad = 14, colW = Math.max(16, Math.min(56, (W - 2 * pad) / Math.max(cols, 1)));
+  const base = H - 52, unit = (base - 30) / top, x0 = pad + Math.max(0, (W - 2 * pad - colW * cols) / 2);
+  return { H, base, unit, bw: colW * 0.78, x: i => x0 + i * colW + colW * 0.11, y: v => base - v * unit, x0, x1: x0 + colW * cols };
+}
+function svgEl(svg, tag, attrs) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.append(e); return e; }
+function svgText(svg, x, y, t, cls = '', anchor = 'start') { svgEl(svg, 'text', { x, y, class: cls, 'text-anchor': anchor }).textContent = t; }
+function svgBar(svg, geo, i, v, cls) { if (v) svgEl(svg, 'rect', { class: cls, x: geo.x(i), y: geo.y(v), width: geo.bw, height: v * geo.unit, rx: 2 }); }
+function barLabels(svg, geo, h) {      // under each bar its height, then its index, as in the header drawings
+  svgEl(svg, 'line', { class: 'base', x1: geo.x0, x2: geo.x1, y1: geo.base, y2: geo.base });
+  h.forEach((v, i) => {
+    svgText(svg, geo.x(i) + geo.bw / 2, geo.base + 15, String(v), 'hgt', 'middle');
+    svgText(svg, geo.x(i) + geo.bw / 2, geo.base + 29, String(i), '', 'middle');
+  });
+}
+
+const sw = cls => `<i class="${cls}"></i>`;
+const VISUALS = {
+  42: { title: 'Trapping Rain Water', trace: rainTrace, draw: drawRain, unit: 'water',
+        legend: `<span>${sw('bar')}bar (under it: height, then index)</span><span>${sw('water')}trapped water</span><span>${sw('cur')}bar settled in this step</span><span>- - maxLeft / maxRight so far</span><span>L R pointers</span>`,
+        vars: s => `<span>L <b>${s.l}</b></span><span>R <b>${s.r}</b></span><span>maxLeft <b>${s.ml}</b></span><span>maxRight <b>${s.mr}</b></span><span>water <b>${s.total}</b></span>` },
+  84: { title: 'Largest Rectangle in Histogram', trace: histTrace, draw: drawHist, unit: 'largest area',
+        legend: `<span>${sw('bar')}bar (under it: height, then index)</span><span>${sw('instack')}bar on the stack</span><span>${sw('poprect')}rectangle of the bar just popped</span><span>${sw('bestrect')}best so far</span>`,
+        vars: (s, h) => `<span>i <b>${s.i < 0 ? '-' : s.i === h.length ? 'end' : s.i}</b></span><span>stack (bottom to top) <b>${s.stack.length ? s.stack.map(k => `${k}(${h[k]})`).join(' ') : 'empty'}</b></span><span>best <b>${s.best}</b></span>` },
+};
+
+const visualFor = c => (c && c.kind === 'java' && c.mode !== 'practice' && c.path !== SCRATCH && VISUALS[lcNumber(S.originals.get(c.key))]) || null;
+let visTimer = null;
+function toggleVisual() { if (S.visual) closeVisual(); else openVisual(); }
+function openVisual() {
+  const c = S.cur, def = visualFor(c);
+  if (!def) return;
+  closeCompare(false);
+  saveView();
+  const examples = visualExamples(S.originals.get(c.key));
+  S.visual = { def, examples, h: [], expected: null, steps: [], idx: 0 };
+  const sel = $('#visExample');
+  sel.textContent = '';
+  examples.forEach((e, k) => sel.append(new Option(`[${e.heights.join(', ')}]  ->  ${e.expected}`, k)));
+  sel.append(new Option('Your own input', 'own'));
+  $('#visTitle').textContent = def.title;
+  $('#visLegend').innerHTML = def.legend;
+  $('#editor').hidden = true; $('#md').hidden = true; $('#visualWrap').hidden = false;
+  if (examples.length) loadVisual(examples[0].heights, examples[0].expected, 0);
+  else { sel.value = 'own'; loadVisual([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1], null, 'own'); }
+  refreshBar();
+}
+function closeVisual(restore = true) {
+  if (!S.visual) return;
+  visStop();
+  S.visual = null;
+  $('#visualWrap').hidden = true;
+  if (restore) { $('#editor').hidden = false; editor.layout(); editor.focus(); }
+  refreshBar();
+}
+function loadVisual(h, expected, pick) {
+  const v = S.visual;
+  visStop();
+  Object.assign(v, { h, expected, ...v.def.trace(h), idx: 0 });
+  $('#visExample').value = String(pick);
+  $('#visInput').value = h.join(', ');
+  renderVisual();
+}
+function parseHeights(text) {
+  const parts = text.replace(/[[\]]/g, ' ').split(/[\s,]+/).filter(Boolean);
+  if (parts.some(p => !/^\d+$/.test(p))) return 'Use whole numbers 0 or more, separated by commas, like 3, 0, 2, 0, 4.';
+  if (parts.length > 40) return `That is ${parts.length} bars; up to 40 fit on the picture.`;
+  const h = parts.map(Number);
+  if (h.some(x => x > 1000)) return 'Keep each height at 1000 or less.';
+  return h;
+}
+function renderVisual() {
+  const v = S.visual;
+  if (!v) return;
+  const svg = $('#visSvg'), s = v.steps[v.idx], last = v.idx === v.steps.length - 1;
+  // the picture gets the height the sentence (3 lines kept), variables and legend leave, so a
+  // laptop screen with the output open still shows it whole; collapsing the output enlarges it
+  const W = Math.max(320, svg.clientWidth || 800), H = clamp(svg.parentElement.clientHeight - 175, 180, 320);
+  svg.textContent = '';
+  svg.style.height = H + 'px';
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  v.def.draw(svg, v.h, s, W, H);
+  $('#visVars').innerHTML = v.def.vars(s, v.h);
+  let say = esc(s.say);
+  if (last && v.expected != null) {
+    say += v.result === v.expected ? ` <span class="ok">${v.def.unit} = ${v.result}, expected ${v.expected} ✓</span>`
+                                    : ` <span class="bad">${v.def.unit} = ${v.result}, but the example expects ${v.expected}</span>`;
+  }
+  $('#visSay').innerHTML = say;
+  $('#visCount').textContent = `step ${v.idx + 1} of ${v.steps.length}`;
+  $('#visFirst').disabled = $('#visPrev').disabled = v.idx === 0;
+  $('#visNext').disabled = $('#visLast').disabled = last;
+  $('#visPlay').disabled = v.steps.length < 2;
+  $('#visPlay').textContent = visTimer ? '❚❚ Pause' : (last && v.steps.length > 1 ? '↻ Replay' : '▶ Play');
+}
+function visGo(k) {
+  const v = S.visual;
+  if (!v) return;
+  v.idx = clamp(k, 0, v.steps.length - 1);
+  if (visTimer && v.idx === v.steps.length - 1) visStop();
+  renderVisual();
+}
+function visStop() { clearInterval(visTimer); visTimer = null; }
+function visPlay() {
+  const v = S.visual;
+  if (!v) return;
+  if (visTimer) { visStop(); return renderVisual(); }
+  if (v.idx === v.steps.length - 1) v.idx = 0;
+  visTimer = setInterval(() => visGo(S.visual ? S.visual.idx + 1 : 0), +$('#visSpeed').value);
+  renderVisual();
+}
+$('#visualBtn').onclick = toggleVisual;
+$('#visClose').onclick = () => closeVisual();
+$('#visFirst').onclick = () => visGo(0);
+$('#visPrev').onclick = () => visGo(S.visual.idx - 1);
+$('#visNext').onclick = () => visGo(S.visual.idx + 1);
+$('#visLast').onclick = () => visGo(Infinity);
+$('#visPlay').onclick = visPlay;
+$('#visSpeed').onchange = () => { if (visTimer) { visStop(); visPlay(); } };
+$('#visExample').onchange = e => {
+  const v = S.visual;
+  if (!v) return;
+  if (e.target.value === 'own') { $('#visInput').focus(); $('#visInput').select(); return; }
+  const ex = v.examples[+e.target.value];
+  loadVisual(ex.heights, ex.expected, e.target.value);
+};
+$('#visInput').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !S.visual) return;
+  e.preventDefault();
+  const h = parseHeights(e.target.value);
+  if (typeof h === 'string') { $('#visSay').innerHTML = `<span class="vis-err">${esc(h)}</span>`; return; }
+  const ex = S.visual.examples.findIndex(x => x.heights.join() === h.join());
+  loadVisual(h, ex >= 0 ? S.visual.examples[ex].expected : null, ex >= 0 ? ex : 'own');
+});
+new ResizeObserver(() => { if (S.visual) renderVisual(); }).observe($('#visualWrap'));
 
 /* Prev / Next walk the Java files in tree order, keeping only those the chosen mode wants.
    Review and Smart have tiers, most urgent first. 4 Oct: the old Next always started with
@@ -2262,6 +2572,13 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.defaultPrevented || (e.target.closest && e.target.closest('.monaco-editor'))) return;
   const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  // the Visual player's keys, unless you are typing your own input or picking an example
+  if (S.visual && !mod && !e.altKey && !(e.target.closest && e.target.closest('input, select, textarea'))) {
+    const move = { arrowleft: S.visual.idx - 1, arrowright: S.visual.idx + 1, home: 0, end: Infinity }[k];
+    if (move !== undefined) { e.preventDefault(); return visGo(move); }
+    if (k === ' ') { e.preventDefault(); return visPlay(); }     // also on a focused button: no second click
+    if (k === 'escape' && $('#menu').hidden && $('#help').hidden && $('#nextMenu').hidden) { e.preventDefault(); return closeVisual(); }
+  }
   if (mod && e.shiftKey && k === 'f') { e.preventDefault(); openSearch(); }
   else if (mod && k === 'p') { e.preventDefault(); focusFilter(); }
   else if (mod && k === 'b') { e.preventDefault(); toggleSide(); }
@@ -2275,6 +2592,7 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyH') { e.preventDefault(); hintButton(); }
   else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
   else if (e.altKey && e.code === 'KeyT') { e.preventDefault(); toggleTry(); }
+  else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); toggleVisual(); }
   else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
   else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }
   else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#nextMenu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
