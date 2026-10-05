@@ -1234,6 +1234,9 @@ function initEditor() {
     stickyScroll: { enabled: true }, bracketPairColorization: { enabled: true },
     guides: { bracketPairs: 'active', indentation: true }, padding: { top: 10, bottom: 10 },
     wordWrap: S.wrap ? 'on' : 'off', tabSize: 4, mouseWheelZoom: true, renderLineHighlight: 'all',
+    // 5 Oct, Ravi: after a few Enters, Up put the caret at column 1 - the editor had taken the
+    // indent off the blank lines. Keep it while editing, as IntelliJ does; Save strips it.
+    trimAutoWhitespace: false,
     // the suggestion options proper are set per file by applyAssist()
     suggest: { showWords: false, showStatusBar: true }, snippetSuggestions: 'inline', hover: { delay: 500 },
   });
@@ -1392,13 +1395,8 @@ function showEditor(m) {
   editor.setModel(m);
   const vs = S.views.get(viewKey());
   if (vs) editor.restoreViewState(vs);
-  else if (m.getLanguageId() === 'java') {
-    // 5 Oct, Ravi: Practice and Next showed the description; open at the code instead (the
-    // problem stays just above: scroll up or Ctrl+Home). A file he scrolled keeps its place.
-    const start = codeStart(m);
-    editor.setScrollTop(editor.getTopForLineNumber(start));
-    editor.setPosition({ lineNumber: start, column: 1 });
-  } else editor.setScrollTop(0);
+  else if (m.getLanguageId() !== 'java') editor.setScrollTop(0);
+  if (m.getLanguageId() === 'java') atCode(m, vs);
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
   editor.layout();
@@ -1453,8 +1451,19 @@ async function togglePractice() {
   refreshBar();
   renderOutput(S.outputs.get(viewKey()));
 }
-/* Try is for the code, so it opens below the 40-60 line header comment - unless you were
-   already further down the file, then it keeps your place (5 Oct: it used to jump to line 1). */
+/* 5 Oct, Ravi: a Java file opens at the code, not the 40-60 line description above it - on
+   Next, Prev, Back, the file list, Practice, Try and Start over alike. A place you left further
+   down in the code is kept; a place up in the description (reading the problem) is not, so
+   Prev no longer brings the description back. Ctrl+Home still goes up to read it. */
+function atCode(m, vs) {
+  const start = codeStart(m), first = vs && vs.viewState && vs.viewState.firstPosition;
+  if (first && first.lineNumber >= start) return;
+  editor.setScrollTop(editor.getTopForLineNumber(start));
+  const p = editor.getPosition();
+  if (!vs || !p || p.lineNumber < start) editor.setPosition({ lineNumber: start, column: 1 });
+  else editor.revealPositionInCenterIfOutsideViewport(p);     // the caret was in the code: keep it, in view
+}
+/* the line the code starts on, below the header comment (1 if there is none) */
 function codeStart(m) {
   const lines = m.getLinesContent();
   if (!/^\s*\/\*/.test(lines[0] || '')) return 1;
@@ -1502,13 +1511,9 @@ function showTry(fileView) {
   }
   const fresh = !S.views.has(viewKey());
   showEditor(m);
-  if (fresh) {
-    if (fileView) editor.restoreViewState(fileView);
-    const start = codeStart(m);
-    if (editor.getScrollTop() < editor.getTopForLineNumber(start)) {
-      editor.setScrollTop(editor.getTopForLineNumber(start));
-      editor.setPosition({ lineNumber: start, column: 1 });
-    }
+  if (fresh && fileView) {           // a new Try starts where you were in the file
+    editor.restoreViewState(fileView);
+    atCode(m, fileView);
   }
   markDraft(c.path);
   return gone;
@@ -1677,7 +1682,9 @@ async function save(force) {
   const c = S.cur;
   if (c && c.mode === 'try') return toast(TRY_NO_SAVE);
   if (!c || c.path === SCRATCH || c.mode === 'practice' || !hasDraft(c)) return;
-  const m = S.models.get(c.key), code = m.getValue();
+  const m = S.models.get(c.key);
+  stripTrailing(m, c);
+  const code = m.getValue();
   let r;
   try { r = await api('/api/save', { root: S.root, path: c.path, code, base: S.hashes.get(c.key), force: force === true }); }
   catch (e) { return toast(e.message); }
@@ -1692,6 +1699,24 @@ async function save(force) {
   markDraft(c.path);
   refreshBar();
   toast('Saved ' + c.name);
+}
+/* IntelliJ's "strip trailing spaces on Save", for the indent blank lines now keep while you
+   edit. Only lines you changed (a line still in the file as it was is left alone) and not the
+   caret's line, so the caret does not jump. In Markdown two trailing spaces are a line break,
+   so there only blank lines are cleaned. One undoable step. */
+function stripTrailing(m, c) {
+  const before = new Set((S.originals.get(c.key) || '').split(/\r?\n/));
+  const caret = editor.getModel() === m && editor.getPosition() ? editor.getPosition().lineNumber : 0;
+  const edits = [];
+  for (let n = 1; n <= m.getLineCount(); n++) {
+    const line = m.getLineContent(n), kept = line.replace(/[ \t]+$/, '');
+    if (kept === line || n === caret || before.has(line) || (c.ext === 'md' && kept)) continue;
+    edits.push({ range: new monaco.Range(n, kept.length + 1, n, line.length + 1), text: '' });
+  }
+  if (!edits.length) return;
+  m.pushStackElement();
+  m.pushEditOperations(editor.getModel() === m ? editor.getSelections() : [], edits, () => null);
+  m.pushStackElement();
 }
 function resetDraft() {
   const c = S.cur;
@@ -2453,6 +2478,7 @@ function restartAttempt(k) {
   const m = S.pmodels.get(k), blank = S.skeletons.get(k);
   if (m && timerOf(k).solved && m.getValue() !== blank) store.set('lastSolved:' + k, m.getValue());
   if (m && blank != null && m.getValue() !== blank) replaceAll(m, blank);
+  if (m && editor.getModel() === m) atCode(m, null);
   setTimer(k, { ms: 0, paused: false, solved: false, at: Date.now() });
   store.del('hints:' + k);
   overToastFor = null;
