@@ -470,7 +470,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
-  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. A Try copy is kept the same way until you Discard it, and Save never writes it. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
+  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. A Try copy is kept the same way until you Discard it, and Save never writes it; there is one at a time, so starting Try on another file deletes the older copy. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
   <p>Showing the solution, or Compare, before an attempt is solved marks the file ↻ revise (the bar that says so has Undo). A pass after that does not count as solved until you Reset and solve it fresh.</p>
   <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
@@ -1345,9 +1345,28 @@ function codeStart(m) {
 /* Try (5 Oct): a throwaway copy of the open file to change and run without touching it -
    Run never writes files, and Save, Edit and Reset are off while trying. The copy is kept in
    this browser as try:<key> until Discard, so a stray Next or a reload does not lose it. It
-   keeps the file's path, so Run still finds helper classes in the same folder. */
+   keeps the file's path, so Run still finds helper classes in the same folder.
+   One copy at a time (5 Oct, Ravi's choice): opening one deletes any other, so forgotten
+   copies never pile up. Returns the names of the files whose copies were deleted. */
+function dropOtherTries(k) {
+  const gone = [];
+  let keys = [];
+  try { keys = Object.keys(localStorage).filter(s => s.startsWith('cv:try:') && s !== 'cv:try:' + k); } catch {}
+  for (const s of keys) {
+    const other = s.slice('cv:try:'.length);
+    store.del('try:' + other);
+    const m = S.tmodels.get(other);
+    if (m) { m.dispose(); S.tmodels.delete(other); }
+    S.views.delete(other + ':try');
+    if (getMode(other) === 'try') setMode(other, 'file');      // so it reopens as the plain file
+    if (other.startsWith(S.root + '/')) markDraft(other.slice(S.root.length + 1));
+    gone.push(other.split('/').pop());
+  }
+  return gone;
+}
 function showTry(fileView) {
   const c = S.cur, k = c.key;
+  const gone = dropOtherTries(k);
   let m = S.tmodels.get(k);
   if (!m) {
     const fm = S.models.get(k);
@@ -1371,6 +1390,7 @@ function showTry(fileView) {
     }
   }
   markDraft(c.path);
+  return gone;
 }
 function toggleTry() {
   const c = S.cur;
@@ -1380,8 +1400,9 @@ function toggleTry() {
   if (c.mode !== 'try') {
     const fileView = editor.saveViewState();
     c.mode = 'try'; setMode(c.key, 'try');
-    showTry(fileView);
-    toast('Try: a copy to change and run freely. The file is never touched; Discard when you are done.');
+    const gone = showTry(fileView);
+    toast('Try: a copy to change and run freely. The file is never touched; Discard when you are done.'
+          + (gone.length ? ` Only one copy at a time, so your try copy of ${gone.join(', ')} was deleted.` : ''));
     editor.focus();
   } else {
     const k = c.key, m = S.tmodels.get(k), text = m ? m.getValue() : store.get('try:' + k, null);
