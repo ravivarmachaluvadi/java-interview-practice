@@ -1391,14 +1391,16 @@ function toggleTry() {
     c.mode = 'file'; setMode(k, 'file');
     showEditor(modelFor(k, S.originals.get(k), 'java'));
     markDraft(c.path);
+    // 5 Oct: was "Try copy thrown away. The file was not changed. [Undo]" - Ravi asked twice
+    // what he had to do there. Nothing; the button is only for a Discard by mistake.
     if (text != null && text !== S.originals.get(k)) {
-      showBanner('Try copy thrown away. The file was not changed.', [['Undo', () => {
+      showBanner('Your try copy is deleted. Your file is safe.', [['Bring my copy back', () => {
         hideBanner();
         if (!S.cur || S.cur.key !== k || S.cur.mode !== 'file') return;
         store.set('try:' + k, text);
         toggleTry();
       }]], 'try');
-    } else toast('Try copy thrown away. The file was not changed.');
+    } else toast('Your try copy is deleted. Your file is safe.');
   }
   refreshBar();
   renderOutput(S.outputs.get(viewKey()));

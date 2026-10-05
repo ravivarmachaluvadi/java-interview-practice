@@ -828,6 +828,17 @@ class Handler(BaseHTTPRequestHandler):
     def host_ok(self):
         return self.headers.get("Host", "") in self.server.allowed_hosts
 
+    def drain(self):
+        """Read and drop a refused request's body first. Windows resets a socket closed with
+        unread data, so the sender got "connection aborted" instead of the 403 (5 Oct: 21 of
+        300 refusals; the delete test failed about 1 run in 7)."""
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return
+        if 0 < n <= 4_000_000:
+            self.rfile.read(n)
+
     def do_GET(self):
         if not self.host_ok():
             return self.send(403, "Forbidden host")
@@ -871,6 +882,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if (not self.host_ok() or self.headers.get("X-CodeView") != "1"
                 or (origin and origin.split("//", 1)[-1] not in self.server.allowed_hosts)):
+            self.drain()
             return self.send(403, "Forbidden")
         length = int(self.headers.get("Content-Length") or 0)
         if length > 4_000_000:

@@ -568,6 +568,15 @@ class HttpTest(unittest.TestCase):
             self.post("/api/delete", body, page_header=False)
         self.assertEqual(cm.exception.code, 403)
 
+    def test_refusal_is_always_a_clean_403(self):
+        """Answering before reading the body made Windows abort about 7% of refusals
+        (WinError 10053), so the test above failed about 1 run in 7. 100 in a row now."""
+        body = {"root": "x", "path": "AAScratches/no_such_file.java"}
+        for i in range(100):
+            with self.assertRaises(urllib.error.HTTPError, msg=f"request {i}") as cm:
+                self.post("/api/delete", body, page_header=False)
+            self.assertEqual(cm.exception.code, 403)
+
 
 @unittest.skipUnless(pathlib.Path(codeview.JAVAC).exists(), "no JDK")
 class RunLeavesFileTest(unittest.TestCase):
