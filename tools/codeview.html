@@ -2058,6 +2058,26 @@ async function formatFile() {
   const changed = now.filter((l, i) => l !== old[i]).length;
   toast(`Formatted: ${edits.length === 1 && old.length !== now.length ? 'blank lines and ' : ''}${changed} line${changed === 1 ? '' : 's'} changed`);
 }
+/* The indent blank line n calls for, read from the code above it: the same as the line above,
+   one more after a `{` or a `case x:`, and after the end of a comment the comment's own. null
+   inside a block comment, where it is not code. */
+function wantedIndent(m, n) {
+  for (let p = n - 1; p >= Math.max(1, n - 3000); p--) {       // the nearest /* or */ above decides
+    const l = m.getLineContent(p), open = l.lastIndexOf('/*'), close = l.lastIndexOf('*/');
+    if (open >= 0 || close >= 0) { if (open > close) return null; break; }
+  }
+  let p = n - 1;
+  while (p >= 1 && !m.getLineContent(p).trim()) p--;
+  if (p < 1) return '';
+  const line = m.getLineContent(p), lead = l => l.match(/^\s*/)[0];
+  if (/^\s*\*\//.test(line) || (/\*\/\s*$/.test(line) && !line.includes('/*'))) {
+    while (p > 1 && !m.getLineContent(p).includes('/*')) p--;
+    return lead(m.getLineContent(p));
+  }
+  const o = m.getOptions(), unit = o.insertSpaces ? ' '.repeat(o.indentSize || o.tabSize) : '\t';
+  const code = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '').trim();
+  return lead(line) + (/\{$/.test(code) || /^(case\b.*|default\s*):$/.test(code) ? unit : '');
+}
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;
   const KINDS = { method: K.Method, field: K.Field, constant: K.Constant, enumConst: K.EnumMember, local: K.Variable,
@@ -2238,6 +2258,33 @@ function initAssist() {
       editor.executeEdits('autoAngle', [{ range: new monaco.Range(p.lineNumber, p.column - 1, p.lineNumber, p.column + 1), text: '' }]);
       keep();
     }
+  });
+  // 6 Oct, Ravi: on an empty line the caret sits at column 1 (the editor cannot place it past a
+  // line's end), so what you typed there started at the left edge. Typing on a blank line now
+  // first gives the line the indent the code above calls for, as IntelliJ places it. Left to
+  // the editor, which already does them: Tab there (jumps to the indent) and a closing bracket
+  // (a `}` lines up with its `{`).
+  const indentFix = typed => {
+    const m = editor.getModel(), sel = editor.getSelection(), c = S.cur;
+    if (!m || !sel || !sel.isEmpty() || editor.getSelections().length > 1 || !c || c.kind !== 'java' || !isEditable()) return null;
+    if (')]}'.includes(typed)) return null;
+    const n = sel.positionLineNumber, line = m.getLineContent(n);
+    if (line.trim()) return null;
+    const want = wantedIndent(m, n);
+    if (want == null) return null;
+    const text = line.length < want.length ? want : line;          // more indent than that is yours to keep
+    return text === line && sel.positionColumn === line.length + 1 ? null : { n, text, line };
+  };
+  const applyIndent = f => {
+    if (f.text === f.line) return editor.setPosition({ lineNumber: f.n, column: f.text.length + 1 });
+    editor.executeEdits('autoIndent', [{ range: new monaco.Range(f.n, 1, f.n, f.line.length + 1), text: f.text }],
+                        [new monaco.Selection(f.n, f.text.length + 1, f.n, f.text.length + 1)]);
+  };
+  editor.onKeyDown(e => {
+    const k = e.browserEvent.key;
+    if (k.length !== 1 || k === ' ' || e.ctrlKey || e.altKey || e.metaKey || e.browserEvent.isComposing) return;
+    const f = indentFix(k);
+    if (f) applyIndent(f);                       // before the character goes in, so it lands after the indent
   });
   // Tab after `sout` at the start of a line expands it, as in IntelliJ; anywhere else Tab is Tab
   const tplKey = editor.createContextKey('cvTemplate', false);

@@ -7,6 +7,10 @@ import { suite, C06 } from './harness.mjs';
 const JAVA = '/*\n * A fixture: Save must leave no trailing spaces.\n */\n\nclass B01_Spaces {\n    static int twice(int x) {\n'
   + '        int y = x * 2;\n        int z = y;  \n\n        return y;\n    }\n}\n';
 const MD = '# Notes\n\nfirst line  \nsecond line\n';          // two trailing spaces = a Markdown line break
+// empty lines 4 (top level), 8 (between statements), 11 (between methods), 13 (just inside a
+// method) and 17 (inside a block comment)
+const INDENT = ['/*', ' * Typing on empty lines.', ' */', '', 'class B02_Indent {', '    static int f(int x) {', '        int y = x;', '',
+  '        return y;', '    }', '', '    static void g() {', '', '    }', '    /*', '       a note', '', '     */', '}', ''].join('\n');
 
 await suite(async t => {
   const { ev, waitFor, press, type, check, sleep, ED } = t;
@@ -43,7 +47,7 @@ await suite(async t => {
   await ev(`document.querySelector('#practiceBtn').click()`); await sleep(500);
 
   // ---- blank lines keep the caret's column (scratch file, Edit mode)
-  const ws = await t.scratchFolder({ 'B01_Spaces.java': JAVA, 'Notes.md': MD });
+  const ws = await t.scratchFolder({ 'B01_Spaces.java': JAVA, 'Notes.md': MD, 'B02_Indent.java': INDENT });
   await ws.open('B01_Spaces.java');
   await ws.onlyIn('B01_Spaces.java', 'class B01_Spaces');
   await ev(`document.querySelector('#editBtn').click()`);
@@ -87,4 +91,24 @@ await suite(async t => {
   await waitFor(`/Saved/.test(document.querySelector('#toast').textContent)`, 8000); await sleep(300);
   const md = readFileSync(`${ws.dir}/Notes.md`, 'utf8');
   check('Markdown keeps a two-space line break, even on a line you edited', md === '# Notes\n\nfirst line  \nsecond line edited  \n', md);
+
+  // ---- typing on an empty line that was already in the file starts at the right indent (Edit, not saved)
+  await ws.open('B02_Indent.java');
+  await ws.onlyIn('B02_Indent.java', 'class B02_Indent');
+  await ev(`document.querySelector('#editBtn').click()`);
+  const line = n => ev(`${ED}.getModel().getLineContent(${n})`);
+  const typeAt = async (n, key, col = 1) => { await toLine(n, col); await press(key); await press('Escape'); return line(n); };
+  check('between statements: `i` lands at the method body\'s indent', (await typeAt(8, 'i')) === '        i', await line(8));
+  check('between methods: at the class body\'s indent', (await typeAt(11, 'v')) === '    v', await line(11));
+  check('at the top level, after the header comment: column 1', (await typeAt(4, 'c')) === 'c', await line(4));
+  check('inside a block comment: nothing added', (await typeAt(17, 'x')) === 'x', await line(17));
+  await toLine(13, 1);
+  await press('Tab');
+  check('Tab on an empty line jumps to its indent (the editor does this itself)', (await line(13)) === '        ' && (await pos())[1] === 9, [await line(13), await pos()]);
+  await press('Tab');
+  check('a second Tab is an ordinary Tab', (await line(13)) === '            ', await line(13));
+  await ev(`${ED}.executeEdits('t', [{ range: new monaco.Range(13, 1, 13, ${ED}.getModel().getLineMaxColumn(13)), text: '' }])`);
+  check('`}` on an empty line lines up with its `{` (the editor does this itself)', (await typeAt(13, '}')) === '    }', await line(13));
+  await ev(`${ED}.executeEdits('t', [{ range: new monaco.Range(13, 1, 13, ${ED}.getModel().getLineMaxColumn(13)), text: '        ' }])`);
+  check('caret at column 1 of an indented blank line: the text goes after the indent', (await typeAt(13, 'z', 1)) === '        z', await line(13));
 });
