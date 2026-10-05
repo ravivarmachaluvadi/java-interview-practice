@@ -526,6 +526,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Complete the statement, as in IntelliJ: closes open brackets and adds the <code>;</code>, or <code>{ }</code> after if / for / while / a method header; on a finished line, a new line below</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td><td>Parameter hints: the names of the arguments of the call you are in</td></tr>
     <tr><td><kbd>Tab</kbd> after a template</td><td>Expands it: <code>sout</code> <code>souf</code> <code>soutv</code> <code>serr</code> <code>psvm</code> <code>main</code> <code>fori</code> <code>itar</code> <code>ritar</code> <code>iter</code> <code>ifn</code> <code>inn</code> <code>thr</code>. After a value, <code>.var</code> <code>.for</code> <code>.fori</code> <code>.sout</code> <code>.return</code> <code>.nn</code> <code>.null</code> <code>.not</code> <code>.if</code> are in the list</td></tr>
   </table>
@@ -1203,6 +1204,7 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | C.KeyP, focusFilter);
   editor.addCommand(K.CtrlCmd | C.KeyB, toggleSide);
   editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
+  editor.addCommand(K.CtrlCmd | K.Shift | C.Enter, () => completeStatement());
   editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
   editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
   editor.addCommand(K.Alt | C.Enter, toggleFull);
@@ -1770,6 +1772,74 @@ const liveCheck = debounce(async () => {
              startLineNumber: a.lineNumber, startColumn: a.column, endLineNumber: b.lineNumber, endColumn: b.column };
   }));
 }, 600);
+/* Ctrl+Shift+Enter, IntelliJ's Complete Current Statement (5 Oct, Ravi asked): closes the
+   line's open brackets and adds the `;` (before a trailing // comment), caret at the end; an
+   if / for / while / method or class header gets ` {` and its `}` with the caret inside; a
+   line that is already finished gets a new line below. Brackets inside strings and comments
+   do not count. Any editable Java file, practice included: it types nothing you did not. */
+const BLOCK_HEAD = /^\s*(\}\s*)?(if|else\s+if|for|while|switch|catch|synchronized)\s*\(/;
+const BARE_HEAD = /^\s*(\}\s*)?(else|try|do|finally)\s*$/;
+const TYPE_HEAD = /^\s*((public|protected|private|static|final|abstract|sealed|non-sealed|strictfp)\s+)*(class|interface|enum|record)\s/;
+const METHOD_HEAD = /^\s*((public|protected|private|static|final|abstract|synchronized|native|default|strictfp)\s+)*(<[^>]*>\s+)?[\w$<>\[\],.?\s]*[\w$>\]]\s+[\w$]+\s*\(/;
+const NOT_A_TYPE = /^\s*(return|new|throw|yield|assert|case|else|break|continue)\b/;
+/* the code of one line without a trailing // comment, and the brackets it leaves open */
+function lineParts(line) {
+  const open = [];
+  let i = 0, end = line.length;
+  while (i < line.length) {
+    const c = line[i];
+    if (c === '/' && line[i + 1] === '/') { end = i; break; }
+    if (c === '/' && line[i + 1] === '*') { const j = line.indexOf('*/', i + 2); if (j < 0) { end = i; break; } i = j + 2; continue; }
+    if (c === '"' || c === "'") { let j = i + 1; while (j < line.length && line[j] !== c) j += line[j] === '\\' ? 2 : 1; i = j + 1; continue; }
+    if ('([{'.includes(c)) open.push(c);
+    else if (')]}'.includes(c) && open.length) open.pop();
+    i++;
+  }
+  const code = line.slice(0, end).replace(/\s+$/, '');
+  const close = [...open].reverse().map(c => ({ '(': ')', '[': ']', '{': '}' })[c]).join('');
+  return { code, comment: line.slice(end).trim(), close };
+}
+/* index of the ) that closes the first ( in s, or -1 */
+function matchParen(s) {
+  let depth = 0;
+  for (let i = s.indexOf('('); i >= 0 && i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+function completeStatement() {
+  const m = editor.getModel(), pos = editor.getPosition(), c = S.cur;
+  if (!m || !pos || !isEditable()) return;
+  if (!c || c.kind !== 'java') return editor.trigger('keyboard', 'editor.action.insertLineBefore', null);   // Monaco's own use of the key
+  editor.trigger('keyboard', 'hideSuggestWidget', null);
+  editor.trigger('keyboard', 'closeParameterHints', null);
+  const n = pos.lineNumber, line = m.getLineContent(n), eol = m.getEOL();
+  const { code, comment, close } = lineParts(line);
+  const t = code.trim(), indent = line.match(/^\s*/)[0];
+  const opt = m.getOptions(), step = opt.insertSpaces ? ' '.repeat(opt.tabSize) : '\t';
+  const after = comment ? ' ' + comment : '';
+  const put = (text, line2, col) => {
+    editor.pushUndoStop();
+    editor.executeEdits('completeStatement', [{ range: new monaco.Range(n, 1, n, line.length + 1), text }]);
+    editor.pushUndoStop();
+    editor.setPosition({ lineNumber: line2, column: col });
+    editor.revealPosition(editor.getPosition());
+  };
+  if (!t || t.endsWith('{') || (/[;}]$/.test(t) && !close)) {          // finished: a new line below
+    const next = indent + (t.endsWith('{') ? step : '');
+    return put(line + eol + next, n + 1, next.length + 1);
+  }
+  const head = code + close;
+  const ifLike = BLOCK_HEAD.test(code) && !head.slice(matchParen(head) + 1).trim();   // `if (x) foo()` is a statement
+  const declLike = TYPE_HEAD.test(code) || (METHOD_HEAD.test(code) && !NOT_A_TYPE.test(code) && !code.includes('='));
+  if (ifLike || BARE_HEAD.test(code) || declLike) {
+    const inner = indent + step;
+    return put(head + ' {' + after + eol + inner + eol + indent + '}', n + 1, inner.length + 1);
+  }
+  const done = head + (head.endsWith(';') ? '' : ';');
+  put(done + after, n, done.length + 1);
+}
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;
   const KINDS = { method: K.Method, field: K.Field, constant: K.Constant, enumConst: K.EnumMember, local: K.Variable,
