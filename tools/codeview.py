@@ -87,12 +87,16 @@ PAGE = HERE / "codeview.html"
 ICON = HERE / "codeview.ico"
 STATE_FILE = pathlib.Path(os.environ.get("CODEVIEW_STATE") or HERE / "codeview-state.json")
 LOG_FILE = pathlib.Path(os.environ.get("CODEVIEW_LOG") or HERE / "codeview.log")
+# Test servers (test_ui.py, test_codeview.py) set this so a Push click can never reach GitHub
+# from this repo; their pushes go to throwaway repos.
+NO_PUSH = bool(os.environ.get("CODEVIEW_NO_PUSH"))
 # A page loaded before an update keeps running its old JavaScript (seen 3 Oct: Run still
 # showed the old crosses). The page carries the version it was served with and compares
 # it with /api/info, so it can offer a reload. Server code counts as of this start-up.
 SERVER_CODE = hashlib.sha1(b"".join((HERE / n).read_bytes() for n in
                                     ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py",
-                                     "offline.py", "CvAssist.java"))).hexdigest()
+                                     "offline.py", "CvAssist.java", "gen_readmes.py",
+                                     "check_headers.py"))).hexdigest()
 
 
 def page_version(html):
@@ -484,14 +488,20 @@ def save_file(rid, rel, text, base_hash, force):
     return {"ok": True, "hash": digest(data)}
 
 
-def java_template(name):
+def java_template(name, title=None, meta="LeetCode ? | ?", must=False):
+    """A new practice file: the header every DSA file carries (tools/check_headers.py), with
+    `...` and `O(?)` left for you to fill, and a main() that prints actual vs expected."""
     cls = re.sub(r"^[A-D]\d\d_", "", pathlib.Path(name).stem)
     if not re.fullmatch(r"[A-Za-z_$][\w$]*", cls):
         cls = "Main"
-    title = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", cls)
+    title = title or re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", cls)
+    # two spaces at least: check_headers splits the title from the source on 2+ spaces
+    line = f" *  {title}{' ' * max(2, 41 - len(title))}{meta}{'   MUST-KNOW' if must else ''}"
+    if len(line) > 100:
+        raise ValueError("The name is too long for the header's first line (100 characters); shorten it")
     return f"""/*
  * =====================================================================
- *  {title:<40} LeetCode ? | ?
+{line}
  * =====================================================================
  *
  * PROBLEM
@@ -507,7 +517,11 @@ def java_template(name):
  *   ...
  *
  * COMPLEXITY
- *   Time O(?), space O(?).
+ *   Time  O(?)
+ *   Space O(?)
+ *
+ * INTERVIEW FOLLOW-UPS
+ *   ...
  *
  * RUN
  *   main() runs the cases below and prints actual vs expected.
@@ -530,7 +544,7 @@ class {cls} {{
 """
 
 
-def new_file(rid, rel):
+def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False):
     rel = rel.strip().replace("\\", "/").strip("/")
     if not rel or ".." in rel.split("/"):
         raise ValueError("give a file name such as 01-Arrays/C16_MyProblem.java")
@@ -539,10 +553,67 @@ def new_file(rid, rel):
         raise ValueError(f"'{p.suffix or 'no extension'}' is not a text file type this viewer shows")
     if p.exists():
         raise ValueError(f"{rel} already exists")
+    tier = re.match(r"([A-D])\d\d_", p.name)
+    if tier and p.parent.is_dir():
+        taken = next((q.name for q in sorted(p.parent.iterdir()) if q.name.startswith(p.name[:4])), None)
+        if taken:
+            raise ValueError(f"{p.name[:3]} is already {taken} in this folder; "
+                             f"the next free {tier[1]} number is {next_tier(p.parent, tier[1])}")
+    text = java_template(p.name, title, meta, must) if p.suffix == ".java" else (
+        f"# {p.stem}\n" if p.suffix == ".md" else "")
     p.parent.mkdir(parents=True, exist_ok=True)
-    text = java_template(p.name) if p.suffix == ".java" else (f"# {p.stem}\n" if p.suffix == ".md" else "")
-    p.write_text(text, encoding="utf-8")
-    return {"path": p.relative_to(root_path(rid)).as_posix()}
+    p.write_bytes(text.encode("utf-8"))                # LF like the repo's files (write_text gives CRLF on Windows)
+    res = {"path": p.relative_to(root_path(rid)).as_posix()}
+    blank = re.search(r"^( \*\s+)\.\.\.$", text, re.M)          # the page selects the first ... to type over
+    if blank:
+        res["select"] = {"line": text.count("\n", 0, blank.start()) + 1, "col": len(blank[1]) + 1, "len": 3}
+    return res
+
+
+def next_tier(folder, letter):
+    """B12 when the folder's last B file is B11_...: file names give the practice order."""
+    nums = [int(m[1]) for q in (folder.iterdir() if folder.is_dir() else ())
+            if (m := re.match(rf"{letter}(\d\d)_", q.name))]
+    n = max(nums, default=0) + 1
+    if n > 99:
+        raise ValueError(f"{folder.name} already goes up to {letter}99; use another level or folder")
+    return f"{letter}{n:02d}"
+
+
+DIFFICULTIES = ("Easy", "Medium", "Hard")
+
+
+def class_name(name):
+    """'LRU cache' -> LRUCache, "kadane's algorithm" -> KadanesAlgorithm."""
+    words = re.findall(r"[A-Za-z0-9]+", re.sub(r"['‘’]", "", name))
+    cls = "".join(w[0].upper() + w[1:] for w in words)
+    if not cls:
+        raise ValueError("Give the problem a name, such as Two Sum")
+    if cls[0].isdigit():
+        raise ValueError("A Java class name cannot start with a digit: write it in words, such as Three Sum")
+    return cls
+
+
+def new_problem(rid, folder, level, name, source, difficulty, must=False):
+    """The New problem form (6 Oct): 01-Arrays + B + "Two Sum" -> 01-Arrays/B12_TwoSum.java,
+    numbered after the folder's last B file, with the header's first line filled in."""
+    folder = folder.strip().replace("\\", "/").strip("/")
+    level = (level or "").strip().upper()
+    if level not in ("", "A", "B", "C", "D"):
+        raise ValueError("The level is A, B, C, D or none")
+    if difficulty not in DIFFICULTIES:
+        raise ValueError("The difficulty is Easy, Medium or Hard")
+    name = " ".join(name.replace("‘", "'").replace("’", "'").split())
+    cls = class_name(name)
+    title = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", name) if re.fullmatch(r"\w+", name) else name
+    source = " ".join(source.split())
+    source = f"LeetCode {source}" if source.isdigit() else source or "LeetCode ?"
+    where = resolve(rid, folder) if folder else root_path(rid)
+    if where.exists() and not where.is_dir():
+        raise ValueError(f"{folder} is a file, not a folder")
+    prefix = next_tier(where, level) + "_" if level else ""
+    return new_file(rid, f"{folder}/{prefix}{cls}.java" if folder else f"{prefix}{cls}.java",
+                    title, f"{source} | {difficulty}", must)
 
 
 def to_recycle_bin(p):
@@ -571,6 +642,208 @@ def delete_file(rid, rel, trash=to_recycle_bin):
         raise ValueError(f"{rel or 'that'} is not a file this viewer shows")
     trash(p)
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- git: the Push panel
+# 6 Oct: Ravi asked for one button that commits his changes and pushes them. The panel lists
+# what changed; Push commits only the ticked files, refreshes the README lists, and pushes,
+# rebasing onto anything pushed from elsewhere first. A clash stops before anything is
+# pushed and keeps the commit on this PC.
+
+GIT_LOCK = threading.Lock()
+REJECTED = re.compile(r"\[rejected\]|non-fast-forward|fetch first|failed to push some refs")
+
+
+def git(top, *args, timeout=60, check=True, stdin=None):
+    """git in folder `top`. It never waits on a console prompt: the tray has no console."""
+    feed = {"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}
+    try:
+        r = subprocess.run(["git", "-c", "core.quotepath=off", "--literal-pathspecs", "-C", str(top), *args],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+                           env=dict(os.environ, GIT_TERMINAL_PROMPT="0"), creationflags=NO_WINDOW, **feed)
+    except FileNotFoundError:
+        raise ValueError("git is not installed, or not on PATH")
+    if check and r.returncode:
+        raise ValueError(f"git {args[0]} failed: " + last_line(r))
+    return r
+
+
+def last_line(r):
+    lines = [x.strip() for x in (r.stderr or r.stdout or "").splitlines() if x.strip()]
+    return re.sub(r"^(fatal|error): ", "", lines[-1]) if lines else f"exit code {r.returncode}"
+
+
+def git_top(base):
+    r = git(base, "rev-parse", "--show-toplevel", check=False)
+    return pathlib.Path(r.stdout.strip()).resolve() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def readme_root(top):
+    """Where tools/gen_readmes.py builds README lists: only in this repo."""
+    return top / "AAScratches" if top == REPO else None
+
+
+def refresh_readmes(top, write=True, extra=()):
+    """Rebuild the README lists from the file headers, as `python tools/gen_readmes.py` does.
+    -> the README paths (relative to top) whose text changes. extra: repo paths about to be
+    added, counted as tracked (the panel's preview)."""
+    root = readme_root(top)
+    if root is None:
+        return []
+    import gen_readmes
+    pre = root.relative_to(top).as_posix() + "/"
+    extra = {p[len(pre):] for p in extra if p.startswith(pre)}
+    changed = []
+    for t in gen_readmes.TITLES:
+        if not (root / t).is_dir():
+            continue
+        p = root / t / "README.md"
+        new = gen_readmes.render(t, root, extra)[0].encode("utf-8")
+        if (p.read_bytes() if p.exists() else b"") != new:
+            if write:
+                p.write_bytes(new)
+            changed.append(p.relative_to(top).as_posix())
+    return changed
+
+
+def status_word(xy):
+    if "U" in xy or xy in ("AA", "DD"):
+        return "conflict"
+    if xy == "??" or "A" in xy or "C" in xy:
+        return "new"
+    if "R" in xy:
+        return "renamed"
+    return "deleted" if "D" in xy else "changed"
+
+
+def repo_status(top):
+    """{branch, upstream, ahead, behind, remote, files: [{path, status, from?}]}; paths from top."""
+    out = git(top, "status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all").stdout
+    head, *rest = out.split("\0")
+    files, i = [], 0
+    while i < len(rest):
+        e = rest[i]
+        i += 1
+        if len(e) < 4:
+            continue
+        f = {"path": e[3:], "status": status_word(e[:2])}
+        if e[0] in "RC":                                   # the old name comes next
+            f["from"] = rest[i]
+            i += 1
+        files.append(f)
+    branch, upstream, ahead, behind = None, None, 0, 0
+    h = head[3:]
+    if h.startswith("No commits yet on "):
+        branch = h[len("No commits yet on "):]
+    elif not h.startswith("HEAD (no branch)"):
+        m = re.match(r"(.+?)(?:\.\.\.(\S+))?(?: \[(.*)\])?$", h)
+        branch, upstream, info = m[1], m[2], m[3] or ""
+        ahead = int((re.search(r"ahead (\d+)", info) or [0, 0])[1])
+        behind = int((re.search(r"behind (\d+)", info) or [0, 0])[1])
+        if "gone" in info:
+            upstream = None
+    remotes = git(top, "remote").stdout.split()
+    return {"branch": branch, "upstream": upstream, "ahead": ahead, "behind": behind,
+            "remote": "origin" if "origin" in remotes else (remotes[0] if remotes else None), "files": files}
+
+
+def git_status(rid, readmes=False):
+    """What the Push panel lists. prefix: the folder's path inside the repo, so the page can
+    open a listed file. readmes: the README lists a push of everything listed would update."""
+    base = root_path(rid).resolve()
+    top = git_top(base)
+    if top is None:
+        return {"repo": False}
+    st = repo_status(top)
+    st.update(repo=True, top=top.name,
+              prefix=base.relative_to(top).as_posix() + "/" if top in base.parents else "")
+    if readmes:
+        st["readmes"] = refresh_readmes(top, write=False, extra=[
+            f["path"] for f in st["files"] if f["status"] in ("new", "renamed") and f["path"].endswith(".java")])
+    return st
+
+
+def git_push(rid, paths, message):
+    base = root_path(rid)
+    if NO_PUSH and (base == REPO or REPO in base.parents):
+        raise ValueError("Push is switched off for this repo on a test server (CODEVIEW_NO_PUSH)")
+    if not GIT_LOCK.acquire(blocking=False):
+        raise ValueError("A push is already running")
+    try:
+        res = push_now(base, list(paths), (message or "").strip())
+    finally:
+        GIT_LOCK.release()
+    log.info(f"push {len(paths)} file(s) in {base.name}: " + (f"ok {res['commit']}" if res["ok"] else
+                                                               "FAILED " + res["error"]))
+    return res
+
+
+def push_now(base, paths, message):
+    top = git_top(base)
+    if top is None:
+        raise ValueError("This folder is not in a git repository, so there is nothing to push")
+    st = repo_status(top)
+    known = {f["path"]: f for f in st["files"]}
+    if any(f["status"] == "conflict" for f in st["files"]):
+        raise ValueError("git is in the middle of a merge here; finish it in a terminal first")
+    stale = [p for p in paths if p not in known]
+    if stale:
+        raise ValueError(f"{stale[0]} has no change to commit any more; close the panel and open it again")
+    if not paths and not st["ahead"]:
+        raise ValueError("Nothing to push: no file is ticked and every commit is already pushed")
+    if paths and not message:
+        raise ValueError("Write a commit message first")
+    if not st["branch"]:
+        raise ValueError("No branch is checked out (detached HEAD); push from a terminal")
+    committed, readmes = None, []
+    if paths:
+        git(top, "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul", stdin="\0".join(paths))
+        specs = paths + [known[p]["from"] for p in paths if known[p].get("from")]   # a rename's old name
+        readmes = [p for p in refresh_readmes(top) if p not in specs]
+        if readmes:
+            git(top, "add", "--pathspec-from-file=-", "--pathspec-file-nul", stdin="\0".join(readmes))
+        # with paths, commit takes exactly those: anything else already staged stays staged
+        git(top, "commit", "-q", "-m", message, "--pathspec-from-file=-", "--pathspec-file-nul",
+            stdin="\0".join(specs + readmes))
+        committed = git(top, "rev-parse", "--short", "HEAD").stdout.strip()
+
+    def fail(why):
+        kept = f" Your commit {committed} is saved on this PC, so nothing is lost." if committed else \
+            " Your commits are saved on this PC, so nothing is lost."
+        return {"ok": False, "committed": committed, "error": why + kept}
+
+    if not st["remote"]:
+        return {"ok": True, "commit": committed, "pushed": False, "readmes": readmes,
+                "note": "Committed on this PC. This repository has no remote to push to."}
+    push = ["push"] if st["upstream"] else ["push", "-u", st["remote"], st["branch"]]
+    rebased = False
+    try:
+        r = git(top, *push, timeout=120, check=False)
+        if r.returncode and REJECTED.search(r.stderr):
+            pull = ["pull", "--rebase", "--autostash"] + ([] if st["upstream"] else [st["remote"], st["branch"]])
+            p = git(top, *pull, timeout=120, check=False)
+            if p.returncode:
+                git(top, "rebase", "--abort", check=False)
+                if re.search(r"CONFLICT|could not apply", p.stdout + p.stderr):
+                    return fail("GitHub has newer commits that change the same lines as yours, so nothing was "
+                                "pushed. Open a terminal in the repo and run git pull to merge them.")
+                return fail("Could not bring in GitHub's newer commits: " + last_line(p) + ".")
+            rebased = True
+            r = git(top, *push, timeout=120, check=False)
+    except subprocess.TimeoutExpired:
+        return fail("Pushing took over 2 minutes and was stopped. If a GitHub sign-in window is open, finish "
+                    "it, then press Push again.")
+    if r.returncode:
+        err = r.stderr
+        if re.search(r"Authentication failed|could not read Username|terminal prompts disabled|403", err):
+            return fail("GitHub did not accept the sign-in. Run git push once in a terminal in the repo to "
+                        "sign in again; after that this button works.")
+        if re.search(r"Could not resolve host|unable to access|timed out", err):
+            return fail("Could not reach GitHub (no internet?). Press Push again when you are online.")
+        return fail("The push failed: " + last_line(r) + ".")
+    return {"ok": True, "commit": git(top, "rev-parse", "--short", "HEAD").stdout.strip(), "pushed": True,
+            "rebased": rebased, "readmes": readmes, "files": len(paths), "branch": st["branch"],
+            "remote": st["remote"]}
 
 
 def search(rid, q, regex, case):
@@ -1076,7 +1349,7 @@ class Handler(BaseHTTPRequestHandler):
                                  "public, max-age=31536000, immutable")
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
-                                       "autostart": autostart_on(), "platform": sys.platform})
+                                       "autostart": autostart_on(), "platform": sys.platform, "git": True})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":
@@ -1089,9 +1362,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"text": skeleton, "hidden": hidden, "hints": javasrc.practice_hints(text)})
             if u.path == "/api/progress":
                 return self.send_json(STATE.progress(rid))
+            if u.path == "/api/git":
+                return self.send_json(git_status(rid, q.get("readmes") == "1"))
             if u.path == "/api/search":
                 return self.send_json(search(rid, q.get("q", ""), q.get("regex") == "1", q.get("case") == "1"))
-        except (ValueError, OSError) as e:
+        except (ValueError, OSError, subprocess.TimeoutExpired) as e:
             return self.send_json({"error": str(e)}, 400)
         self.send(404, "Not found")
 
@@ -1120,8 +1395,14 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/save":
                 res = save_file(rid, req["path"], req.get("code", ""), req.get("base"), req.get("force"))
                 return self.send_json(res, 409 if res.get("conflict") else 200)
+            if path == "/api/new" and "name" in req:
+                return self.send_json(new_problem(rid, req.get("folder", ""), req.get("level", ""), req["name"],
+                                                  req.get("source", ""), req.get("difficulty", ""),
+                                                  bool(req.get("must"))))
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
+            if path == "/api/git/push":
+                return self.send_json(git_push(rid, req.get("paths") or [], req.get("message", "")))
             if path == "/api/delete":
                 return self.send_json(delete_file(rid, req.get("path", "")))
             if path == "/api/progress" and "restore" in req:
@@ -1143,7 +1424,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/autostart":
                 set_autostart(bool(req.get("enabled")))
                 return self.send_json({"autostart": autostart_on()})
-        except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as e:
+        except (ValueError, KeyError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             return self.send_json({"error": str(e)}, 400)
         self.send(404, "Not found")
 

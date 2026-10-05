@@ -85,24 +85,34 @@ INTRO = {
 def link(rel):
     return rel.replace(" ", "%20")
 
-def tracked_java(top):
+def tracked_java(top, root=ROOT):
     """The .java files git knows about (committed or staged) under top, so untracked work in
     progress never reaches a committed README. None if git is unavailable."""
-    r = subprocess.run(["git", "ls-files", "--", top], capture_output=True, text=True, cwd=str(ROOT))
+    r = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "--", top], capture_output=True, text=True,
+                       encoding="utf-8", cwd=str(root), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:
         return None
     return {line for line in r.stdout.splitlines() if line.endswith(".java")}
 
 def gen(top):
-    topdir = ROOT / top
+    text, total, total_mk, nfolders = render(top)
+    (ROOT / top / "README.md").write_text(text, encoding="utf-8", newline="\n")
+    print(f"{top}: {total} files, {total_mk} must-know, {nfolders} folders")
+
+def render(top, root=ROOT, extra=()):
+    """-> (README text, files, must-know files, folders). `extra`: paths relative to root that
+    count as tracked (Code Viewer's Push lists files it is about to add, 6 Oct)."""
+    topdir = root / top
     folders = {}
-    known = tracked_java(top)
+    known = tracked_java(top, root)
     if known is None:
         print(f"{top}: git ls-files failed; listing every file on disk, tracked or not")
+    else:
+        known |= set(extra)
     for p in sorted(topdir.rglob("*.java")):
-        if known is not None and p.relative_to(ROOT).as_posix() not in known:
+        if known is not None and p.relative_to(root).as_posix() not in known:
             continue
-        f = p.relative_to(ROOT).as_posix().rsplit("/", 1)[0]
+        f = p.relative_to(root).as_posix().rsplit("/", 1)[0]
         folders.setdefault(f, []).append(p)
     lines = [f"# {TITLES[top]}", "", INTRO[top], ""]
     if NOTES[top]:
@@ -144,8 +154,7 @@ def gen(top):
             lines += ["", "**Worth adding next:**", ""] + [f"- {g['problem']}: {g['technique']}" for g in hi]
         lines.append("")
     lines += ["`*` = must-know. Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch.", ""]
-    (topdir / "README.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
-    print(f"{top}: {total} files, {total_mk} must-know, {len(folders)} folders")
+    return "\n".join(lines), total, total_mk, len(folders)
 
 if __name__ == "__main__":
     for top in TITLES:

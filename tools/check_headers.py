@@ -50,7 +50,8 @@ def parse_header(text):
     return {"title": title, "meta": meta, "mustKnow": must, "sections": sections, "insight": insight}
 
 # What Code Viewer's New file (+) template leaves to fill in (5 Oct: a blank one passed this check).
-PLACEHOLDERS = [("LeetCode ? | ?", re.compile(r"LeetCode \? \| \?")), ("O(?)", re.compile(r"O\(\?\)")),
+# 6 Oct: the New problem form leaves "LeetCode ? | Easy" when no source is given.
+PLACEHOLDERS = [("LeetCode ?", re.compile(r"LeetCode \?")), ("O(?)", re.compile(r"O\(\?\)")),
                 ("...", re.compile(r"^\s*\*\s+\.\.\.\s*$", re.M))]
 
 def placeholders(text):

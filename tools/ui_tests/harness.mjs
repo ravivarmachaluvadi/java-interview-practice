@@ -18,7 +18,7 @@
  *     (leftover profiles once came to 1.46 GB).
  */
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -177,12 +177,15 @@ async function start({ chromeFlags = [] } = {}) {
       await sleep(800);
     },
     /**
-     * A throwaway folder with `files` ({name: text}), added to the test server as a second folder.
+     * A throwaway folder with `files` ({name: text}, names may hold sub-folders), added to the test server as a second folder.
      * Returns { id, dir, open(name), onlyIn(name, marker) }. Deleted by finish().
      */
     async scratchFolder(files) {
       const dir = mkdtempSync(join(tmpdir(), 'cvws-'));
-      for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+      for (const [name, text] of Object.entries(files)) {
+        mkdirSync(dirname(join(dir, name)), { recursive: true });
+        writeFileSync(join(dir, name), text);
+      }
       const r = await post('/api/roots', { path: dir });
       const root = r.roots.find(x => x.path.replace(/\\/g, '/').endsWith('/' + basename(dir)));
       if (!root) throw new Error('the server did not add ' + dir);

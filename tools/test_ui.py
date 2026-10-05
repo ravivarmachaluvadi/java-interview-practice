@@ -51,7 +51,9 @@ def page_parses():
 
 
 def start_server(tmp):
-    env = dict(os.environ, CODEVIEW_STATE=str(tmp / "state.json"), CODEVIEW_LOG=str(tmp / "codeview.log"))
+    # CODEVIEW_NO_PUSH: the push suite clicks Push; this server refuses it for the real repo
+    env = dict(os.environ, CODEVIEW_STATE=str(tmp / "state.json"), CODEVIEW_LOG=str(tmp / "codeview.log"),
+               CODEVIEW_NO_PUSH="1")
     server = subprocess.Popen([sys.executable, str(HERE / "codeview.py"), "--port", str(PORT), "--no-open"],
                               env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     for _ in range(150):
@@ -96,6 +98,8 @@ def run_suite(path):
 
 
 def main(words):
+    # a suite's lines hold ⇡, →, ★; a cp1252 console (Windows, piped) would stop the run on them
+    sys.stdout.reconfigure(errors="replace")
     suites = sorted(p for p in SUITES.glob("*.mjs") if p.name != "harness.mjs"
                     and (not words or any(w.lower() in p.stem.lower() for w in words)))
     if not suites:

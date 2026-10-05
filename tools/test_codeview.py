@@ -16,6 +16,7 @@ TMP = pathlib.Path(tempfile.mkdtemp(prefix="codeview_test_"))
 os.environ["CODEVIEW_STATE"] = str(TMP / "state.json")
 os.environ["CODEVIEW_LOG"] = str(TMP / "codeview.log")
 os.environ["CODEVIEW_VENDOR"] = str(TMP / "vendor")
+os.environ["CODEVIEW_NO_PUSH"] = "1"
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
@@ -154,12 +155,262 @@ class TemplateTest(unittest.TestCase):
 
     def test_header_check_flags_an_unfilled_new_file(self):
         found = check_headers.placeholders(codeview.java_template("C16_MyProblem.java"))
-        self.assertIn("LeetCode ? | ?", found)
+        self.assertIn("LeetCode ?", found)
         self.assertIn("O(?)", found)
         self.assertIn("...", found)
 
     def test_filled_headers_have_none(self):
         self.assertEqual(check_headers.placeholders(SAMPLE), [])
+
+
+class NewProblemTest(unittest.TestCase):
+    """6 Oct: Ravi asked for an easier way to add a DSA problem than typing its whole path into
+    +. The form sends folder, level, name and source; the server picks the next free number."""
+
+    def setUp(self):
+        self.base = TMP / "new_root"
+        (self.base / "01-Arrays").mkdir(parents=True, exist_ok=True)
+        for n in ("A01_First.java", "B01_One.java", "B11_FindCorruptPair.java", "C02_Two.java", "README.md"):
+            (self.base / "01-Arrays" / n).write_text("class X {}", encoding="utf-8")
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def make(self, **kw):
+        args = dict(folder="01-Arrays", level="B", name="Two Sum", source="1", difficulty="Easy", must=False)
+        res = codeview.new_problem(self.rid, **(args | kw))
+        return res["path"], (self.base / res["path"]).read_text(encoding="utf-8")
+
+    def test_takes_the_next_free_number_of_its_level(self):
+        self.assertEqual(self.make()[0], "01-Arrays/B12_TwoSum.java")
+        self.assertEqual(self.make(level="C", name="Three Sum")[0], "01-Arrays/C03_ThreeSum.java")
+        self.assertEqual(self.make(level="D", name="Hard One")[0], "01-Arrays/D01_HardOne.java")
+        self.assertEqual(self.make(level="", name="Plain")[0], "01-Arrays/Plain.java")
+        self.assertEqual(self.make(folder="02-New/Sub", level="A")[0], "02-New/Sub/A01_TwoSum.java")
+
+    def test_names_become_class_names(self):
+        for name, cls, title in (("LRU cache", "LRUCache", "LRU cache"), ("TwoSumII", "TwoSumII", "Two Sum II"),
+                                 ("kadane's algorithm", "KadanesAlgorithm", "kadane's algorithm"),
+                                 ("two-sum: sorted", "TwoSumSorted", "two-sum: sorted")):
+            with self.subTest(name=name):
+                path, text = self.make(name=name, level="")
+                self.assertEqual(path, f"01-Arrays/{cls}.java")
+                self.assertIn(f"\nclass {cls} {{", text)
+                self.assertEqual(check_headers.parse_header(text)["title"], title)
+
+    def test_header_has_every_section_and_only_the_blanks_left_to_fill(self):
+        path, text = self.make(must=True)
+        self.assertNotIn(b"\r", (self.base / path).read_bytes())         # LF, like the repo's files
+        h = check_headers.parse_header(text)
+        self.assertEqual((h["title"], h["meta"], h["mustKnow"]), ("Two Sum", "LeetCode 1 | Easy", True))
+        for s in check_headers.SECTIONS_DSA:
+            self.assertIn(s, h["sections"])
+        with mock.patch.object(check_headers, "ROOT", self.base):
+            _, _, issues = check_headers.check(self.base / path)
+        self.assertEqual(issues, ["unfilled-template:['O(?)', '...']"])
+
+    def test_a_long_title_still_parses(self):
+        _, text = self.make(name="Longest Substring Without Repeating Characters Again", difficulty="Medium")
+        h = check_headers.parse_header(text)
+        self.assertEqual((h["title"], h["meta"]), ("Longest Substring Without Repeating Characters Again",
+                                                   "LeetCode 1 | Medium"))
+
+    def test_source_words_and_a_blank_source(self):
+        self.assertEqual(check_headers.parse_header(self.make(source="GfG", difficulty="Medium")[1])["meta"],
+                         "GfG | Medium")
+        _, text = self.make(name="Other", source=" ")
+        self.assertEqual(check_headers.parse_header(text)["meta"], "LeetCode ? | Easy")
+        self.assertIn("LeetCode ?", check_headers.placeholders(text))
+
+    def test_refuses_bad_input(self):
+        for kw in (dict(level="E"), dict(name=""), dict(name="!!!"), dict(name="3Sum"), dict(folder="../out"),
+                   dict(difficulty="Brutal")):
+            with self.subTest(kw=kw), self.assertRaises(ValueError):
+                self.make(**kw)
+        self.make(level="", name="Plain")
+        with self.assertRaises(ValueError):
+            self.make(level="", name="Plain")
+        for n in range(12, 100):
+            (self.base / "01-Arrays" / f"B{n:02d}_N{n}.java").write_text("class N {}", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "B99"):
+            self.make()
+
+    def test_a_typed_path_cannot_reuse_a_number(self):
+        with self.assertRaisesRegex(ValueError, "B11_FindCorruptPair.java.*B12"):
+            codeview.new_file(self.rid, "01-Arrays/B11_Other.java")
+        res = codeview.new_file(self.rid, "01-Arrays/B12_Other.java")
+        self.assertEqual(res["path"], "01-Arrays/B12_Other.java")
+        lines = (self.base / res["path"]).read_text(encoding="utf-8").splitlines()
+        sel = res["select"]                                     # the page selects PROBLEM's ... to type over
+        self.assertEqual(lines[sel["line"] - 2], " * PROBLEM")
+        self.assertEqual(lines[sel["line"] - 1][sel["col"] - 1:sel["col"] - 1 + sel["len"]], "...")
+
+
+def git(cwd, *args):
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=True,
+                          encoding="utf-8").stdout.strip()
+
+
+class GitPushTest(unittest.TestCase):
+    """6 Oct: Ravi asked for one Push button. The panel lists what changed; Push commits the
+    ticked files only and pushes them, rebasing onto anything pushed from elsewhere."""
+
+    def setUp(self):
+        self.tmp = pathlib.Path(tempfile.mkdtemp(dir=TMP, prefix="git_"))
+        self.remote = self.tmp / "remote.git"
+        git(self.tmp, "init", "-q", "--bare", "-b", "main", str(self.remote))
+        self.work = self.clone("work")
+        for n in ("a.java", "b.java", "README.md"):
+            (self.work / n).write_bytes(f"// {n}\nline two\n".encode())
+        git(self.work, "add", "-A")
+        git(self.work, "commit", "-q", "-m", "start")
+        git(self.work, "push", "-q", "-u", "origin", "main")
+        self.rid = codeview.STATE.add_root(str(self.work))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def clone(self, name):
+        repo = self.tmp / name
+        git(self.tmp, "clone", "-q", str(self.remote), str(repo))
+        for k, v in (("user.name", "Test"), ("user.email", "t@example.com"), ("core.autocrlf", "false")):
+            git(repo, "config", k, v)
+        return repo
+
+    def from_elsewhere(self, name, text, subject):
+        other = self.clone("other_" + subject.replace(" ", "_"))
+        (other / name).write_bytes(text.encode())
+        git(other, "commit", "-q", "-am", subject)
+        git(other, "push", "-q")
+
+    def remote_files(self):
+        return set(git(self.remote, "show", "--name-only", "--format=", "main").splitlines())
+
+    def subjects(self, repo):
+        return git(repo, "log", "--format=%s", "main").splitlines()
+
+    def test_status_lists_each_change(self):
+        (self.work / "a.java").write_bytes(b"changed\n")
+        (self.work / "b.java").unlink()
+        (self.work / "sub").mkdir()
+        (self.work / "sub" / "c.java").write_bytes(b"new\n")
+        st = codeview.git_status(self.rid)
+        self.assertEqual({f["path"]: f["status"] for f in st["files"]},
+                         {"a.java": "changed", "b.java": "deleted", "sub/c.java": "new"})
+        self.assertEqual((st["repo"], st["branch"], st["upstream"], st["ahead"], st["behind"]),
+                         (True, "main", "origin/main", 0, 0))
+
+    def test_a_folder_outside_git(self):
+        plain = self.tmp / "plain"
+        plain.mkdir()
+        rid = codeview.STATE.add_root(str(plain))["id"]
+        try:
+            with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.tmp)}):
+                self.assertEqual(codeview.git_status(rid), {"repo": False})
+        finally:
+            codeview.STATE.remove_root(rid)
+
+    def test_pushes_only_the_ticked_files(self):
+        (self.work / "a.java").write_bytes(b"changed\n")
+        (self.work / "c.java").write_bytes(b"new\n")
+        (self.work / "d.java").write_bytes(b"staged, not ticked\n")
+        (self.work / "README.md").write_bytes(b"not ticked\n")
+        (self.work / "b.java").unlink()
+        git(self.work, "add", "d.java")
+        res = codeview.git_push(self.rid, ["a.java", "c.java", "b.java"], "Update a, add c")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(self.subjects(self.remote)[0], "Update a, add c")
+        self.assertEqual(self.remote_files(), {"a.java", "b.java", "c.java"})
+        self.assertNotIn("b.java", git(self.remote, "ls-tree", "--name-only", "main").splitlines())
+        left = {f["path"]: f["status"] for f in codeview.git_status(self.rid)["files"]}
+        self.assertEqual(left, {"d.java": "new", "README.md": "changed"})
+        self.assertEqual(git(self.work, "diff", "--cached", "--name-only"), "d.java")   # still staged
+        self.assertEqual(codeview.git_status(self.rid)["ahead"], 0)
+
+    def test_rebases_onto_a_push_from_elsewhere(self):
+        self.from_elsewhere("README.md", "theirs\n", "theirs")
+        (self.work / "a.java").write_bytes(b"mine\n")
+        (self.work / "b.java").write_bytes(b"not ticked\n")
+        res = codeview.git_push(self.rid, ["a.java"], "mine")
+        self.assertTrue(res["ok"], res)
+        self.assertTrue(res["rebased"])
+        self.assertEqual(self.subjects(self.remote)[:2], ["mine", "theirs"])
+        self.assertEqual((self.work / "b.java").read_bytes(), b"not ticked\n")      # put back after the rebase
+
+    def test_a_clash_keeps_the_commit_here_and_pushes_nothing(self):
+        self.from_elsewhere("a.java", "theirs\n", "theirs")
+        (self.work / "a.java").write_bytes(b"mine\n")
+        res = codeview.git_push(self.rid, ["a.java"], "mine")
+        self.assertFalse(res["ok"])
+        self.assertTrue(res["committed"])
+        self.assertIn("same lines", res["error"])
+        self.assertEqual(self.subjects(self.remote)[0], "theirs")
+        self.assertEqual(self.subjects(self.work)[0], "mine")
+        self.assertEqual((self.work / "a.java").read_bytes(), b"mine\n")
+        git_dir = self.work / ".git"
+        self.assertFalse((git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists())
+
+    def test_refuses_stale_or_empty_requests(self):
+        with self.assertRaisesRegex(ValueError, "[Nn]othing to push"):
+            codeview.git_push(self.rid, [], "x")
+        (self.work / "a.java").write_bytes(b"changed\n")
+        with self.assertRaisesRegex(ValueError, "nope.java"):
+            codeview.git_push(self.rid, ["nope.java"], "x")
+        with self.assertRaisesRegex(ValueError, "message"):
+            codeview.git_push(self.rid, ["a.java"], "  ")
+        self.assertEqual(self.subjects(self.work), ["start"])
+
+    def test_pushes_commits_left_by_a_failed_push(self):
+        (self.work / "a.java").write_bytes(b"changed\n")
+        git(self.work, "commit", "-q", "-am", "made earlier")
+        self.assertEqual(codeview.git_status(self.rid)["ahead"], 1)
+        res = codeview.git_push(self.rid, [], "")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(self.subjects(self.remote)[0], "made earlier")
+
+    def test_a_rename_goes_as_one_change(self):
+        git(self.work, "mv", "a.java", "a2.java")
+        st = codeview.git_status(self.rid)
+        self.assertEqual([(f["path"], f["status"], f.get("from")) for f in st["files"]], [("a2.java", "renamed", "a.java")])
+        self.assertTrue(codeview.git_push(self.rid, ["a2.java"], "rename")["ok"])
+        self.assertEqual(set(git(self.remote, "ls-tree", "--name-only", "main").splitlines()),
+                         {"a2.java", "b.java", "README.md"})
+
+    def test_readme_lists_the_new_file(self):
+        prob = self.work / "AAScratches" / "01-DSA" / "01-Arrays"
+        prob.mkdir(parents=True)
+        (prob / "A01_Foo.java").write_bytes(SAMPLE.replace("Two Sum", "Foo").encode())
+        with mock.patch.object(codeview, "readme_root", lambda top: top / "AAScratches"):
+            git(self.work, "add", "-A")
+            codeview.refresh_readmes(self.work)
+            git(self.work, "add", "-A")
+            git(self.work, "commit", "-q", "-m", "problems")
+            git(self.work, "push", "-q")
+            readme = self.work / "AAScratches" / "01-DSA" / "README.md"
+            before = readme.read_bytes()
+            self.assertIn(b"A01_Foo.java", before)
+            (prob / "B01_Bar.java").write_bytes(SAMPLE.replace("Two Sum", "Bar").encode())
+            st = codeview.git_status(self.rid, readmes=True)
+            self.assertEqual(st["readmes"], ["AAScratches/01-DSA/README.md"])
+            self.assertEqual(readme.read_bytes(), before)                                # only a preview
+            res = codeview.git_push(self.rid, ["AAScratches/01-DSA/01-Arrays/B01_Bar.java"], "Add Bar")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(self.remote_files(), {"AAScratches/01-DSA/01-Arrays/B01_Bar.java", "AAScratches/01-DSA/README.md"})
+        self.assertIn("B01_Bar.java", git(self.remote, "show", "main:AAScratches/01-DSA/README.md"))
+
+    def test_test_servers_never_push_this_repo(self):
+        """test_ui.py's server clicks Push; CODEVIEW_NO_PUSH keeps it off the real repo."""
+        rid = codeview.STATE.roots()[0]["id"]
+        self.assertEqual(codeview.root_path(rid), codeview.REPO)
+        calls = []
+        with mock.patch.object(codeview, "NO_PUSH", True), \
+                mock.patch.object(codeview, "git", lambda *a, **k: calls.append(a) or self.fail(a)):
+            with self.assertRaisesRegex(ValueError, "switched off"):
+                codeview.git_push(rid, ["x.java"], "x")
+        self.assertEqual(calls, [])
 
 
 class DeleteTest(unittest.TestCase):

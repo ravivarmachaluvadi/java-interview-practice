@@ -91,6 +91,42 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .panel { margin: 8px 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); display: grid; gap: 6px; }
 .panel .row-btns { display: flex; gap: 6px; }
 .panel small { color: var(--muted); }
+.panel .note { color: var(--muted); font-size: 12px; }
+/* New problem form */
+.np { display: grid; gap: 6px; }
+.np-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.np-row { display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.np-row .seg button { padding: 0 9px; }
+.np-pair { display: flex; gap: 6px; min-width: 0; }
+.np-pair select { flex: none; height: 30px; }
+.np-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; justify-self: start; }
+.np-preview { font: 12px var(--code); overflow-wrap: anywhere; }
+.np-preview.bad { color: var(--warn); font-family: var(--ui); }
+/* Push */
+#pushBtn { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; color: var(--muted); }
+#pushBtn.has { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+#pushCnt { font-weight: 600; }
+#pushCnt:empty { display: none; }
+.push-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.push-where { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.push-all { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; justify-self: start; }
+.push-list { max-height: 38vh; overflow: auto; display: grid; gap: 1px; }
+.push-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr); column-gap: 6px; align-items: center; padding: 3px 2px; border-radius: 4px; cursor: pointer; }
+.push-row:hover { background: var(--hover); }
+.push-row input { margin: 0; }
+.push-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.push-row .dir { grid-column: 3; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.push-row .st { font-size: 10px; line-height: 15px; border-radius: 99px; padding: 0 6px; border: 1px solid currentColor; }
+.st.new { color: var(--ok); } .st.changed { color: var(--accent); } .st.renamed { color: var(--warn); }
+.st.deleted, .st.conflict { color: var(--bad); }
+.push-note { display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
+.push-note:empty { display: none; }
+.push-note .warn { color: var(--warn); }
+.push-note button { height: auto; padding: 0; border: 0; color: var(--accent); font-size: 11px; text-decoration: underline; }
+.push-err { color: var(--bad); font-size: 12px; overflow-wrap: anywhere; }
+#pushMsg { box-sizing: border-box; width: 100%; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg);
+  color: var(--text); font: 12px/1.45 var(--ui); outline: none; resize: vertical; }
+#pushMsg:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .tabs { display: flex; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--border); }
 .tabs button { border: 0; border-radius: 6px 6px 0 0; border-bottom: 2px solid transparent; height: 30px; color: var(--muted); }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
@@ -356,7 +392,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 <aside class="side">
   <div class="side-head">
     <select id="rootSel" title="Which folder to show"></select>
-    <button class="icon" id="newBtn" title="New file in this folder">+</button>
+    <button id="pushBtn" hidden><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5V3M3.5 7.5 8 3l4.5 4.5"/></svg><span id="pushCnt"></span></button>
+    <button class="icon" id="newBtn" title="New problem (or any file) in this folder">+</button>
   </div>
   <div class="panel" id="rootPanel" hidden>
     <input id="rootPath" placeholder="Paste a folder path, or Browse" spellcheck="false">
@@ -368,8 +405,31 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     </div>
   </div>
   <div class="panel" id="newPanel" hidden>
-    <input id="newPath" placeholder="folder/C16_MyProblem.java" spellcheck="false">
-    <small>Enter creates it (Java files get the usual template). Esc cancels. A new folder name in the path is created too.</small>
+    <div class="np" id="npForm">
+      <div class="np-title"><b>New problem</b><small>numbered after the folder's last file of its level</small></div>
+      <label class="np-row"><span>Folder</span><input id="npFolder" list="npFolders" spellcheck="false" autocomplete="off" placeholder="(top level)"></label>
+      <datalist id="npFolders"></datalist>
+      <div class="np-row"><span>Level</span><span class="seg" id="npLevel"><button data-l="A" title="A: building block">A</button><button data-l="B" title="B: easy">B</button><button data-l="C" title="C: medium">C</button><button data-l="D" title="D: hard">D</button><button data-l="" title="No level letter and number in the file name">none</button></span></div>
+      <label class="np-row"><span>Name</span><input id="npName" placeholder="Two Sum" spellcheck="false" autocomplete="off"></label>
+      <div class="np-row"><span>Source</span><span class="np-pair"><input id="npSource" placeholder="LeetCode no., or GfG" spellcheck="false" autocomplete="off"><select id="npDiff" title="Difficulty, as the source rates it"><option>Easy</option><option>Medium</option><option>Hard</option></select></span></div>
+      <label class="np-check"><input type="checkbox" id="npMust"> ★ Must-know</label>
+      <div class="np-preview" id="npPreview"></div>
+      <div class="row-btns"><button id="npPathBtn" title="Any name and file type, such as notes.md">Type a path…</button><span class="spacer"></span><button id="npCancel">Cancel</button><button class="primary" id="npCreate">Create</button></div>
+    </div>
+    <div class="np" id="npPath" hidden>
+      <input id="newPath" placeholder="folder/C16_MyProblem.java" spellcheck="false">
+      <small>Enter creates it (Java files get the usual template). Esc cancels. A new folder name in the path is created too.</small>
+      <div class="row-btns"><button id="npFormBtn">← New problem form</button></div>
+    </div>
+  </div>
+  <div class="panel" id="pushPanel" hidden>
+    <div class="push-head"><b>Push to GitHub</b><span class="push-where" id="pushWhere"></span></div>
+    <label class="push-all" hidden><input type="checkbox" id="pushAll"> All files</label>
+    <div class="push-list" id="pushList"></div>
+    <div class="push-note" id="pushNote"></div>
+    <textarea id="pushMsg" rows="2" placeholder="What changed: the commit message" spellcheck="true" title="Enter pushes; Shift+Enter starts a new line"></textarea>
+    <div class="push-err" id="pushErr" hidden></div>
+    <div class="row-btns"><span class="spacer"></span><button id="pushCancel">Cancel</button><button class="primary" id="pushGo" disabled>Push</button></div>
   </div>
   <div class="tabs">
     <button data-tab="files" class="on">Files</button>
@@ -548,6 +608,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
+    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. "Type a path…" makes any other file</td></tr>
+    <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
@@ -825,8 +887,10 @@ async function switchRoot(id, openSomething) {
   S.openDirs = new Set(store.get('openDirs:' + id, r.default ? ['AAScratches'] : []));
   renderRootSel();
   S.treeSig = '';
+  closePush();
   await Promise.all([loadTree(), loadProgress()]);
   renderTree();
+  refreshGit();
   if (openSomething) {
     const last = store.get('last:' + id, null);
     const pick = last && S.byPath.has(last) ? last
@@ -1027,6 +1091,7 @@ async function checkVersion() {
 async function refreshFromDisk() {
   if (document.visibilityState !== 'visible' || !S.root || !editor) return;
   checkVersion();
+  refreshGit();
   try { if (await loadTree()) renderTree(); } catch { return; }
   const c = S.cur;
   if (!c || c.path === SCRATCH || c.mode === 'practice' || hasDraft(c)) return;
@@ -1141,28 +1206,213 @@ $('#sCase').addEventListener('change', runSearch);
 $('#sRegex').addEventListener('change', runSearch);
 
 /* ------------------------------------------------------------ new file */
-function openNewPanel() {
-  if (!S.root) return;
-  const dir = S.cur && S.cur.path !== SCRATCH ? S.cur.path.split('/').slice(0, -1).join('/') : '';
-  $('#newPanel').hidden = false;
-  const inp = $('#newPath');
-  inp.value = dir ? dir + '/' : '';
+/* 6 Oct: "how about creating new files of dsa?" + opens a form for a problem: folder, level,
+   name, source. The server numbers the file after the folder's last one of that level (B11 ->
+   B12), fills in the header's first line and the page opens it with PROBLEM's ... selected to
+   type over. "Type a path…" is the old box, for any other file. */
+const NP_DIFF = { A: 'Easy', B: 'Easy', C: 'Medium', D: 'Hard', '': 'Medium' };
+const np = { level: 'B', diffTouched: false, folders: [] };
+const npFolder = () => $('#npFolder').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+const levelOf = name => (name.match(/^([A-D])\d\d_/) || [])[1] || '';
+function npClass(name) {               // the server's class_name(): 'LRU cache' -> LRUCache
+  const words = name.replace(/['‘’]/g, '').match(/[A-Za-z0-9]+/g) || [];
+  return words.map(w => w[0].toUpperCase() + w.slice(1)).join('');
+}
+function npNext(folder, level) {       // the server's next_tier(), on the file list
+  const dir = folder ? folder + '/' : '', re = new RegExp('^' + level + '(\\d\\d)_');
+  let n = 0;
+  for (const f of S.files) { const m = dirOf(f.path) === dir && f.name.match(re); if (m) n = Math.max(n, +m[1]); }
+  return level + String(n + 1).padStart(2, '0');
+}
+function npSetLevel(l) {
+  np.level = l;
+  document.querySelectorAll('#npLevel button').forEach(b => b.classList.toggle('on', b.dataset.l === l));
+  if (!np.diffTouched) $('#npDiff').value = NP_DIFF[l];
+  npUpdate();
+}
+function npUpdate() {
+  const folder = npFolder(), name = $('#npName').value.trim(), cls = npClass(name), pv = $('#npPreview');
+  const bad = !name ? "Type the problem's name." : !cls ? 'Use letters or digits in the name.'
+    : /^\d/.test(cls) ? 'A class name cannot start with a digit: write it in words, such as Three Sum.' : '';
+  pv.classList.toggle('bad', !!bad);
+  pv.textContent = bad || '→ ' + (folder ? folder + '/' : '') + (np.level ? npNext(folder, np.level) + '_' : '') + cls + '.java'
+    + (folder && !np.folders.includes(folder) ? '   (new folder)' : '');
+  $('#npCreate').disabled = !!bad;
+}
+function showNewForm(form) {
+  $('#npForm').hidden = !form; $('#npPath').hidden = form;
+  const inp = form ? $('#npName') : $('#newPath');
+  if (!form) inp.value = npFolder() ? npFolder() + '/' : '';
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 }
-$('#newBtn').onclick = () => {
-  setSide(false); if ($('#newPanel').hidden) openNewPanel(); else $('#newPanel').hidden = true; };
-$('#newPath').addEventListener('keydown', async e => {
-  if (e.key === 'Escape') { $('#newPanel').hidden = true; return; }
-  if (e.key !== 'Enter') return;
+function openNewPanel() {
+  if (!S.root) return;
+  $('#pushPanel').hidden = true;
+  const here = S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
+  const dir = here ? dirOf(here).slice(0, -1) : '';
+  np.folders = [];
+  (function walk(n) { for (const d of n.dirs) { np.folders.push(d.path); walk(d); } })(S.tree);
+  $('#npFolders').replaceChildren(...np.folders.map(p => Object.assign(document.createElement('option'), { value: p })));
+  $('#npFolder').value = dir;
+  $('#npName').value = ''; $('#npSource').value = ''; $('#npMust').checked = false;
+  np.diffTouched = false;
+  const tiered = S.files.some(f => dirOf(f.path) === (dir ? dir + '/' : '') && levelOf(f.name));
+  npSetLevel(here && levelOf(here.split('/').pop()) || (tiered ? 'B' : ''));
+  $('#newPanel').hidden = false;
+  showNewForm(!!(S.info && S.info.git));      // a server started before 6 Oct only knows the path box
+}
+const closeNew = () => { $('#newPanel').hidden = true; };
+async function created(r) {
+  closeNew();
+  S.treeSig = ''; await loadTree(); renderTree();
+  S.editing.add(keyOf(r.path));
+  if (r.select) S.pendingReveal = { key: keyOf(r.path), ...r.select };
+  go(r.path);
+  toast('Created ' + r.path + (r.select ? '. Type over the selected ... to fill in the header; Ctrl+S saves.' : '. Write it, then Ctrl+S to save.'));
+  refreshGit();
+}
+async function npCreate() {
+  if ($('#npCreate').disabled) return;
   try {
-    const r = await api('/api/new', { root: S.root, path: $('#newPath').value });
-    $('#newPanel').hidden = true;
-    await loadTree(); renderTree();
-    S.editing.add(keyOf(r.path));
-    go(r.path);
-    toast('Created ' + r.path + '. Write it, then Ctrl+S to save.');
+    await created(await api('/api/new', { root: S.root, folder: npFolder(), level: np.level, name: $('#npName').value,
+      source: $('#npSource').value, difficulty: $('#npDiff').value, must: $('#npMust').checked }));
   } catch (err) { toast(err.message); }
+}
+$('#newBtn').onclick = () => { setSide(false); if ($('#newPanel').hidden) openNewPanel(); else closeNew(); };
+$('#npLevel').onclick = e => { const b = e.target.closest('button'); if (b) { npSetLevel(b.dataset.l); $('#npName').focus(); } };
+$('#npDiff').onchange = () => { np.diffTouched = true; };
+for (const id of ['#npFolder', '#npName']) $(id).addEventListener('input', npUpdate);
+$('#npCreate').onclick = npCreate;
+$('#npCancel').onclick = closeNew;
+$('#npPathBtn').onclick = () => showNewForm(false);
+$('#npFormBtn').onclick = () => showNewForm(true);
+$('#npForm').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeNew(); }
+  else if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); npCreate(); }
+});
+$('#newPath').addEventListener('keydown', async e => {
+  if (e.key === 'Escape') { closeNew(); return; }
+  if (e.key !== 'Enter') return;
+  try { await created(await api('/api/new', { root: S.root, path: $('#newPath').value })); }
+  catch (err) { toast(err.message); }
+});
+
+/* ------------------------------------------------------------ push (git) */
+/* 6 Oct: Ravi asked for one Push button. ⇡ shows how many files changed; its panel lists them,
+   all ticked, with a message made from their names. Push commits the ticked files, refreshes
+   the README lists and pushes (codeview.py git_push). Edits still unsaved in this browser are
+   named in the panel, because only what is on disk can go. */
+async function refreshGit() {
+  const b = $('#pushBtn');
+  if (!S.root || !(S.info && S.info.git)) { b.hidden = true; return; }
+  let g;
+  try { g = await api('/api/git?' + qs({ root: S.root })); } catch { return; }
+  const n = g.repo ? g.files.length : 0, ahead = g.repo ? g.ahead : 0;
+  b.hidden = !g.repo;
+  b.classList.toggle('has', !!(n || ahead));
+  $('#pushCnt').textContent = n || ahead || '';
+  b.title = (n ? `${n} changed file${n > 1 ? 's' : ''}` : 'No changed files')
+    + (ahead ? `, ${ahead} commit${ahead > 1 ? 's' : ''} not on GitHub yet` : '') + '. Click to see them and push.';
+}
+function unsavedHere() {               // files with an edit kept only in this browser (draft:<root>/<path>)
+  const pre = 'cv:draft:' + S.root + '/', out = [];
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(pre)) out.push(k.slice(pre.length)); } } catch {}
+  return out.filter(p => S.byPath.has(p)).sort();
+}
+function commitMessage(files) {
+  const stem = p => p.split('/').pop().replace(/\.[^.]+$/, '');
+  return [['new', 'Add'], ['changed', 'Update'], ['renamed', 'Rename'], ['deleted', 'Delete']].map(([st, verb]) => {
+    const n = files.filter(f => f.status === st).map(f => stem(f.path));
+    return n.length ? verb + ' ' + (n.length > 3 ? n.slice(0, 3).join(', ') + ` and ${n.length - 3} more` : n.join(', ')) : '';
+  }).filter(Boolean).join('; ');
+}
+const closePush = () => { $('#pushPanel').hidden = true; };
+function pushError(msg) { $('#pushErr').textContent = msg; $('#pushErr').hidden = false; }
+async function openPush() {
+  if (!$('#pushPanel').hidden) return closePush();
+  closeNew(); $('#rootPanel').hidden = true; setSide(false);
+  $('#pushPanel').hidden = false;
+  $('#pushErr').hidden = true;
+  $('#pushList').innerHTML = '<div class="note">Looking for changes…</div>';
+  $('#pushNote').textContent = ''; $('#pushWhere').textContent = '';
+  $('#pushMsg').value = ''; S.pushMsgTouched = false;
+  $('#pushGo').disabled = true; $('#pushGo').textContent = 'Push';
+  await loadPush();
+  if (!$('#pushMsg').disabled) $('#pushMsg').focus();
+}
+async function loadPush() {
+  try { S.git = await api('/api/git?' + qs({ root: S.root, readmes: 1 })); } catch (e) { return pushError(e.message); }
+  renderPush();
+}
+function renderPush() {
+  const g = S.git, list = $('#pushList'), note = $('#pushNote');
+  list.textContent = ''; note.textContent = '';
+  $('#pushMsg').disabled = !g.repo;
+  if (!g.repo) { list.innerHTML = '<div class="note">This folder is not in a git repository, so there is nothing to push.</div>'; return pushTicked(); }
+  $('#pushWhere').textContent = (g.branch || '') + (g.upstream ? ' → ' + g.upstream : g.remote ? ' → ' + g.remote + ' (new branch)' : '');
+  for (const f of g.files) {
+    const row = document.createElement('label'), name = f.path.split('/').pop(), dir = f.path.slice(0, -name.length - 1);
+    row.className = 'push-row';
+    row.title = f.path + (f.from ? '   (renamed from ' + f.from + ')' : '');
+    row.innerHTML = `<input type="checkbox" checked><span class="st ${f.status}">${f.status}</span><span class="nm">${esc(name)}</span>`
+      + (dir ? `<span class="dir">${esc(dir)}</span>` : '');
+    row.querySelector('input').dataset.path = f.path;
+    list.append(row);
+  }
+  if (!g.files.length) list.innerHTML = '<div class="note">No changed files.' + (g.ahead ? '' : ' Everything is already on GitHub.') + '</div>';
+  $('#pushAll').closest('label').hidden = g.files.length < 2;
+  const add = (cls, html) => { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; note.append(d); return d; };
+  if (g.ahead) add('', `${g.ahead} earlier commit${g.ahead > 1 ? 's' : ''} not on GitHub yet ${g.ahead > 1 ? 'go' : 'goes'} too.`);
+  if (g.readmes && g.readmes.length) add('', 'Also updates the problem list in ' + g.readmes.map(esc).join(', ') + '.');
+  const unsaved = unsavedHere();
+  if (unsaved.length) {
+    const d = add('warn', 'Not saved yet, so not included (open it and press Ctrl+S): ');
+    unsaved.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.textContent = p.split('/').pop(); b.title = p; b.onclick = () => go(p);
+      d.append(i ? ', ' : '', b);
+    });
+  }
+  if (g.files.some(f => f.status === 'conflict')) add('warn', 'git is in the middle of a merge here; finish it in a terminal first.');
+  pushTicked();
+}
+function pushTicked() {
+  const g = S.git || {}, boxes = [...$('#pushList').querySelectorAll('input')], on = boxes.filter(b => b.checked);
+  $('#pushAll').checked = boxes.length > 0 && on.length === boxes.length;
+  $('#pushAll').indeterminate = on.length > 0 && on.length < boxes.length;
+  if (!S.pushMsgTouched && g.repo) $('#pushMsg').value = commitMessage(g.files.filter(f => on.some(b => b.dataset.path === f.path)));
+  const n = on.length, a = g.ahead || 0, btn = $('#pushGo');
+  if (S.pushing) return;
+  btn.textContent = n ? `Push ${n} file${n > 1 ? 's' : ''}` : a ? `Push ${a} commit${a > 1 ? 's' : ''}` : 'Push';
+  btn.disabled = !g.repo || !(n || a) || (n > 0 && !$('#pushMsg').value.trim());
+}
+async function doPush() {
+  const btn = $('#pushGo');
+  if (btn.disabled || S.pushing) return;
+  const paths = [...$('#pushList').querySelectorAll('input:checked')].map(b => b.dataset.path);
+  S.pushing = true; btn.disabled = true; btn.textContent = 'Pushing…'; $('#pushErr').hidden = true;
+  let r;
+  try { r = await api('/api/git/push', { root: S.root, paths, message: $('#pushMsg').value }); }
+  catch (e) { r = { ok: false, error: e.message }; }
+  S.pushing = false;
+  if (!r.ok) { await loadPush(); pushError(r.error); refreshGit(); return; }
+  closePush();
+  toast(r.pushed === false ? r.note
+    : `Pushed ${r.files ? r.files + ' file' + (r.files > 1 ? 's' : '') : 'your commits'} to GitHub (${r.commit})`
+      + (r.rebased ? ', after taking in newer commits from GitHub' : '') + '.'
+      + (r.readmes && r.readmes.length ? ' The README problem list was updated too.' : ''));
+  refreshGit();
+}
+$('#pushBtn').onclick = openPush;
+$('#pushCancel').onclick = closePush;
+$('#pushGo').onclick = doPush;
+$('#pushList').addEventListener('change', pushTicked);
+$('#pushAll').onchange = e => { $('#pushList').querySelectorAll('input').forEach(b => { b.checked = e.target.checked; }); pushTicked(); };
+$('#pushMsg').addEventListener('input', () => { S.pushMsgTouched = true; pushTicked(); });
+$('#pushPanel').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closePush(); }
+  else if (e.key === 'Enter' && !e.shiftKey && e.target === $('#pushMsg')) { e.preventDefault(); doPush(); }
 });
 
 /* ------------------------------------------------------------ delete */
@@ -1181,6 +1431,7 @@ function deleteFile() {
       const same = S.files.filter(f => f.path.split('/').slice(0, -1).join('/') === dir);
       const next = same.find(f => f.path.toLowerCase() > c.path.toLowerCase()) || same[same.length - 1];
       go(next ? next.path : S.byPath.has('README.md') ? 'README.md' : SCRATCH);
+      refreshGit();
       toast(`Moved ${c.name} to the Recycle Bin.`);
     }],
     ['Cancel', () => hideBanner()],
@@ -1808,6 +2059,7 @@ async function save(force) {
   store.del('draft:' + c.key);
   markDraft(c.path);
   refreshBar();
+  refreshGit();
   toast('Saved ' + c.name);
 }
 /* IntelliJ's "strip trailing spaces on Save", for the indent blank lines now keep while you
@@ -3557,7 +3809,7 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); toggleVisual(); }
   else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
   else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }
-  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#nextMenu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
+  else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#nextMenu').hidden = true; $('#hintCard').hidden = true; paintHints(); closePush(); closeNew(); }
 });
 
 /* ------------------------------------------------------------ splitters + toast */
