@@ -7,7 +7,7 @@ offline copy of the page's libraries.
 Everything runs against temporary files: the env vars below are set before codeview is
 imported, so the real tools/codeview-state.json and codeview.log are never touched.
 """
-import base64, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile, tempfile, threading, unittest
+import base64, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile, tempfile, threading, time, unittest
 import urllib.error, urllib.request
 from unittest import mock
 from collections import Counter
@@ -616,6 +616,39 @@ class RunLeavesFileTest(unittest.TestCase):
             for x in p.parent.iterdir():
                 x.unlink()
             p.parent.rmdir()
+
+
+class SweepTest(unittest.TestCase):
+    """Start-up clean-up: old helper builds and stranded Run folders go, after an hour, and
+    nothing else. Runs on scratch folders, never the real %TEMP% or cache."""
+
+    def setUp(self):
+        self.root = pathlib.Path(tempfile.mkdtemp(dir=TMP))
+        self.assist, self.temp = self.root / "assist", self.root / "temp"
+        self.assist.mkdir()
+        self.temp.mkdir()
+
+    def make(self, folder, name, hours_old):
+        p = folder / name
+        p.mkdir()
+        (p / "x.bin").write_bytes(b"0" * 1000)
+        t = time.time() - hours_old * 3600
+        os.utime(p, (t, t))
+        return p
+
+    def test_old_builds_and_stranded_run_folders_go(self):
+        self.make(self.assist, codeview.assist_build(), 5)      # the build in use: kept however old
+        self.make(self.assist, "0123456789ab", 2)               # an older build: removed
+        self.make(self.assist, "ba9876543210", 0)               # another server's, used just now: kept
+        self.make(self.temp, "codeview_abc", 2)                 # a Run that never finished: removed
+        self.make(self.temp, "codeview_def", 0)                 # a Run going on now: kept
+        self.make(self.temp, "other_xyz", 5)                    # not ours: kept
+        self.assertEqual(codeview.sweep_leftovers(self.assist, self.temp), (2, 2000))
+        self.assertEqual({p.name for p in self.assist.iterdir()}, {codeview.assist_build(), "ba9876543210"})
+        self.assertEqual({p.name for p in self.temp.iterdir()}, {"codeview_def", "other_xyz"})
+
+    def test_missing_folders_are_fine(self):
+        self.assertEqual(codeview.sweep_leftovers(self.root / "none", self.root / "none2"), (0, 0))
 
 
 CUR = "‸"          # where the cursor is in a fixture; taken out before the code is sent

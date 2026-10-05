@@ -814,6 +814,43 @@ ASSIST_JVM = os.environ.get("CODEVIEW_ASSIST_JVM", "-Xmx256m -XX:+UseSerialGC -X
 ASSIST_OPS = {"complete", "signature", "hover", "doc", "check", "warm", "imports", "definition", "rename"}
 ASSIST_WAIT = {"check": 10, "warm": 60, "compile": 120}   # seconds; the rest 4. A cold start adds 40.
 LATEST_ONLY = {"complete", "signature", "hover", "check"}   # a newer request makes a queued one pointless
+ASSIST_BUILDS = lambda: offline.cache_dir().parent / "assist"   # noqa: E731  one folder per helper build
+
+
+def assist_build():
+    """Name of the build of this CvAssist.java by this JDK (a new one after every change)."""
+    return hashlib.sha1(ASSIST_SRC.read_bytes() + str(JAVAC).encode()).hexdigest()[:12]
+
+
+# ---------------------------------------------------------------- start-up clean-up
+# 5 Oct, Ravi asked what piles up. Two things did, with nothing removing them: a helper build
+# per CvAssist.java change (~100 KB each) and the temp folder of a Run whose server was killed
+# mid-way. Every start removes both once they are an hour old; a Run lasts 3 minutes at most.
+
+SWEEP_AGE = 3600
+
+
+def sweep_leftovers(builds=None, temp=None):
+    """-> (folders removed, bytes freed). Old helper builds except the current one, and
+    codeview_* Run folders. Anything in use or locked is left for the next start."""
+    builds = pathlib.Path(builds or ASSIST_BUILDS())
+    temp = pathlib.Path(temp or tempfile.gettempdir())
+    current = assist_build()
+    found = [p for p in builds.iterdir() if p.is_dir() and p.name != current] if builds.is_dir() else []
+    found += [p for p in temp.glob("codeview_*") if p.is_dir()] if temp.is_dir() else []
+    removed = freed = 0
+    for p in found:
+        try:
+            if time.time() - p.stat().st_mtime < SWEEP_AGE:
+                continue
+            size = sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+            shutil.rmtree(p)
+            removed, freed = removed + 1, freed + size
+        except OSError:
+            continue
+    if removed:
+        log.info("clean-up: removed %d leftover folder(s), %.1f MB", removed, freed / 1e6)
+    return removed, freed
 
 
 class Assist:
@@ -828,9 +865,10 @@ class Assist:
 
     def classes(self):
         """Folder with CvAssist.class, compiled once per version of the source and the JDK."""
-        digest = hashlib.sha1(ASSIST_SRC.read_bytes() + str(JAVAC).encode()).hexdigest()[:12]
-        out = offline.cache_dir().parent / "assist" / digest
+        digest = assist_build()
+        out = ASSIST_BUILDS() / digest
         if (out / "CvAssist.class").is_file():
+            os.utime(out)                          # "in use": the start-up sweep leaves it for an hour
             return out
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp = pathlib.Path(tempfile.mkdtemp(prefix=digest + ".", dir=out.parent))
@@ -1319,6 +1357,7 @@ def main():
     log_crashes()
     log_start(port, "tray" if a.tray else "console")
     threading.Thread(target=offline.ensure, args=(log.info,), name="offline-copy", daemon=True).start()
+    threading.Thread(target=sweep_leftovers, name="clean-up", daemon=True).start()
     if a.tray:
         return run_tray(server, url, not a.no_open)
 
