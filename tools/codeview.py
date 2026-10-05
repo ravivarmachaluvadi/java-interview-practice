@@ -17,6 +17,11 @@ THE PAGE
              not-done or to-revise; new files appear by themselves (the tree refreshes)
   Search     Ctrl+Shift+F searches inside every file
   Run        Ctrl+Enter compiles what is in the editor and ticks each "expected" line
+  Assist     Java autocomplete like IntelliJ's while editing (Edit, Try, Scratch; Practice
+             only if switched on in the menu): members after a dot with real parameter
+             names, JDK classes with their import, live and postfix templates, parameter
+             hints, Javadoc on hover, and javac's errors underlined as you type. One
+             background JVM (tools/CvAssist.java) answers; it stops after 20 idle minutes
   Edit/Save  Edit (Ctrl+E) changes a draft kept in the browser; Save (Ctrl+S) writes it
              to the file. New file (+) creates one from a template; ⋯ → Delete this file
              moves one to the Recycle Bin (Windows)
@@ -65,8 +70,8 @@ every request must carry this server's own Host; anything that changes something
 needs the page's X-CodeView header and a same-origin Origin. A web page you happen to
 visit cannot make it run or write anything.
 """
-import argparse, atexit, hashlib, json, logging, logging.handlers, os, pathlib, re, shutil, subprocess, sys
-import tempfile, threading, time, urllib.request, webbrowser
+import argparse, atexit, hashlib, itertools, json, logging, logging.handlers, os, pathlib, queue, re, shutil
+import subprocess, sys, tempfile, threading, time, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -87,7 +92,7 @@ LOG_FILE = pathlib.Path(os.environ.get("CODEVIEW_LOG") or HERE / "codeview.log")
 # it with /api/info, so it can offer a reload. Server code counts as of this start-up.
 SERVER_CODE = hashlib.sha1(b"".join((HERE / n).read_bytes() for n in
                                     ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py",
-                                     "offline.py"))).hexdigest()
+                                     "offline.py", "CvAssist.java"))).hexdigest()
 
 
 def page_version(html):
@@ -683,17 +688,26 @@ def reveal(rid, rel):
 
 # ---------------------------------------------------------------- compile + run
 
-def run_code(code, rid, rel_path, stdin, timeout, want_main):
+def compile_target(code, rid, rel_path):
+    """-> (folder for -sourcepath or None, file name, javasrc.analyse(code)): how javac sees
+    this code. Run and the autocomplete helper share it, so helper classes in the same
+    folder resolve the same way in both."""
     src_dir, fname = None, "Scratch.java"
     if rel_path:
         p = resolve(rid, rel_path)
         src_dir, fname = p.parent, p.name
-    pkg, mains, public, compact = javasrc.analyse(code)
+    info = javasrc.analyse(code)
+    pkg, public = info[0], info[2]
     if public:                         # javac insists a public type lives in <Name>.java
         fname = public + ".java"
     if pkg and src_dir:                # sourcepath must be the package root, not its folder
         for _ in pkg.split("."):
             src_dir = src_dir.parent
+    return src_dir, fname, info
+
+
+def run_code(code, rid, rel_path, stdin, timeout, want_main):
+    src_dir, fname, (pkg, mains, public, compact) = compile_target(code, rid, rel_path)
     if compact:
         mains = [pathlib.Path(fname).stem]
     prefix = pkg + "." if pkg else ""
@@ -777,6 +791,153 @@ def tidy(text, work):
     for form in (str(work / "src") + "\\", str(work / "src") + "/", str(work) + "\\"):
         text = text.replace(form, "")
     return text
+
+
+# ---------------------------------------------------------------- autocomplete helper
+# The editor's dropdown, parameter hints, hover docs and live error underlines come from
+# tools/CvAssist.java: one JVM that keeps javac warm, so each answer takes ~15-30 ms instead
+# of the ~1 s a fresh javac needs. It is compiled once into the cache folder (outside the
+# repo), started on the first request, and stopped after ASSIST_IDLE seconds unused (it
+# holds ~210 MB). It also exits by itself when this server goes, because its stdin closes.
+
+ASSIST_SRC = HERE / "CvAssist.java"
+ASSIST_IDLE = 20 * 60
+# Measured 5 Oct on C06_DailyTemperatures (30 warm runs each): -Xmx384m alone held 305 MB;
+# stopping the JIT at its first tier holds 208 MB, with the same ~20 ms per suggestion.
+ASSIST_JVM = os.environ.get("CODEVIEW_ASSIST_JVM", "-Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1").split()
+ASSIST_OPS = {"complete", "signature", "hover", "doc", "check", "warm"}
+ASSIST_WAIT = {"check": 10, "warm": 60}      # seconds; the rest 4. A cold start adds 40.
+LATEST_ONLY = {"complete", "signature", "hover", "check"}   # a newer request makes a queued one pointless
+
+
+class Assist:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.proc = None
+        self.lines = None
+        self.used = 0.0
+        self.latest = {}
+        self.tickets = itertools.count()
+        self.watching = False
+
+    def classes(self):
+        """Folder with CvAssist.class, compiled once per version of the source and the JDK."""
+        digest = hashlib.sha1(ASSIST_SRC.read_bytes() + str(JAVAC).encode()).hexdigest()[:12]
+        out = offline.cache_dir().parent / "assist" / digest
+        if (out / "CvAssist.class").is_file():
+            return out
+        out.parent.mkdir(parents=True, exist_ok=True)
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix=digest + ".", dir=out.parent))
+        try:
+            r = subprocess.run([JAVAC, "-J-Dstderr.encoding=UTF-8", "-nowarn", "-encoding", "UTF-8",
+                                "-d", str(tmp), str(ASSIST_SRC)], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=180, stdin=subprocess.DEVNULL,
+                               creationflags=NO_WINDOW)
+            if r.returncode:
+                raise RuntimeError("could not compile CvAssist.java: " + (r.stderr + r.stdout)[-600:])
+            try:
+                tmp.replace(out)
+            except OSError:
+                if not (out / "CvAssist.class").is_file():    # not another server compiling it at once
+                    raise
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        return out
+
+    def start(self):
+        cp = self.classes()
+        self.proc = subprocess.Popen([JAVA, *ASSIST_JVM, "-Dfile.encoding=UTF-8",
+                                      "-cp", str(cp), "CvAssist"],
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=subprocess.DEVNULL, creationflags=NO_WINDOW)
+        lines = self.lines = queue.Queue()
+
+        def pump(out):
+            try:
+                for line in out:
+                    lines.put(line)
+            except (OSError, ValueError):          # closed by stop()
+                pass
+            lines.put(None)                        # it exited
+        threading.Thread(target=pump, args=(self.proc.stdout,), daemon=True).start()
+        if not self.watching:
+            self.watching = True
+            threading.Thread(target=self.idle_watch, daemon=True).start()
+        log.info("autocomplete helper started")
+
+    def idle_watch(self):
+        while True:
+            time.sleep(60)
+            with self.lock:
+                if self.proc and time.monotonic() - self.used > ASSIST_IDLE:
+                    log.info("autocomplete helper stopped after %d idle minutes", ASSIST_IDLE // 60)
+                    self.stop()
+
+    def stop(self):
+        p, self.proc = self.proc, None
+        if not p:
+            return
+        try:
+            p.stdin.close()
+            p.wait(timeout=2)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            p.kill()
+            p.wait()
+        try:
+            p.stdout.close()
+        except (OSError, ValueError):
+            pass
+
+    def ask(self, op, code="", offset=0, src_dir=None, fname="Scratch.java", flags="", extra=""):
+        """One answer from the helper as a dict; {"error": ...} if it failed (it restarts on the
+        next request), {"stale": True} if a newer request of the same kind was already waiting."""
+        ticket = next(self.tickets)
+        self.latest[op] = ticket
+        with self.lock:
+            if op in LATEST_ONLY and self.latest.get(op) != ticket:
+                return {"stale": True}
+            cold = self.proc is None or self.proc.poll() is not None
+            try:
+                if cold:
+                    self.stop()                    # a helper that died still holds its pipes
+                    self.start()
+                body = (code or "").encode("utf-8")
+                fields = (op, str(int(offset)), str(src_dir or ""), fname, flags, extra, str(len(body)))
+                header = "\t".join(re.sub(r"[\t\r\n]", " ", f) for f in fields)
+                self.proc.stdin.write(header.encode("utf-8") + b"\n" + body)
+                self.proc.stdin.flush()
+                line = self.lines.get(timeout=ASSIST_WAIT.get(op, 4) + (40 if cold else 0))
+            except queue.Empty:
+                log.warning("autocomplete helper took too long on %s; restarting it", op)
+                self.stop()
+                return {"error": "The autocomplete helper took too long; it restarts on the next request."}
+            except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+                log.warning("autocomplete helper failed: %s", e)
+                self.stop()
+                return {"error": f"Autocomplete is unavailable: {e}"}
+            self.used = time.monotonic()
+            if line is None:
+                self.stop()
+                return {"error": "The autocomplete helper stopped; it restarts on the next request."}
+            try:
+                return json.loads(line)
+            except ValueError:
+                return {"error": "The autocomplete helper answered something unreadable."}
+
+
+ASSIST = Assist()
+atexit.register(ASSIST.stop)
+
+
+def assist_request(req):
+    op = req.get("op", "")
+    if op not in ASSIST_OPS:
+        raise ValueError(f"unknown autocomplete request: {op}")
+    if op in ("doc", "warm"):
+        return ASSIST.ask(op, extra=str(req.get("key") or ""))
+    code = req.get("code") or ""
+    src_dir, fname, info = compile_target(code, req.get("root", ""), req.get("path") or None)
+    return ASSIST.ask(op, code, int(req.get("offset") or 0), src_dir, fname, "c" if info[3] else "")
 
 
 def jdk_version():
@@ -902,6 +1063,8 @@ class Handler(BaseHTTPRequestHandler):
                 status = "ok" if res.get("ok") else ("timeout" if res.get("timedOut") else "failed")
                 print(f"  run {req.get('path') or 'scratch'}  ->  {res.get('phase')} {status}", flush=True)
                 return self.send_json(res)
+            if path == "/api/assist":
+                return self.send_json(assist_request(req))
             if path == "/api/save":
                 res = save_file(rid, req["path"], req.get("code", ""), req.get("base"), req.get("force"))
                 return self.send_json(res, 409 if res.get("conflict") else 200)

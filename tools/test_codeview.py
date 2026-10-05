@@ -7,7 +7,7 @@ offline copy of the page's libraries.
 Everything runs against temporary files: the env vars below are set before codeview is
 imported, so the real tools/codeview-state.json and codeview.log are never touched.
 """
-import base64, hashlib, io, json, os, pathlib, re, shutil, sys, tarfile, tempfile, threading, unittest
+import base64, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile, tempfile, threading, unittest
 import urllib.error, urllib.request
 from collections import Counter
 
@@ -550,10 +550,23 @@ class HttpTest(unittest.TestCase):
             p.unlink()
             p.parent.rmdir()
 
-    def post(self, path, body, page_header=True):
+    def post(self, path, body, page_header=True, timeout=10):
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", json.dumps(body).encode(),
                                      {"Content-Type": "application/json", **({"X-CodeView": "1"} if page_header else {})})
-        return urllib.request.urlopen(req, timeout=10)
+        return urllib.request.urlopen(req, timeout=timeout)
+
+    @unittest.skipUnless(pathlib.Path(codeview.JAVAC).exists(), "no JDK")
+    def test_assist_is_wired_and_guarded(self):
+        code = "import java.util.*;\nclass S {\n    void f() {\n        List<Integer> nums = new ArrayList<>();\n        nums.\n    }\n}\n"
+        res = json.load(self.post("/api/assist", {"op": "complete", "root": "", "path": None, "code": code,
+                                                  "offset": code.index("nums.\n") + 5}, timeout=90))
+        self.assertIn("add", {it["label"] for it in res["items"]})
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/assist", {"op": "shell"})
+        self.assertEqual(cm.exception.code, 400)
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/assist", {"op": "complete", "code": code}, page_header=False)
+        self.assertEqual(cm.exception.code, 403)
 
     def test_delete_is_wired_and_guarded(self):
         """A missing file gets the delete route's own refusal (400, not 404), and a request
@@ -604,7 +617,204 @@ class RunLeavesFileTest(unittest.TestCase):
             p.parent.rmdir()
 
 
+CUR = "‸"          # where the cursor is in a fixture; taken out before the code is sent
+DAILY = """import java.util.Arrays;
+import java.util.Stack;
+
+class DailyTemperatures {
+    public int[] dailyTemperatures(int[] temperatures) {
+        int n = temperatures.length;
+        int[] result = new int[n];
+        Stack<Integer> waiting = new Stack<>();
+        for (int today = 0; today < n; today++) {
+            while (!waiting.isEmpty() && temperatures[today] > temperatures[waiting.peek()]) {
+                int colderDay = waiting.pop();
+                result[colderDay] = today - colderDay;
+                @@
+            }
+            waiting.push(today);
+        }
+        return result;
+    }
+
+    private static void print(String label, int[] actual, int[] expected) {
+        System.out.println(label + ": " + Arrays.toString(actual));
+    }
+
+    public static void main(String[] args) {
+        DailyTemperatures solution = new DailyTemperatures();
+        %%
+        print("case 1", solution.dailyTemperatures(new int[]{73, 74}), new int[]{1, 0});
+    }
+}
+"""
+
+
+@unittest.skipUnless(pathlib.Path(codeview.JAVAC).exists(), "no JDK")
+class AssistTest(unittest.TestCase):
+    """The editor's autocomplete, parameter hints, docs and live errors (tools/CvAssist.java)."""
+
+    def ask(self, op, src, fname="DailyTemperatures.java", flags="", extra="", src_dir=None):
+        i = src.index(CUR) if CUR in src else 0
+        res = codeview.ASSIST.ask(op, src.replace(CUR, ""), i, src_dir, fname, flags, extra)
+        self.assertNotIn("error", res, res)
+        return res
+
+    def complete(self, method="", main="", src=None, **kw):
+        return self.ask("complete", src or DAILY.replace("@@", method).replace("%%", main), **kw)
+
+    def item(self, res, label):
+        found = [it for it in res["items"] if it["label"] == label]
+        self.assertTrue(found, f"{label} not in {sorted({it['label'] for it in res['items']})}")
+        return found[0]
+
+    def labels(self, res):
+        return {it["label"] for it in res["items"]}
+
+    def test_members_of_a_local_with_real_parameter_names(self):
+        """The line after the cursor is another statement and there is no `;` yet: javac
+        must still see `waiting` as a Stack<Integer>, not a declaration of a new variable."""
+        res = self.complete(method=f"waiting.{CUR}")
+        self.assertLessEqual({"peek", "pop", "push", "isEmpty", "search"}, self.labels(res))
+        self.assertEqual(self.item(res, "push")["detail"], "(Integer item)")   # name from the JDK's src.zip
+        self.assertEqual(self.item(res, "pop")["type"], "Integer")             # E filled in from Stack<Integer>
+
+    def test_replace_range_is_the_typed_prefix(self):
+        src = DAILY.replace("@@", f"waiting.pe{CUR}").replace("%%", "")
+        res = self.ask("complete", src)
+        cur = src.index(CUR)
+        self.assertEqual((res["from"], res["to"]), (cur - 2, cur))
+        self.assertIn("peek", self.labels(res))
+
+    def test_inside_a_condition(self):
+        src = DAILY.replace("while (!waiting.isEmpty()", f"while (!waiting.isE{CUR}").replace("@@", "").replace("%%", "")
+        self.assertIn("isEmpty", self.labels(self.ask("complete", src)))
+
+    def test_class_name_gives_statics_only(self):
+        arrays = self.labels(self.complete(method=f"Arrays.{CUR}"))
+        self.assertLessEqual({"sort", "toString", "fill", "asList"}, arrays)
+        self.assertFalse({"getClass", "wait", "notify"} & arrays)
+        ints = self.labels(self.complete(method=f"int q = Integer.MAX{CUR}"))
+        self.assertIn("MAX_VALUE", ints)
+        self.assertNotIn("intValue", ints)
+
+    def test_array_has_length(self):
+        self.assertIn("length", self.labels(self.complete(method=f"temperatures.{CUR}")))
+
+    def test_generic_chain(self):
+        src = ("import java.util.*;\nclass M {\n    void f() {\n        Map<String, List<Integer>> m = new HashMap<>();\n"
+               f"        m.get(\"a\").{CUR}\n    }}\n")
+        res = self.ask("complete", src, fname="M.java")
+        self.assertEqual(self.item(res, "add")["detail"], "(Integer e)")
+
+    def test_locals_first_and_no_instance_methods_in_static_main(self):
+        res = self.complete(method=f"col{CUR}")
+        ranked = sorted((it for it in res["items"] if it["label"].lower().startswith("col")), key=lambda it: it["sort"])
+        self.assertEqual(ranked[0]["label"], "colderDay")
+        in_main = self.labels(self.complete(main=f"d{CUR}"))
+        self.assertNotIn("dailyTemperatures", in_main)
+        self.assertIn("print", self.labels(self.complete(main=f"pri{CUR}")))
+
+    def test_class_name_brings_its_import(self):
+        src = DAILY.replace("@@", f"ArrayDe{CUR}").replace("%%", "")
+        res = self.ask("complete", src)
+        dq = self.item(res, "ArrayDeque")
+        self.assertEqual(dq["import"], "\nimport java.util.ArrayDeque;")
+        self.assertEqual(res["importAt"], src.index("import java.util.Stack;") + len("import java.util.Stack;"))
+        self.assertNotIn("import", self.item(self.complete(method=f"Stac{CUR}"), "Stack"))
+        self.assertNotIn("import", self.item(self.complete(method=f"Strin{CUR}"), "String"))
+
+    def test_import_goes_between_header_and_class_when_there_are_none(self):
+        src = f"/*\n * header\n */\n\nclass D {{\n    void f() {{\n        ArrayDe{CUR}\n    }}\n}}\n"
+        res = self.ask("complete", src, fname="D.java")
+        self.assertEqual(self.item(res, "ArrayDeque")["import"], "import java.util.ArrayDeque;\n\n")
+        self.assertEqual(res["importAt"], src.index("class D"))
+
+    def test_compact_file_needs_no_import(self):
+        src = f"void main() {{\n    ArrayDe{CUR}\n}}\n"
+        res = self.ask("complete", src, fname="Scratch.java", flags="c")
+        self.assertNotIn("import", self.item(res, "ArrayDeque"))
+
+    def test_new_inserts_diamond_and_brackets(self):
+        res = self.complete(method=f"java.util.Deque<Integer> d = new ArrayDe{CUR}")
+        self.assertTrue(self.item(res, "ArrayDeque")["insert"].startswith("ArrayDeque<>("))
+
+    def test_postfix_var(self):
+        src = DAILY.replace("@@", f"waiting.pop().va{CUR}").replace("%%", "")
+        res = self.ask("complete", src)
+        var = self.item(res, "var")
+        start = src.index("waiting.pop().va")
+        self.assertEqual(var["cut"], [start, start + len("waiting.pop().")])    # deleted; the word after the dot is replaced
+        self.assertNotIn("from", var)                                           # so it ranks like a member, not above them
+        self.assertIn("Integer ${1:pop} = waiting.pop();", var["insert"])
+
+    def test_nothing_inside_a_comment(self):
+        self.assertEqual(self.complete(method=f"// waiting.{CUR}")["items"], [])
+
+    def test_signature_with_names_and_active_parameter(self):
+        res = self.ask("signature", DAILY.replace("@@", f"waiting.push({CUR}").replace("%%", ""))
+        self.assertEqual(res["sigs"][res["active"]]["label"], "push(Integer item)")
+        self.assertEqual(res["param"], 0)
+        res = self.ask("signature", DAILY.replace("@@", f"int big = Math.max(1, {CUR}").replace("%%", ""))
+        self.assertIn("max(int a, int b)", [s["label"] for s in res["sigs"]])
+        self.assertEqual(res["param"], 1)
+
+    def test_doc_comes_from_the_jdk_sources(self):
+        key = self.item(self.complete(method=f"waiting.{CUR}"), "peek")["key"]
+        md = self.ask("doc", "", extra=key)["md"]
+        self.assertIn("Looks at the object at the top of this stack", md)
+
+    def test_hover_shows_signature_and_doc(self):
+        src = DAILY.replace("waiting.peek()", f"waiting.pe{CUR}ek()").replace("@@", "").replace("%%", "")
+        md = self.ask("hover", src)["md"]
+        self.assertIn("peek()", md)
+        self.assertIn("Looks at the object at the top of this stack", md)
+
+    def test_check_reports_a_type_error_on_its_line(self):
+        src = DAILY.replace("@@", 'int x = "a";').replace("%%", "")
+        diags = self.ask("check", src)["diags"]
+        self.assertEqual(len(diags), 1, diags)
+        self.assertIn("incompatible types", diags[0]["msg"])
+        line = src.index('int x = "a";')
+        self.assertTrue(line <= diags[0]["start"] < line + len('int x = "a";'))
+
+    def test_check_flags_only_what_javac_rejects(self):
+        """Falsifier for false red underlines: across every .java file under AAScratches,
+        compiled exactly as Run compiles it (same file name, same -sourcepath), a file the
+        live check flags must also fail a real javac. 5 Oct: 682 of 692 clean; the other 10
+        fail javac too (2 trick-question answers that are meant not to compile, 8 LLD and
+        Spring files that need Lombok, Guava, JUnit and the like)."""
+        root = codeview.REPO / "AAScratches"
+        files = sorted(root.rglob("*.java"))
+        self.assertGreater(len(files), 500)          # the check is not running on nothing
+        rid = codeview.STATE.roots()[0]["id"]
+        wrong, clean = {}, 0
+        for p in files:
+            code = p.read_text(encoding="utf-8", errors="replace")
+            src_dir, fname, info = codeview.compile_target(code, rid, p.relative_to(codeview.REPO).as_posix())
+            diags = self.ask("check", code, fname=fname, flags="c" if info[3] else "", src_dir=src_dir)["diags"]
+            if not diags:
+                clean += 1
+                continue
+            work = pathlib.Path(tempfile.mkdtemp(dir=TMP))
+            (work / fname).write_bytes(code.encode("utf-8"))
+            cmd = [codeview.JAVAC, "-nowarn", "-encoding", "UTF-8", "-d", str(work / "out")]
+            javac = subprocess.run(cmd + (["-sourcepath", str(src_dir)] if src_dir else []) + [str(work / fname)],
+                                   capture_output=True, stdin=subprocess.DEVNULL)
+            if javac.returncode == 0:
+                wrong[p.relative_to(root).as_posix()] = diags[0]["msg"]
+        self.assertEqual(wrong, {})
+        self.assertGreater(clean, 600)
+
+    def test_restarts_after_the_helper_dies(self):
+        self.complete(method=f"waiting.{CUR}")
+        codeview.ASSIST.proc.kill()
+        codeview.ASSIST.proc.wait()
+        self.assertIn("push", self.labels(self.complete(method=f"waiting.{CUR}")))
+
+
 def tearDownModule():
+    codeview.ASSIST.stop()
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file
         h.close()
         codeview.log.removeHandler(h)

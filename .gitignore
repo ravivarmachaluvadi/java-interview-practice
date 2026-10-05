@@ -24,6 +24,7 @@
 !/tools/codeview.cmd
 !/tools/codeview.html
 !/tools/codeview.ico
+!/tools/CvAssist.java
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---
 
