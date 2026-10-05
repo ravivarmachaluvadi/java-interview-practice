@@ -122,9 +122,14 @@ NOT_TYPES = {"new", "return", "else", "throw", "case", "do", "yield",
 NOT_NAMES = {"if", "for", "while", "switch", "catch", "synchronized", "try", "else"}
 KEEP_NAMES = {"main", "toString", "equals", "hashCode", "compareTo", "compare"}
 # Test-harness helpers. Deliberately excludes build/serialize/parse: those are real problems.
-KEEP_PREFIX = re.compile(r"^(print|show|check|run|test|verify|assert|expect|fmt|format|label|"
-                         r"describe|render|dump|demo|display|report|log)", re.I)
+KEEP_PREFIX = re.compile(r"^(show|run|fmt|format|label|describe|render|dump|demo|display|report|log)", re.I)
+# Helper-sounding verbs that answers use too (checkInclusion, checkBST, printSpiral), so
+# these are kept only when the body really prints or asserts.
+HARNESS_PREFIX = re.compile(r"^(print|check|test|verify|assert|expect)", re.I)
+PRINTS = re.compile(r"\bSystem\s*\.\s*(?:out|err)\b|\bAssertionError\b")
+STRING_LIT = re.compile(r'"(?:[^"\\\n]|\\.)*"')
 # Data holders whose methods are plumbing, not the answer: TreeNode, ListNode, Pair, ...
+# Never the class holding main(): FindCorruptPair and InsertInterval are answers.
 HELPER_CLASS = re.compile(r"(Node|Pair|Edge|Point|Interval|Cell|Entry|Tuple)$")
 # Header sections that give the answer away, and the ones that only state the task.
 # Counted across the repo's headers on 3 Oct 2026; a section in neither list keeps
@@ -174,6 +179,12 @@ def stub_for(ret):
     return "return null;"
 
 
+def reports_expected(original, params):
+    """A test helper takes an `expected` value or prints the word; an answer may only use it
+    as a variable name (C04_StackSortable's `int expected = 1`)."""
+    return "expected" in params.lower() or any("expected" in t.lower() for t in STRING_LIT.findall(original))
+
+
 def practice_skeleton(src):
     """-> (skeleton text, [hidden method names]).
 
@@ -184,6 +195,7 @@ def practice_skeleton(src):
     s = strip_noise(src)
     depth = depths(s)
     owners = brace_owners(s)
+    mains = set(analyse(src)[1])
     cuts, hidden = [], []
     for m in METHOD.finditer(s):
         ret, name = m.group(2).strip(), m.group(3)
@@ -200,8 +212,10 @@ def practice_skeleton(src):
         if any(a <= b < z for a, z, _ in cuts):
             continue
         original = src[m.start():e]
-        if (name in KEEP_NAMES or KEEP_PREFIX.match(name) or HELPER_CLASS.search(pname)
-                or "expected" in original.lower() or "abstract" in m.group(1)):
+        if (name in KEEP_NAMES or KEEP_PREFIX.match(name)
+                or (HARNESS_PREFIX.match(name) and PRINTS.search(s, m.start(), e))
+                or (HELPER_CLASS.search(pname) and pname not in mains)
+                or reports_expected(original, m.group(4)) or "abstract" in m.group(1)):
             continue
         before = src[max(0, m.start() - 160):m.start()].lower()
         if "demo only" in before or "test helper" in before:

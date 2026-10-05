@@ -399,6 +399,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <button data-act="copy">Copy whole file</button>
         <button data-act="reveal">Show in File Explorer</button>
         <button data-act="reload">Reload from disk</button>
+        <button data-act="delete" title="Asks first; you can restore it from the Recycle Bin">Delete this file…</button>
         <hr>
         <button data-act="limit"><span id="limitLabel">Practice time limit: 30 min</span></button>
         <button data-act="restartTimer">Restart the timer</button>
@@ -1064,6 +1065,28 @@ $('#newPath').addEventListener('keydown', async e => {
     toast('Created ' + r.path + '. Write it, then Ctrl+S to save.');
   } catch (err) { toast(err.message); }
 });
+
+/* ------------------------------------------------------------ delete */
+/* 5 Oct: a stray New file left a blank DecodeWays.java that only File Explorer could remove.
+   One file goes to the Recycle Bin after a confirm bar; drafts and attempts stay in the
+   browser, so restoring the file brings them back. Opening another file cancels the bar. */
+function deleteFile() {
+  const c = S.cur;
+  if (!c || c.path === SCRATCH) return toast('The Scratch pad lives in the browser, not in a file.');
+  const dir = c.path.split('/').slice(0, -1).join('/');
+  showBanner(`Move ${c.path} to the Recycle Bin? You can restore it from there.`, [
+    ['Move to Recycle Bin', async () => {
+      hideBanner();
+      try { await api('/api/delete', { root: S.root, path: c.path }); } catch (err) { return toast(err.message); }
+      S.treeSig = ''; await loadTree(); renderTree();
+      const same = S.files.filter(f => f.path.split('/').slice(0, -1).join('/') === dir);
+      const next = same.find(f => f.path.toLowerCase() > c.path.toLowerCase()) || same[same.length - 1];
+      go(next ? next.path : S.byPath.has('README.md') ? 'README.md' : SCRATCH);
+      toast(`Moved ${c.name} to the Recycle Bin.`);
+    }],
+    ['Cancel', () => hideBanner()],
+  ], 'delete');
+}
 
 /* ------------------------------------------------------------ editor */
 function initEditor() {
@@ -2064,6 +2087,7 @@ $('#menu').addEventListener('click', async e => {
     case 'reload':
       if (c && c.path !== SCRATCH) { S.treeSig = ''; await loadTree(); renderTree(); openPath(c.path); toast('Reloaded from disk'); }
       break;
+    case 'delete': deleteFile(); break;
     case 'limit':
       limitMin = LIMITS[(LIMITS.indexOf(limitMin) + 1) % LIMITS.length];
       store.set('timerLimit', limitMin);

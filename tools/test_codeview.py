@@ -18,6 +18,7 @@ os.environ["CODEVIEW_VENDOR"] = str(TMP / "vendor")
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import check_headers  # noqa: E402
 import codeview  # noqa: E402
 import javasrc  # noqa: E402
 import offline  # noqa: E402
@@ -65,8 +66,15 @@ class FakeIcon:
 class FakeServer:
     shut = False
 
+    def __init__(self, steps=None):
+        self.steps = steps if steps is not None else []
+
     def shutdown(self):
         self.shut = True
+        self.steps.append("shutdown")
+
+    def server_close(self):
+        self.steps.append("close")
 
 
 def log_text():
@@ -76,25 +84,117 @@ def log_text():
     return p.read_text(encoding="utf-8") if p.exists() else ""
 
 
+def menu_item(menu, text):
+    return next(i for i in menu.items if i.text.startswith(text))
+
+
 class QuitTest(unittest.TestCase):
-    """3 Oct: one stray click on the tray's Quit stopped the page."""
+    """3 Oct: one stray click on the tray's Quit stopped the page. 5 Oct: the Yes/No box
+    that guarded it opened out of sight, and the tray stayed frozen until it was answered."""
 
     def setUp(self):
         codeview.setup_log()
+        codeview._stop_logged = False      # one stop per process; each test is its own run
+        import pystray
+        self.menu = codeview.tray_menu(pystray, FakeServer(), "http://127.0.0.1:1/")
 
-    def test_saying_no_keeps_it_running(self):
-        icon, server = FakeIcon(), FakeServer()
-        codeview.quit_from_tray(icon, server, ask=lambda: False)
-        self.assertFalse(icon.stopped)
-        self.assertFalse(server.shut)
-        self.assertIn("quit cancelled", log_text())
+    def test_quit_is_a_submenu_so_one_click_cannot_stop_it(self):
+        quit_item = menu_item(self.menu, "Quit Code Viewer")
+        self.assertIsNotNone(quit_item.submenu)
+        self.assertEqual(len(quit_item.submenu.items), 1)
 
-    def test_saying_yes_stops_and_logs_why(self):
+    def test_second_click_stops_and_logs_why(self):
         icon, server = FakeIcon(), FakeServer()
-        codeview.quit_from_tray(icon, server, ask=lambda: True)
+        import pystray
+        menu = codeview.tray_menu(pystray, server, "http://127.0.0.1:1/")
+        menu_item(menu, "Quit Code Viewer").submenu.items[0](icon)
         self.assertTrue(icon.stopped)
         self.assertTrue(server.shut)
         self.assertIn("stopped: Quit from the tray menu", log_text())
+
+    def test_no_popup_box_is_left(self):
+        self.assertFalse(hasattr(codeview, "confirm_quit"))
+
+
+class RestartTest(unittest.TestCase):
+    """5 Oct: a fix in the server code needed Quit and a start by hand to take effect."""
+
+    def setUp(self):
+        codeview.setup_log()
+        codeview._stop_logged = False
+
+    def test_frees_the_port_before_starting_the_new_copy(self):
+        steps, icon = [], FakeIcon()
+        server = FakeServer(steps)
+        codeview.restart_from_tray(icon, server, argv=["codeview.py", "--tray", "--port", "9000"],
+                                   spawn=lambda args: steps.append(("spawn", args)))
+        self.assertEqual([s if isinstance(s, str) else s[0] for s in steps], ["shutdown", "close", "spawn"])
+        self.assertTrue(icon.stopped)
+        args = steps[2][1]
+        self.assertEqual(args[0], sys.executable)
+        self.assertTrue(args[1].endswith("codeview.py"))
+        self.assertEqual(args[2:], ["--tray", "--port", "9000", "--no-open"])   # the tab is already open
+        self.assertIn("stopped: Restart from the tray menu", log_text())
+
+    def test_no_open_is_not_added_twice(self):
+        steps = []
+        codeview.restart_from_tray(FakeIcon(), FakeServer(steps), argv=["codeview.py", "--tray", "--no-open"],
+                                   spawn=lambda args: steps.append(args))
+        self.assertEqual(steps[-1].count("--no-open"), 1)
+
+    def test_tray_menu_offers_it(self):
+        import pystray
+        menu = codeview.tray_menu(pystray, FakeServer(), "http://127.0.0.1:1/")
+        self.assertIsNone(menu_item(menu, "Restart Code Viewer").submenu)
+
+
+class TemplateTest(unittest.TestCase):
+    """5 Oct: a blank New-file template (DecodeWays.java) passed check_headers.py."""
+
+    def test_header_check_flags_an_unfilled_new_file(self):
+        found = check_headers.placeholders(codeview.java_template("C16_MyProblem.java"))
+        self.assertIn("LeetCode ? | ?", found)
+        self.assertIn("O(?)", found)
+        self.assertIn("...", found)
+
+    def test_filled_headers_have_none(self):
+        self.assertEqual(check_headers.placeholders(SAMPLE), [])
+
+
+class DeleteTest(unittest.TestCase):
+    """5 Oct: a stray New file (+) left a blank DecodeWays.java with no way to remove it
+    from the page. Delete moves one file to the Recycle Bin; nothing else."""
+
+    def setUp(self):
+        self.base = TMP / "delete_root"
+        (self.base / "sub").mkdir(parents=True, exist_ok=True)
+        (self.base / "sub" / "A01_X.java").write_text("class X {}", encoding="utf-8")
+        (self.base / "notes.bin").write_bytes(b"\0")
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+        self.trashed = []
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def trash(self, p):
+        self.trashed.append(p)
+        p.unlink()
+
+    def test_file_goes_to_the_bin(self):
+        res = codeview.delete_file(self.rid, "sub/A01_X.java", trash=self.trash)
+        self.assertEqual(res, {"ok": True})
+        self.assertEqual(self.trashed, [(self.base / "sub" / "A01_X.java").resolve()])
+        self.assertFalse((self.base / "sub" / "A01_X.java").exists())
+
+    def test_refuses_anything_but_one_viewable_file(self):
+        outside = TMP / "outside.java"
+        outside.write_text("class O {}", encoding="utf-8")
+        for rel in ("sub", "", ".", "../outside.java", "sub/missing.java", "notes.bin"):
+            with self.subTest(rel=rel), self.assertRaises(ValueError):
+                codeview.delete_file(self.rid, rel, trash=self.trash)
+        self.assertEqual(self.trashed, [])
+        self.assertTrue(outside.exists())
 
 
 class BrowserTest(unittest.TestCase):
@@ -314,6 +414,61 @@ class HintsTest(unittest.TestCase):
         self.assertGreater(with_hints, 500)
 
 
+class SkeletonTest(unittest.TestCase):
+    """Which method bodies practice mode hides. Each case is a real file that went wrong (5 Oct)."""
+
+    @staticmethod
+    def hidden(body, cls="Solver"):
+        src = f"class {cls} {{\n{body}\n    public static void main(String[] args) {{ }}\n}}\n"
+        return javasrc.practice_skeleton(src)[1]
+
+    def test_main_class_named_like_a_data_holder_is_still_hidden(self):
+        """B11_FindCorruptPair: 'Pair' at the end of the name made the whole file look like a
+        Pair data class, so Practice said 'Nothing to hide'."""
+        for cls in ("FindCorruptPair", "InsertInterval", "BestMeetingPoint", "MinimumTimeToVisitCell"):
+            with self.subTest(cls=cls):
+                self.assertEqual(self.hidden("    static int solve(int[] a) { return a[0]; }", cls), ["solve"])
+
+    def test_real_data_holder_keeps_its_methods(self):
+        src = ("class Pair {\n    int a, b;\n    int sum() { return a + b; }\n}\n"
+               "class Solver {\n    static int solve(Pair p) { return p.sum(); }\n"
+               "    public static void main(String[] args) { }\n}\n")
+        self.assertEqual(javasrc.practice_skeleton(src)[1], ["solve"])
+
+    def test_check_or_print_named_answer_is_hidden(self):
+        """checkInclusion (LC 567), checkBST, printSpiral: answers whose names start like a helper."""
+        for sig in ("static boolean checkInclusion(String a, String b) { return a.isEmpty(); }",
+                    "boolean checkBST(Object node, long lo, long hi) { return node == null; }",
+                    "static java.util.List<Integer> printSpiral(int[][] m) { return null; }"):
+            with self.subTest(sig=sig):
+                self.assertEqual(len(self.hidden("    " + sig)), 1)
+
+    def test_check_and_print_helpers_stay_visible(self):
+        body = ('    private static void print(String label, Object actual, Object expected) {\n'
+                '        System.out.println(label + ": " + actual + "   expected " + expected);\n    }\n'
+                '    private static void checkCase(int[] a, int want) {\n'
+                '        if (a.length != want) throw new AssertionError("expected " + want);\n    }\n'
+                '    static void printList(int[] a) {\n        System.out.println(java.util.Arrays.toString(a));\n    }\n')
+        self.assertEqual(self.hidden(body), [])
+
+    def test_local_variable_named_expected_does_not_keep_an_answer(self):
+        """C04_StackSortable: `int expected = 1` is part of the answer, not a test helper."""
+        body = ("    static boolean isStackSortable(int[] a) {\n        int expected = 1;\n"
+                "        for (int v : a) if (v == expected) expected++;\n"
+                "        return expected == a.length + 1;\n    }\n")
+        self.assertEqual(self.hidden(body), ["isStackSortable"])
+
+    def test_every_dsa_file_has_something_to_practise(self):
+        """Falsifier for 'Nothing to hide': a new file, or a change to the rules above, that
+        leaves a DSA file with nothing hidden fails here instead of in the page."""
+        all_in_main = {"InfosysGrumpyOwner.java"}   # an interview answer typed straight into main()
+        files = sorted((HERE.parent / "AAScratches" / "01-DSA").rglob("*.java"))
+        self.assertGreater(len(files), 500)          # the check is not running on nothing
+        empty = {p.name for p in files
+                 if not javasrc.practice_skeleton(p.read_text(encoding="utf-8", errors="replace"))[1]}
+        self.assertEqual(empty, all_in_main)
+
+
 def fake_tgz(members):
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as t:
@@ -394,6 +549,24 @@ class HttpTest(unittest.TestCase):
         finally:
             p.unlink()
             p.parent.rmdir()
+
+    def post(self, path, body, page_header=True):
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", json.dumps(body).encode(),
+                                     {"Content-Type": "application/json", **({"X-CodeView": "1"} if page_header else {})})
+        return urllib.request.urlopen(req, timeout=10)
+
+    def test_delete_is_wired_and_guarded(self):
+        """A missing file gets the delete route's own refusal (400, not 404), and a request
+        without the page's header is refused before anything is touched."""
+        rid = codeview.STATE.roots()[0]["id"]
+        body = {"root": rid, "path": "AAScratches/no_such_file.java"}
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/delete", body)
+        self.assertEqual(cm.exception.code, 400)
+        self.assertIn("not a file", json.load(cm.exception)["error"])
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/delete", body, page_header=False)
+        self.assertEqual(cm.exception.code, 403)
 
 
 def tearDownModule():

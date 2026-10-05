@@ -5,8 +5,8 @@ codeview - read, practise and run the practice files (or any folder) in a browse
     tools/codeview                       start on http://127.0.0.1:8025 and open a tab
     tools/codeview --port 9000           use another port
     tools/codeview --no-open             do not open a browser tab
-    tools/codeview --tray                no console window; a tray icon to reopen or quit,
-                                         and to pick the browser it opens (Open in)
+    tools/codeview --tray                no console window; a tray icon to reopen, restart
+                                         or quit, and to pick the browser it opens (Open in)
     tools/codeview --install-shortcuts   "Code Viewer" on the Desktop and Start menu (tray version)
     tools/codeview --autostart on|off    start the tray version when Windows starts
 
@@ -18,7 +18,8 @@ THE PAGE
   Search     Ctrl+Shift+F searches inside every file
   Run        Ctrl+Enter compiles what is in the editor and ticks each "expected" line
   Edit/Save  Edit (Ctrl+E) changes a draft kept in the browser; Save (Ctrl+S) writes it
-             to the file. New file (+) creates one from a template
+             to the file. New file (+) creates one from a template; ⋯ → Delete this file
+             moves one to the Recycle Bin (Windows)
   Practice   hides the solution bodies and the APPROACH notes; when every expected line
              matches, the file is marked done. While practising: a timer (limit in the
              menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and
@@ -46,7 +47,9 @@ set, the Windows default browser opens.
 
 LOG: tools/codeview.log (git-ignored) has a line when it starts (with what started it),
 when it stops and why, and any error. A start with no stop before the next start means
-something outside ended it; the next start says so. Tray Quit asks before stopping.
+something outside ended it; the next start says so. Tray Quit is a submenu, so stopping
+takes a second click; tray Restart starts a fresh copy, which a change to the server code
+(codeview.py, javasrc.py, ...) needs before it takes effect.
 
 TESTS: python tools/test_codeview.py
 
@@ -530,6 +533,34 @@ def new_file(rid, rel):
     return {"path": p.relative_to(root_path(rid)).as_posix()}
 
 
+def to_recycle_bin(p):
+    """Windows Recycle Bin, so a wrong click can be undone from there."""
+    if not IS_WIN:
+        raise ValueError("Delete is only set up on Windows; delete it in your file manager")
+    import ctypes
+    from ctypes import wintypes
+
+    class SHFILEOPSTRUCTW(ctypes.Structure):
+        _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", wintypes.LPCWSTR),
+                    ("pTo", wintypes.LPCWSTR), ("fFlags", ctypes.c_ushort), ("fAnyOperationsAborted", wintypes.BOOL),
+                    ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
+    # FO_DELETE; ALLOWUNDO (to the bin) | NOCONFIRMATION | SILENT | NOERRORUI: the page already asked
+    op = SHFILEOPSTRUCTW(wFunc=3, pFrom=str(p) + "\0", fFlags=0x40 | 0x10 | 0x4 | 0x400)
+    err = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+    if err or op.fAnyOperationsAborted or p.exists():
+        raise OSError(f"could not move {p.name} to the Recycle Bin (error {err})")
+
+
+def delete_file(rid, rel, trash=to_recycle_bin):
+    """Move one file the tree shows to the Recycle Bin (5 Oct: a stray New file had no way
+    out but File Explorer). Never a folder, never a permanent delete."""
+    p = resolve(rid, rel)
+    if not p.is_file() or p.suffix.lower() not in TEXT_EXT:
+        raise ValueError(f"{rel or 'that'} is not a file this viewer shows")
+    trash(p)
+    return {"ok": True}
+
+
 def search(rid, q, regex, case):
     if not q:
         return {"files": [], "matches": 0}
@@ -857,6 +888,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(res, 409 if res.get("conflict") else 200)
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
+            if path == "/api/delete":
+                return self.send_json(delete_file(rid, req.get("path", "")))
             if path == "/api/progress" and "restore" in req:
                 return self.send_json(STATE.restore_progress(rid, req["path"], req["restore"]))
             if path == "/api/progress":
@@ -959,25 +992,64 @@ def set_autostart(enabled):
         STARTUP_LNK.unlink()
 
 
-def confirm_quit():
-    """Windows: Yes / No first, with No as the default button, because one stray click on
-    Quit stopped the page on 3 Oct. Elsewhere it quits straight away."""
-    if not IS_WIN:
-        return True
-    import ctypes
-    flags = 0x4 | 0x20 | 0x100 | 0x10000 | 0x40000   # YESNO, QUESTION, DEFBUTTON2, SETFOREGROUND, TOPMOST
-    text = ("Stop Code Viewer?\n\nThe page stops working until you start it again: "
-            "press the Windows key, type Code Viewer, press Enter.")
-    return ctypes.windll.user32.MessageBoxW(None, text, "Code Viewer", flags) == 6   # IDYES
-
-
-def quit_from_tray(icon, server, ask=confirm_quit):
-    if not ask():
-        log.info("quit cancelled")
-        return
+def quit_from_tray(icon, server):
     log_stop("Quit from the tray menu")
     icon.stop()
     server.shutdown()
+
+
+def start_detached(args):
+    """A new copy that outlives this one, with no console window."""
+    flags = (0x8 | 0x200) if IS_WIN else 0          # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    subprocess.Popen(args, creationflags=flags, close_fds=True, start_new_session=not IS_WIN)
+
+
+def restart_from_tray(icon, server, argv=None, spawn=start_detached):
+    """Stop, then start a fresh copy with the same options, so a change to the server code
+    takes effect (5 Oct: a fix needed Quit and a start by hand). The port is freed first,
+    so the new copy gets the same one; the open tab then offers to reload."""
+    log_stop("Restart from the tray menu")
+    server.shutdown()
+    server.server_close()
+    args = list((argv or sys.argv)[1:])
+    if "--no-open" not in args:
+        args.append("--no-open")
+    spawn([sys.executable, str(pathlib.Path(__file__).resolve())] + args)
+    icon.stop()
+
+
+def tray_menu(pystray, server, url):
+    """Quit is a submenu: the second click is the confirmation. It used to be a Yes/No box,
+    which on 5 Oct opened out of sight and froze the tray until it was answered."""
+    def toggle_autostart(icon, _item):
+        set_autostart(not STARTUP_LNK.exists())
+
+    def pick_browser(bid):
+        def act(icon, _item):
+            STATE.set_browser(bid)
+            icon.update_menu()          # the Windows menu is built once; rebuild it for the tick
+        return act
+
+    def open_in_items():
+        found = browsers()
+        ids = {b["id"] for b in found}
+
+        def item(label, bid):
+            return pystray.MenuItem(label, pick_browser(bid), radio=True, checked=lambda _i: (
+                STATE.data.get("browser") if STATE.data.get("browser") in ids else None) == bid)
+        return [item("Default browser", None)] + [item(b["label"], b["id"]) for b in found]
+
+    return pystray.Menu(
+        pystray.MenuItem("Open Code Viewer", lambda *_: open_page(url), default=True),
+        pystray.MenuItem("Open in", pystray.Menu(open_in_items), visible=IS_WIN),
+        pystray.MenuItem("Open repo folder", lambda *_: open_path(REPO)),
+        pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
+                         visible=IS_WIN),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Restart Code Viewer", lambda icon, _item: restart_from_tray(icon, server)),
+        pystray.MenuItem("Quit Code Viewer", pystray.Menu(
+            pystray.MenuItem("Yes, stop it (the page stops working)",
+                             lambda icon, _item: quit_from_tray(icon, server)))))
 
 
 def run_tray(server, url, open_browser):
@@ -999,39 +1071,13 @@ def run_tray(server, url, open_browser):
                 tray["icon"].stop()
     threading.Thread(target=serve, daemon=True).start()
 
-    def toggle_autostart(icon, _item):
-        set_autostart(not STARTUP_LNK.exists())
-
     def setup(icon):
         icon.visible = True
         if open_browser:
             open_page(url)
 
-    def pick_browser(bid):
-        def act(icon, _item):
-            STATE.set_browser(bid)
-            icon.update_menu()          # the Windows menu is built once; rebuild it for the tick
-        return act
-
-    def open_in_items():
-        found = browsers()
-        ids = {b["id"] for b in found}
-
-        def item(label, bid):
-            return pystray.MenuItem(label, pick_browser(bid), radio=True, checked=lambda _i: (
-                STATE.data.get("browser") if STATE.data.get("browser") in ids else None) == bid)
-        return [item("Default browser", None)] + [item(b["label"], b["id"]) for b in found]
-
-    menu = pystray.Menu(
-        pystray.MenuItem("Open Code Viewer", lambda *_: open_page(url), default=True),
-        pystray.MenuItem("Open in", pystray.Menu(open_in_items), visible=IS_WIN),
-        pystray.MenuItem("Open repo folder", lambda *_: open_path(REPO)),
-        pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
-                         visible=IS_WIN),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Quit Code Viewer…", lambda icon, _item: quit_from_tray(icon, server)))
     image = Image.open(ICON) if ICON.exists() else draw_icon()
-    tray["icon"] = pystray.Icon("codeview", image, f"Code Viewer - {url}", menu)
+    tray["icon"] = pystray.Icon("codeview", image, f"Code Viewer - {url}", tray_menu(pystray, server, url))
     tray["icon"].run(setup=setup)
 
 

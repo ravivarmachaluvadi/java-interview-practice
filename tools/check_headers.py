@@ -49,6 +49,14 @@ def parse_header(text):
             break
     return {"title": title, "meta": meta, "mustKnow": must, "sections": sections, "insight": insight}
 
+# What Code Viewer's New file (+) template leaves to fill in (5 Oct: a blank one passed this check).
+PLACEHOLDERS = [("LeetCode ? | ?", re.compile(r"LeetCode \? \| \?")), ("O(?)", re.compile(r"O\(\?\)")),
+                ("...", re.compile(r"^\s*\*\s+\.\.\.\s*$", re.M))]
+
+def placeholders(text):
+    m = re.match(r"\s*/\*.*?\*/", text, re.S)
+    return [name for name, pat in PLACEHOLDERS if m and pat.search(m.group(0))]
+
 def check(p):
     rel = p.relative_to(ROOT).as_posix()
     text = p.read_text(encoding="utf-8", errors="replace")
@@ -59,6 +67,8 @@ def check(p):
     if not h: issues.append("no-header")
     else:
         if not h["title"]: issues.append("no-title-line")
+        left = placeholders(text)
+        if left: issues.append(f"unfilled-template:{left}")
         if not packaged and "Tricky-MCQ" not in rel:
             if not ({"KEY INSIGHT", "KEY DECISIONS"} & set(h["sections"])):
                 issues.append("missing:KEY INSIGHT/DECISIONS")
