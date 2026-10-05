@@ -425,6 +425,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 <main id="main">
   <div class="bar">
     <button class="icon" id="fullExitBtn" hidden title="Leave full screen (Alt+Enter, or hold Esc)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button>
+    <span class="seg"><button class="icon" id="navBackBtn" title="Back to where you were before the last jump (Ctrl+Alt+←)" disabled>←</button><button class="icon" id="navFwdBtn" title="Forward again (Ctrl+Alt+→)" disabled>→</button></span>
     <div class="crumbs" id="crumbs"></div>
     <span class="badge" id="badge" hidden></span>
     <span class="spacer"></span>
@@ -551,6 +552,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd>, or ← → before the path</td><td>Back to where you were before a jump, and forward again, as in IntelliJ: F12, Ctrl+click, another file, or a jump of 10+ lines (arrow keys and Page Down are not jumps)</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>↓</kbd> / <kbd>↑</kbd></td><td>Next / previous method in a Java file, as in IntelliJ. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd> / <kbd>↑</kbd> moves the line</td></tr>
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
     <tr><td>⏱ at the top</td><td>Timer on any file: count down from 5-60 minutes (or your own) and hear three beeps at zero, or count up like a stopwatch. It keeps going across files and reloads; after a reload it shows 🔇 until you click the page, because the browser allows sound only then. The practice time limit beeps too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd></td><td>Java files open at the code; this goes up to the problem description above it</td></tr>
@@ -1264,9 +1267,116 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyV, toggleVisual);
   editor.addCommand(K.Alt | C.KeyJ, () => step(1));
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
+  // IntelliJ's navigation (6 Oct, Ravi): Back / Forward, next / previous method. Moving a line
+  // goes to Alt+Shift+↑/↓, where IntelliJ has it (Alt+↑/↓ was the editor's own key for it).
+  // Alt+↑/↓ is left alone while the parameter popup is open: it flips between overloads there.
+  editor.addCommand(K.CtrlCmd | K.Alt | C.LeftArrow, () => navGo(-1));
+  editor.addCommand(K.CtrlCmd | K.Alt | C.RightArrow, () => navGo(1));
+  editor.addCommand(K.Alt | C.DownArrow, () => gotoMethod(1), '!parameterHintsVisible');
+  editor.addCommand(K.Alt | C.UpArrow, () => gotoMethod(-1), '!parameterHintsVisible');
+  // trigger(), not getAction().run(): getAction finds neither of these (measured, 6 Oct)
+  editor.addCommand(K.Alt | K.Shift | C.DownArrow, () => editor.trigger('keyboard', 'editor.action.moveLinesDownAction', null));
+  editor.addCommand(K.Alt | K.Shift | C.UpArrow, () => editor.trigger('keyboard', 'editor.action.moveLinesUpAction', null));
+  editor.addCommand(C.F12, () => { nav.armed = Date.now(); editor.trigger('keyboard', 'editor.action.revealDefinition', {}); });
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
   initAssist();
+  initNav();
+}
+
+/* Back / Forward (6 Oct, Ravi), IntelliJ's Ctrl+Alt+← / → and the ← → before the file path:
+   the places you jumped away from, one step at a time - F12 or Ctrl+click (however near),
+   another file, and any other jump of 10 lines or more (a click, a search hit, Alt+↓). Arrow
+   keys, Page Down and Ctrl+Home are moving, not jumping (measured: the editor marks them
+   'keyboard'), so they are not kept; nor is switching Practice or Try on the same file. */
+const nav = { back: [], fwd: [], last: null, quietUntil: 0, armed: 0 };
+const NAV_MAX = 50, NAV_JUMP = 10;
+function navHere() {
+  const p = editor.getPosition();
+  return S.cur && editor.getModel() && p && !$('#editor').hidden
+    ? { root: S.root, path: S.cur.path, key: S.cur.key, line: p.lineNumber, col: p.column } : null;
+}
+const navSame = (a, b) => !!a && !!b && a.key === b.key && Math.abs(a.line - b.line) < 3;
+function navPush(list, at) {
+  if (!at || navSame(list[list.length - 1], at)) return;
+  list.push(at);
+  if (list.length > NAV_MAX) list.shift();
+}
+function navRecord(at) {
+  if (!at || Date.now() < nav.quietUntil) return;
+  navPush(nav.back, at);
+  nav.fwd = [];
+  paintNavArrows();
+}
+function paintNavArrows() {
+  $('#navBackBtn').disabled = !nav.back.length;
+  $('#navFwdBtn').disabled = !nav.fwd.length;
+}
+function initNav() {
+  editor.onDidChangeModel(() => {
+    if (nav.last && S.cur && nav.last.key !== S.cur.key) navRecord(nav.last);     // the place you left
+    nav.last = null;
+    nav.quietUntil = Date.now() + 300;          // the new file's own opening moves: at the code, a search hit
+  });
+  editor.onDidChangeCursorPosition(e => {
+    const at = navHere(), was = nav.last;
+    nav.last = at;
+    if (!at || !was || was.key !== at.key || e.source === 'keyboard' || (e.reason !== 0 && e.reason !== 3)) return;
+    const jump = e.source === 'api' && Date.now() - nav.armed < 1500;               // right after F12 / Ctrl+click
+    if (jump) nav.armed = 0;
+    if (jump ? !navSame(was, at) || was.col !== at.col : Math.abs(at.line - was.line) >= NAV_JUMP) navRecord(was);
+  });
+  editor.onMouseDown(e => { if (e.event.ctrlKey || e.event.metaKey) nav.armed = Date.now(); });
+  $('#navBackBtn').onclick = () => navGo(-1);
+  $('#navFwdBtn').onclick = () => navGo(1);
+  paintNavArrows();
+}
+function navGo(dir) {
+  const from = dir < 0 ? nav.back : nav.fwd, to = dir < 0 ? nav.fwd : nav.back, here = navHere();
+  let target;
+  do target = from.pop(); while (target && (target.root !== S.root || navSame(target, here)));   // another folder's, or where you are
+  paintNavArrows();
+  if (!target) return toast(dir < 0 ? 'Nothing to go back to yet: F12, Ctrl+click, another file or a jump far down the file leaves a place here.'
+                                    : 'Nothing to go forward to.');
+  navPush(to, here);
+  paintNavArrows();
+  if (here && target.key === here.key) {
+    nav.quietUntil = Date.now() + 300;
+    editor.setPosition({ lineNumber: target.line, column: target.col });
+    editor.revealPositionInCenterIfOutsideViewport({ lineNumber: target.line, column: target.col });
+    editor.focus();
+  } else {
+    nav.quietUntil = Date.now() + 5000;         // until the file is open; its model change ends the quiet early
+    S.pendingReveal = { key: target.key, line: target.line, col: target.col, len: 0 };
+    go(target.path);
+  }
+}
+
+/* Next / previous method (6 Oct, Ravi), IntelliJ's Alt+↓ / Alt+↑: the caret goes to the name
+   of the next or previous method or constructor in the file (from inside a method, Alt+↑ goes
+   to its own name first). Comment lines do not count. Other files keep moving lines with it. */
+function methodLines(m) {
+  const out = [];
+  let inBlock = false;
+  for (let n = 1; n <= m.getLineCount(); n++) {
+    const line = m.getLineContent(n), t = line.trim();
+    if (inBlock) { if (t.includes('*/')) inBlock = false; continue; }
+    if (t.startsWith('/*')) { inBlock = !t.includes('*/'); continue; }
+    if (t.startsWith('//') || t.startsWith('*') || !METHOD_HEAD.test(line) || NOT_A_TYPE.test(line)) continue;
+    const name = /([\w$]+)\s*\(/.exec(line);
+    out.push({ line: n, col: name ? name.index + 1 : line.search(/\S/) + 1 });
+  }
+  return out;
+}
+function gotoMethod(dir) {
+  const m = editor.getModel(), p = editor.getPosition(), c = S.cur;
+  if (!m || !p) return;
+  if (!c || c.kind !== 'java') return editor.trigger('keyboard', dir > 0 ? 'editor.action.moveLinesDownAction' : 'editor.action.moveLinesUpAction', null);
+  const all = methodLines(m);
+  const to = dir > 0 ? all.find(x => x.line > p.lineNumber) : all.filter(x => x.line < p.lineNumber).pop();
+  if (!to) return;
+  editor.setPosition({ lineNumber: to.line, column: to.col });
+  editor.revealLineInCenterIfOutsideViewport(to.line);
 }
 
 function modelFor(k, text, lang) {
@@ -3435,6 +3545,8 @@ document.addEventListener('keydown', e => {
   else if (mod && k === 'enter') { e.preventDefault(); run(); }
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
   else if (mod && k === 's') { e.preventDefault(); save(); }
+  else if (mod && e.altKey && k === 'arrowleft') { e.preventDefault(); navGo(-1); }
+  else if (mod && e.altKey && k === 'arrowright') { e.preventDefault(); navGo(1); }
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
   else if (e.altKey && e.code === 'KeyM') { e.preventDefault(); cycleProgress(); }
   else if (e.altKey && e.code === 'KeyN') { e.preventDefault(); toggleMinimap(); }

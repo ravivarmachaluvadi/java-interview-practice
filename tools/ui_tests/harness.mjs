@@ -64,7 +64,7 @@ async function post(path, body) {
 const MODS = { Alt: 1, Ctrl: 2, Meta: 4, Shift: 8 };
 const KEYS = {
   Enter: ['Enter', 13, '\r'], Tab: ['Tab', 9], Escape: ['Escape', 27], Backspace: ['Backspace', 8],
-  Delete: ['Delete', 46], Home: ['Home', 36], End: ['End', 35], ' ': ['Space', 32, ' '],
+  Delete: ['Delete', 46], Home: ['Home', 36], End: ['End', 35], PageUp: ['PageUp', 33], PageDown: ['PageDown', 34], ' ': ['Space', 32, ' '],
   ArrowUp: ['ArrowUp', 38], ArrowDown: ['ArrowDown', 40], ArrowLeft: ['ArrowLeft', 37], ArrowRight: ['ArrowRight', 39],
   F2: ['F2', 113], F6: ['F6', 117], F12: ['F12', 123],
   '>': ['Period', 190, '>', MODS.Shift], '<': ['Comma', 188, '<', MODS.Shift], '}': ['BracketRight', 221, '}', MODS.Shift],
