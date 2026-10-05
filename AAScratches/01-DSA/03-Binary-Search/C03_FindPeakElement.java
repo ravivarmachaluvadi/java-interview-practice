@@ -46,35 +46,30 @@
 class FindPeakElement {
 
     public static int findPeakElement(int[] nums) {
-        int n = nums.length;
+        int left = 0, right = nums.length - 1;
+        if (nums.length == 1) {
+            return 0; // index, not value
+        }
+        if (nums.length == 2) {
+            return nums[0] > nums[1] ? 0 : 1;
+        }
+        while (left <= right) {
+                int mid = left + (right - left) / 2;
+                // handle boundaries
+                boolean leftOk = (mid == 0) || nums[mid] > nums[mid - 1];
+                boolean rightOk = (mid == nums.length - 1) || nums[mid] > nums[mid + 1];
 
-        if (n == 1) {
-            return 0;
-        }
-        // The ends only have one neighbour, so check them explicitly.
-        if (nums[0] > nums[1]) {
-            return 0;
-        }
-        if (nums[n - 1] > nums[n - 2]) {
-            return n - 1;
-        }
-
-        int low = 1;
-        int high = n - 2;
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
-            // mid-1 and mid+1 are always valid here
-            if (nums[mid - 1] < nums[mid] && nums[mid] > nums[mid + 1]) {
-                return mid;
+                if (leftOk && rightOk) {
+                    return mid;
+                }
+                // peak must exist on the rising side
+                if (mid < nums.length - 1 && nums[mid] < nums[mid + 1]) {
+                    left = mid + 1;
+                } else {
+                    right = mid - 1;
+                }
             }
-            // Walk uphill: a peak is guaranteed on the side of the larger neighbour.
-            if (nums[mid] < nums[mid + 1]) {
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-        return -1;   // unreachable: a peak always exists
+        return -1;
     }
 
     private static void print(String label, Object actual, Object expected) {

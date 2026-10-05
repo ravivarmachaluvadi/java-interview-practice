@@ -56,18 +56,24 @@ class MinIndexInRotatedSortedArray {
 
     private static int getMinIndex(int[] arr) {
         int low = 0, high = arr.length - 1;
+        int ans = 0;
         while (low < high) {
             if (arr[low] < arr[high]) {
-                return low;          // window already sorted, its first element is the min
+                ans = low;
+                break;
             }
-            int mid = low + (high - low) / 2;   // recomputed every iteration
+            int mid = low + (high - low) / 2;
             if (arr[mid] < arr[high]) {
-                high = mid;          // right half sorted, pivot is at mid or left of it
+                ans = mid;      // potential minimum index
+                high = mid;
             } else {
-                low = mid + 1;       // drop happens strictly right of mid
+                low = mid + 1;
             }
         }
-        return low;                  // low == high: the pivot (also handles length 1)
+        if (low == high) {
+            ans = low;
+        }
+        return ans;
     }
 
     private static void print(String label, Object actual, Object expected) {
