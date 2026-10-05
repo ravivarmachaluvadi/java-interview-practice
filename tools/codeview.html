@@ -353,13 +353,17 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 @keyframes s { to { transform: rotate(360deg); } }
 
 /* ---- help + toast ---- */
+/* 6 Oct: on a laptop the key column took most of the width and the panel ran far past the
+   bottom; now it is capped to the window and scrolls, and keys wrap between shortcuts */
 .help {
-  position: fixed; top: 50px; right: 12px; z-index: 20; width: 360px; padding: 14px 16px; border-radius: 10px;
+  position: fixed; top: 50px; right: 12px; z-index: 20; width: 460px; max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 62px); overflow-y: auto; box-sizing: border-box; padding: 14px 16px; border-radius: 10px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0,0,0,.25);
 }
 .help h3 { margin: 0 0 8px; font-size: 13px; }
 .help table { border-collapse: collapse; width: 100%; }
-.help td { padding: 3px 0; vertical-align: top; } .help td:first-child { white-space: nowrap; padding-right: 12px; }
+.help td { padding: 3px 0; vertical-align: top; } .help td:first-child { width: 34%; padding-right: 12px; }
+.help td:first-child kbd { white-space: nowrap; }
 .help p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .help label { display: flex; gap: 8px; align-items: center; margin-top: 12px; cursor: pointer; }
 .toast {
