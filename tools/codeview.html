@@ -193,8 +193,11 @@ main { container-type: inline-size; }
   .narrow { display: inline; }
   .bar { gap: 6px; } .tools { gap: 4px; }   /* 5 Oct: room for the Copy button (Run fits at a 1000px window) */
 }
-.crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.crumbs b { color: var(--text); font-weight: 600; }
+/* 6 Oct: cut from its end, a crowded bar lost the file name first; now the folders give way
+   first and the name shortens only when it alone is wider than the room */
+.crumbs { display: flex; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--muted); }
+.crumbs .dirs { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-right: .35em; }
+.crumbs b { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 600; }
 .badge { flex: none; font-size: 11px; border-radius: 99px; padding: 2px 8px; color: var(--muted); border: 1px solid var(--border); }
 .badge.draft { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
 .badge.scratch, .badge.try { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
@@ -1963,7 +1966,7 @@ function refreshBar() {
   if (isScratch) crumbs.innerHTML = '<b>Scratch pad</b>';
   else {
     const parts = c.path.split('/');
-    crumbs.append(parts.slice(0, -1).map(p => p + ' / ').join(''));
+    if (parts.length > 1) crumbs.append(Object.assign(document.createElement('span'), { className: 'dirs', textContent: parts.slice(0, -1).join(' / ') + ' /' }));
     const b = document.createElement('b'); b.textContent = parts[parts.length - 1]; crumbs.append(b);
   }
   crumbs.title = isScratch ? '' : (rootObj().path + '\\' + c.path.replace(/\//g, '\\'));
