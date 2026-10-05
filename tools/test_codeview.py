@@ -569,6 +569,32 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(cm.exception.code, 403)
 
 
+@unittest.skipUnless(pathlib.Path(codeview.JAVAC).exists(), "no JDK")
+class RunLeavesFileTest(unittest.TestCase):
+    """The page's Try copy relies on this: running changed code for a real file compiles it
+    in a temp folder, so the file and its folder are never written."""
+
+    def test_changed_code_runs_and_the_file_stays_as_it_was(self):
+        rel = "AAScratches/_codeview_test/B02_Echo.java"
+        p = codeview.REPO / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        src = b'class B02_Echo {\n    public static void main(String[] a) { System.out.println("a"); }\n}\n'
+        try:
+            p.write_bytes(src)
+            before = p.stat().st_mtime_ns
+            rid = codeview.STATE.roots()[0]["id"]
+            res = codeview.run_code(src.decode().replace('"a"', '"b"'), rid, rel, "", 10, None)
+            self.assertTrue(res["ok"], res.get("output"))
+            self.assertEqual(res["output"].strip(), "b")
+            self.assertEqual(p.read_bytes(), src)
+            self.assertEqual(p.stat().st_mtime_ns, before)
+            self.assertEqual([x.name for x in p.parent.iterdir()], ["B02_Echo.java"])   # no .class left beside it
+        finally:
+            for x in p.parent.iterdir():
+                x.unlink()
+            p.parent.rmdir()
+
+
 def tearDownModule():
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file
         h.close()

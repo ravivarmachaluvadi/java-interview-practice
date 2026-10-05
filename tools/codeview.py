@@ -20,6 +20,9 @@ THE PAGE
   Edit/Save  Edit (Ctrl+E) changes a draft kept in the browser; Save (Ctrl+S) writes it
              to the file. New file (+) creates one from a template; ⋯ → Delete this file
              moves one to the Recycle Bin (Windows)
+  Try        Alt+T opens a throwaway copy of the .java file to change and run; the file is
+             never touched and Save is off. The copy stays in the browser until Discard copy;
+             Compare (Alt+C) puts it next to the file with every change marked
   Practice   hides the solution bodies and the APPROACH notes; when every expected line
              matches, the file is marked done. While practising: a timer (limit in the
              menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and

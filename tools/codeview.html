@@ -155,12 +155,13 @@ main { container-type: inline-size; }
 @container (max-width: 1100px) {
   .bar .badge, .wide, #backBtn .wide { display: none; }
   .narrow { display: inline; }
+  .bar { gap: 6px; } .tools { gap: 4px; }   /* 5 Oct: room for the Copy button (Run fits at a 1000px window) */
 }
 .crumbs { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .crumbs b { color: var(--text); font-weight: 600; }
 .badge { flex: none; font-size: 11px; border-radius: 99px; padding: 2px 8px; color: var(--muted); border: 1px solid var(--border); }
 .badge.draft { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
-.badge.scratch { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.badge.scratch, .badge.try { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .badge.practice { color: #7a4fd6; border-color: #7a4fd6; }
 .tools { display: flex; align-items: center; gap: 6px; flex: none; position: relative; }
 .banner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border);
@@ -387,8 +388,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       </span>
       <div class="menu" id="nextMenu" hidden></div>
       <button id="editBtn" title="Edit (Ctrl+E). Changes stay a draft until you Save.">Edit</button>
+      <button id="tryBtn" hidden></button>
       <button id="saveBtn" hidden title="Write your edit to the file (Ctrl+S)">Save</button>
       <button id="resetBtn" hidden title="Throw away your edit">Reset</button>
+      <button class="icon" id="copyBtn" title="Copy the whole file, as the editor shows it"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg></button>
       <button class="icon" id="moreBtn" title="More">⋯</button>
       <div class="menu" id="menu" hidden>
         <button data-act="wrap">Wrap long lines <kbd>Alt+Z</kbd></button>
@@ -396,7 +399,6 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <button data-act="bigger">Bigger text</button>
         <button data-act="smaller">Smaller text</button>
         <hr>
-        <button data-act="copy">Copy whole file</button>
         <button data-act="reveal">Show in File Explorer</button>
         <button data-act="reload">Reload from disk</button>
         <button data-act="delete" title="Asks first; you can restore it from the Recycle Bin">Delete this file…</button>
@@ -417,7 +419,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="stage">
     <div id="editor"></div>
     <div id="diffWrap" hidden>
-      <div class="diff-head"><span>Original solution</span><span>Your attempt</span></div>
+      <div class="diff-head"><span id="diffLeft">Original solution</span><span id="diffRight">Your attempt</span></div>
       <div id="diff"></div>
     </div>
     <article class="md" id="md" hidden></article>
@@ -454,7 +456,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Practice: compare your attempt with the solution</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy next to the file</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>T</kbd></td><td>Try: a throwaway copy of this file to change and run; never saved. Again to Discard it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart)</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>K</kbd></td><td>Previous file, in the same list</td></tr>
     <tr><td>Browser Back</td><td>Back to the file you were on before</td></tr>
@@ -467,7 +470,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
   </table>
-  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
+  <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. A Try copy is kept the same way until you Discard it, and Save never writes it. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
   <p>Showing the solution, or Compare, before an attempt is solved marks the file ↻ revise (the bar that says so has Undo). A pass after that does not count as solved until you Reset and solve it fresh.</p>
   <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
@@ -538,7 +541,7 @@ function macKeys() {
 const S = {
   info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), progress: {},
   cur: null, pending: null,
-  originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), skeletons: new Map(),
+  originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), tmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
   hintsFor: new Map(), comparing: false, fresh: null, skipped: new Set(), attSel: new Set(),
@@ -1145,6 +1148,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
+  editor.addCommand(K.Alt | C.KeyT, toggleTry);
   editor.addCommand(K.Alt | C.KeyJ, () => step(1));
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
@@ -1189,7 +1193,7 @@ function hasDraft(c) {
 function hasDraftStored(path) {
   if (path === SCRATCH) return store.has('scratch');
   const k = keyOf(path);
-  return store.has('draft:' + k) || store.has('practice:' + k);
+  return store.has('draft:' + k) || store.has('practice:' + k) || store.has('try:' + k);
 }
 function markDraft(path) {
   const on = hasDraftStored(path);
@@ -1251,6 +1255,7 @@ async function openPath(path) {
   S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
   if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
   if (S.pending !== token) return;
+  if (S.cur.mode === 'try') showTry();
   if (S.fresh === k) {               // a review opened by Next: start over if the last attempt was solved or peeked
     S.fresh = null;
     const t = timerOf(k);
@@ -1267,7 +1272,7 @@ async function openPath(path) {
 }
 function isEditable() {
   const c = S.cur;
-  return !!c && (c.path === SCRATCH || c.mode === 'practice' || S.editing.has(c.key));
+  return !!c && (c.path === SCRATCH || c.mode === 'practice' || c.mode === 'try' || S.editing.has(c.key));
 }
 function showEditor(m) {
   $('#md').hidden = true;
@@ -1327,6 +1332,77 @@ async function togglePractice() {
   refreshBar();
   renderOutput(S.outputs.get(viewKey()));
 }
+/* Try is for the code, so it opens below the 40-60 line header comment - unless you were
+   already further down the file, then it keeps your place (5 Oct: it used to jump to line 1). */
+function codeStart(m) {
+  const lines = m.getLinesContent();
+  if (!/^\s*\/\*/.test(lines[0] || '')) return 1;
+  let n = lines.findIndex(l => l.includes('*/')) + 1;
+  if (n <= 0) return 1;
+  while (n < lines.length && !lines[n].trim()) n++;
+  return n < lines.length ? n + 1 : 1;
+}
+/* Try (5 Oct): a throwaway copy of the open file to change and run without touching it -
+   Run never writes files, and Save, Edit and Reset are off while trying. The copy is kept in
+   this browser as try:<key> until Discard, so a stray Next or a reload does not lose it. It
+   keeps the file's path, so Run still finds helper classes in the same folder. */
+function showTry(fileView) {
+  const c = S.cur, k = c.key;
+  let m = S.tmodels.get(k);
+  if (!m) {
+    const fm = S.models.get(k);
+    const text = store.get('try:' + k, null) ?? (fm ? fm.getValue() : store.get('draft:' + k, null) ?? S.originals.get(k));
+    if (!store.set('try:' + k, text)) storageFull();
+    m = monaco.editor.createModel(text, 'java');
+    m.onDidChangeContent(debounce(() => {
+      if (m.isDisposed()) return;                 // discarded meanwhile
+      if (!store.set('try:' + k, m.getValue())) storageFull();
+    }, 250));
+    S.tmodels.set(k, m);
+  }
+  const fresh = !S.views.has(viewKey());
+  showEditor(m);
+  if (fresh) {
+    if (fileView) editor.restoreViewState(fileView);
+    const start = codeStart(m);
+    if (editor.getScrollTop() < editor.getTopForLineNumber(start)) {
+      editor.setScrollTop(editor.getTopForLineNumber(start));
+      editor.setPosition({ lineNumber: start, column: 1 });
+    }
+  }
+  markDraft(c.path);
+}
+function toggleTry() {
+  const c = S.cur;
+  if (!c || c.kind !== 'java' || c.path === SCRATCH || c.mode === 'practice') return;
+  closeCompare(false);                 // the diff view holds the copy's model, which Discard disposes
+  saveView();
+  if (c.mode !== 'try') {
+    const fileView = editor.saveViewState();
+    c.mode = 'try'; setMode(c.key, 'try');
+    showTry(fileView);
+    toast('Try: a copy to change and run freely. The file is never touched; Discard when you are done.');
+    editor.focus();
+  } else {
+    const k = c.key, m = S.tmodels.get(k), text = m ? m.getValue() : store.get('try:' + k, null);
+    store.del('try:' + k);
+    if (m) { m.dispose(); S.tmodels.delete(k); }
+    S.views.delete(k + ':try');          // a new Try starts from where you are in the file
+    c.mode = 'file'; setMode(k, 'file');
+    showEditor(modelFor(k, S.originals.get(k), 'java'));
+    markDraft(c.path);
+    if (text != null && text !== S.originals.get(k)) {
+      showBanner('Try copy thrown away. The file was not changed.', [['Undo', () => {
+        hideBanner();
+        if (!S.cur || S.cur.key !== k || S.cur.mode !== 'file') return;
+        store.set('try:' + k, text);
+        toggleTry();
+      }]], 'try');
+    } else toast('Try copy thrown away. The file was not changed.');
+  }
+  refreshBar();
+  renderOutput(S.outputs.get(viewKey()));
+}
 /* The file you were on before the Scratch pad: the pad's ← button goes back to it, and Next
    and Prev carry on from it instead of starting at the top of the list (4 Oct). */
 const backFile = () => { const p = store.get('backFile:' + S.root, null); return p && S.byPath.has(p) ? p : null; };
@@ -1352,6 +1428,7 @@ function refreshBar() {
   const c = S.cur;
   if (!c) return;
   const isScratch = c.path === SCRATCH, practice = c.mode === 'practice', rendered = c.kind === 'md' && !c.source && !practice;
+  const trying = c.mode === 'try';
   const crumbs = $('#crumbs');
   crumbs.textContent = '';
   if (isScratch) crumbs.innerHTML = '<b>Scratch pad</b>';
@@ -1363,6 +1440,7 @@ function refreshBar() {
   crumbs.title = isScratch ? '' : (rootObj().path + '\\' + c.path.replace(/\//g, '\\'));
   const drafted = hasDraft(c), editing = isScratch || practice || S.editing.has(c.key);
   const [label, cls] = isScratch ? ['Scratch · kept in this browser', 'scratch']
+    : trying ? ['Try copy · never saved to the file', 'try']
     : practice ? [drafted ? 'Practice · your attempt' : 'Practice · solution hidden', 'practice']
     : rendered ? ['Rendered markdown', '']
     : drafted ? ['Edited · not saved', 'draft']
@@ -1386,14 +1464,22 @@ function refreshBar() {
   gb.hidden = isScratch;
   gb.innerHTML = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ ' + wideNarrow('Mark done', 'Done');
   gb.className = st === 'done' ? 'good' : st === 'revise' ? 'warnb' : '';
-  $('#editBtn').hidden = isScratch || practice || rendered;
+  $('#editBtn').hidden = isScratch || practice || rendered || trying;
   $('#editBtn').textContent = S.editing.has(c.key) ? 'Lock' : 'Edit';
   $('#editBtn').classList.toggle('on', S.editing.has(c.key));
-  $('#saveBtn').hidden = isScratch || practice || rendered || !drafted;
-  $('#resetBtn').hidden = rendered || !drafted;
+  const tb = $('#tryBtn');
+  tb.hidden = c.kind !== 'java' || isScratch || practice;
+  tb.textContent = trying ? 'Discard copy' : 'Try';     // full label even on a narrow bar: the badge is hidden there
+  tb.title = trying ? 'Throw this try copy away and go back to the file, which was never changed (Alt+T)'
+    : 'Change and run a throwaway copy of this file; the file itself is never changed (Alt+T)';
+  tb.classList.toggle('on', trying);
+  $('#saveBtn').hidden = isScratch || practice || rendered || trying || !drafted;
+  $('#resetBtn').hidden = rendered || trying || !drafted;
   $('#runBtn').disabled = c.kind !== 'java' || S.running;
   const cb = $('#compareBtn');
-  cb.hidden = !practice;
+  cb.hidden = !practice && !trying;
+  cb.title = trying ? 'Your try copy next to the file, every change marked (Alt+C)'
+    : 'Your attempt next to the original solution, differences marked (Alt+C)';
   cb.textContent = S.comparing ? 'Close compare' : 'Compare';
   cb.classList.toggle('on', S.comparing);
   $('#navGroup').hidden = !S.files.some(isJava);
@@ -1411,8 +1497,10 @@ function refreshBar() {
 }
 
 /* ------------------------------------------------------------ edit, save, reset */
+const TRY_NO_SAVE = 'A Try copy is never saved: the copy button beside ⋯ takes the code, Discard copy ends it.';
 function toggleEdit() {
   const c = S.cur;
+  if (c && c.mode === 'try') return toast(TRY_NO_SAVE);
   if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source)) return;
   if (S.editing.has(c.key)) S.editing.delete(c.key); else S.editing.add(c.key);
   editor.updateOptions({ readOnly: !isEditable() });
@@ -1421,6 +1509,7 @@ function toggleEdit() {
 }
 async function save(force) {
   const c = S.cur;
+  if (c && c.mode === 'try') return toast(TRY_NO_SAVE);
   if (!c || c.path === SCRATCH || c.mode === 'practice' || !hasDraft(c)) return;
   const m = S.models.get(c.key), code = m.getValue();
   let r;
@@ -1621,14 +1710,19 @@ function storageFull() {
   ], 'full');
 }
 
-/* Compare: the original solution next to your attempt. The right side is the attempt
-   itself, so it stays editable and Run still runs it. */
+/* Compare: the original solution next to your practice attempt, or (5 Oct) the file next to
+   your Try copy, to see everything you changed. The right side is the attempt or copy itself,
+   so it stays editable and Run still runs it. */
 let diffEditor = null, diffOrig = null;
 function toggleCompare() { if (S.comparing) closeCompare(); else openCompare(); }
 function openCompare() {
-  const c = S.cur, attempt = c && S.pmodels.get(c.key);
-  if (!c || c.mode !== 'practice' || !attempt) return;
+  const c = S.cur, trying = c && c.mode === 'try';
+  const attempt = c && (trying ? S.tmodels.get(c.key) : c.mode === 'practice' ? S.pmodels.get(c.key) : null);
+  if (!attempt) return;
   notePeek(c);
+  $('#diffLeft').textContent = trying ? 'The file (unchanged)' : 'Original solution';
+  $('#diffRight').textContent = trying ? 'Your try copy' : 'Your attempt';
+  if (trying && attempt.getValue() === S.originals.get(c.key)) toast('No differences yet: your try copy matches the file.');
   if (!diffEditor) {
     diffEditor = monaco.editor.createDiffEditor($('#diff'), {
       automaticLayout: true, renderSideBySide: true, originalEditable: false, ignoreTrimWhitespace: true,
@@ -2057,6 +2151,7 @@ function setFont(d) {
   if (diffEditor) diffEditor.updateOptions({ fontSize: S.font });
 }
 $('#editBtn').onclick = toggleEdit;
+$('#tryBtn').onclick = toggleTry;
 $('#saveBtn').onclick = () => save();
 $('#resetBtn').onclick = resetDraft;
 $('#practiceBtn').onclick = togglePractice;
@@ -2064,6 +2159,14 @@ $('#progBtn').onclick = cycleProgress;
 $('#runBtn').onclick = run;
 $('#mainSel').onchange = e => S.mainChoice.set(viewKey(), e.target.value);
 $('#srcBtn').onclick = () => { if (!S.cur) return; S.mdSource = !S.cur.source; openPath(S.cur.path); };
+/* its own button since 5 Oct (was ⋯ → Copy whole file): what the editor shows - your draft,
+   attempt or Try copy - or the file itself when rendered markdown is showing */
+$('#copyBtn').onclick = async () => {
+  const c = S.cur;
+  if (!c) return;
+  const text = $('#editor').hidden ? S.originals.get(c.key) : editor.getModel().getValue();
+  try { await navigator.clipboard.writeText(text); toast('Copied ' + text.split('\n').length + ' lines'); } catch { toast('Clipboard blocked by the browser'); }
+};
 $('#moreBtn').onclick = e => { e.stopPropagation(); $('#menu').hidden = !$('#menu').hidden; };
 $('#menu').addEventListener('click', async e => {
   const b = e.target.closest('button[data-act]');
@@ -2075,12 +2178,6 @@ $('#menu').addEventListener('click', async e => {
     case 'minimap': toggleMinimap(); break;
     case 'bigger': setFont(1); break;
     case 'smaller': setFont(-1); break;
-    case 'copy': {
-      if (!c) break;
-      const text = $('#editor').hidden ? S.originals.get(c.key) : editor.getModel().getValue();
-      try { await navigator.clipboard.writeText(text); toast('Copied ' + text.split('\n').length + ' lines'); } catch { toast('Clipboard blocked by the browser'); }
-      break;
-    }
     case 'reveal':
       try { await api('/api/reveal', { root: S.root, path: c && c.path !== SCRATCH ? c.path : '' }); } catch (err) { toast(err.message); }
       break;
@@ -2154,6 +2251,7 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && k === 'enter') { e.preventDefault(); toggleFull(); }
   else if (e.altKey && e.code === 'KeyH') { e.preventDefault(); hintButton(); }
   else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
+  else if (e.altKey && e.code === 'KeyT') { e.preventDefault(); toggleTry(); }
   else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
   else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }
   else if (k === 'escape') { $('#help').hidden = true; $('#menu').hidden = true; $('#nextMenu').hidden = true; $('#hintCard').hidden = true; paintHints(); }
