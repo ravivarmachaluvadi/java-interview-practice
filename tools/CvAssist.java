@@ -106,6 +106,7 @@ public class CvAssist {
         @Override protected boolean removeEldestEntry(Map.Entry<String, Sources> e) { return size() > 16; }
     };
     final Map<String, String> mdCache = new HashMap<>();
+    final Map<String, List<String>> implCache = new HashMap<>();      // List -> ArrayList, LinkedList, ...
 
     CvAssist() {
         ZipFile z = null;
@@ -410,14 +411,6 @@ public class CvAssist {
                 if (c.getModifiers().contains(Modifier.STATIC) || c.getNestingKind() == NestingKind.TOP_LEVEL) instanceOk = false;
             }
         }
-        if (first == 0) {
-            if (!typesOnly) for (String k : KEYWORDS) if (k.length() > 1) items.add(keyword(k));
-            return;
-        }
-        if (!typesOnly) {
-            for (String k : KEYWORDS) if (k.charAt(0) == first) items.add(keyword(k));
-        }
-        // types: this file's own, imported, java.lang, then the JDK index (with an import)
         boolean newCtx = s.kind.equals("new"), annotation = s.kind.equals("annotation");
         Set<String> imported = new HashSet<>(), starPkgs = new HashSet<>(Set.of("java.lang"));
         for (ImportTree it : u.cu.getImports()) {
@@ -427,6 +420,26 @@ public class CvAssist {
         }
         String pkg = u.cu.getPackageName() == null ? "" : u.cu.getPackageName().toString();
         starPkgs.add(pkg);
+        if (newCtx) {
+            // IntelliJ's ★ (5 Oct, Ravi asked): what the left side needs comes first
+            TypeMirror exp = expectedType(u, s.path);
+            if (exp != null) expectedItems(u, exp, callFollows, r, imported, starPkgs, seen, items);
+            if (first != 0) {                         // `new int` can only be an array
+                for (TypeKind k : List.of(TypeKind.INT, TypeKind.LONG, TypeKind.CHAR, TypeKind.BOOLEAN,
+                                          TypeKind.DOUBLE, TypeKind.BYTE, TypeKind.SHORT, TypeKind.FLOAT)) {
+                    TypeMirror arr = u.ty.getArrayType(u.ty.getPrimitiveType(k));
+                    if (k.name().toLowerCase(Locale.ROOT).charAt(0) == first && seen.add(simple(arr))) items.add(arrayItem(arr, "1", false));
+                }
+            }
+        }
+        if (first == 0) {
+            if (!typesOnly) for (String k : KEYWORDS) if (k.length() > 1) items.add(keyword(k));
+            return;
+        }
+        if (!typesOnly) {
+            for (String k : KEYWORDS) if (k.charAt(0) == first) items.add(keyword(k));
+        }
+        // types: this file's own, imported, java.lang, then the JDK index (with an import)
         List<TypeElement> own = new ArrayList<>();
         for (Tree d : u.cu.getTypeDecls()) {
             Element e = u.trees.getElement(new TreePath(new TreePath(u.cu), d));
@@ -454,6 +467,102 @@ public class CvAssist {
             seen.add(sn);
         }
         if (capped) res.put("incomplete", true);
+    }
+
+    /** What a `new` must produce: the declared type left of `=`, an assigned variable's type,
+        or the method's return type after `return`. Null when nothing says. */
+    TypeMirror expectedType(Unit u, TreePath ident) {
+        TreePath nc = ident.getParentPath();
+        if (nc.getLeaf() instanceof ParameterizedTypeTree) nc = nc.getParentPath();
+        if (!(nc.getLeaf() instanceof NewClassTree)) return null;
+        TreePath parent = nc.getParentPath();
+        Tree pt = parent.getLeaf();
+        TypeMirror t = null;
+        if (pt instanceof VariableTree v && v.getInitializer() == nc.getLeaf() && v.getType() != null) {
+            t = u.trees.getTypeMirror(new TreePath(parent, v.getType()));
+        } else if (pt instanceof AssignmentTree a && a.getExpression() == nc.getLeaf()) {
+            t = u.trees.getTypeMirror(new TreePath(parent, a.getVariable()));
+        } else if (pt instanceof ReturnTree) {
+            for (TreePath p = parent; p != null; p = p.getParentPath()) {
+                if (p.getLeaf() instanceof LambdaExpressionTree) return null;
+                if (p.getLeaf() instanceof MethodTree m) {
+                    if (m.getReturnType() != null) t = u.trees.getTypeMirror(new TreePath(p, m.getReturnType()));
+                    break;
+                }
+            }
+        }
+        return t == null || t.getKind() == TypeKind.ERROR || t.getKind() == TypeKind.VOID ? null : t;
+    }
+
+    /** The ★ items: the expected array type, the expected class, or for an interface or an
+        abstract class (List, Deque, Map...) its usual implementations, common ones first. */
+    void expectedItems(Unit u, TypeMirror exp, boolean callFollows, Req r, Set<String> imported, Set<String> starPkgs,
+                       Set<String> seen, List<Map<String, Object>> items) {
+        if (exp.getKind() == TypeKind.ARRAY) {
+            Map<String, Object> it = arrayItem(exp, "00", true);
+            seen.add((String) it.get("label"));
+            items.add(it);
+            return;
+        }
+        if (exp.getKind() != TypeKind.DECLARED) return;
+        TypeElement want = (TypeElement) ((DeclaredType) exp).asElement();
+        List<TypeElement> found = new ArrayList<>();
+        if (concrete(want)) found.add(want);
+        else for (String fqn : implementations(u, want)) {
+            TypeElement te = u.el.getTypeElement(fqn);
+            if (te != null) found.add(te);
+        }
+        for (TypeElement te : found) {
+            String name = te.getSimpleName().toString(), fqn = te.getQualifiedName().toString();
+            String p = u.el.getPackageOf(te).getQualifiedName().toString();
+            boolean needs = !r.compact() && te.getNestingKind() == NestingKind.TOP_LEVEL && entryOf(u, te) != null
+                    && !starPkgs.contains(p) && !imported.contains(fqn);
+            Map<String, Object> it = typeItem(u, te, true, callFollows, needs ? fqn : null, "0", r);
+            it.put("sort", "0" + (COMMON.contains(name) ? "0" : "1") + name);
+            it.put("type", "★ " + it.get("type"));
+            items.add(it);
+            seen.add(name);
+        }
+    }
+
+    /** JDK classes you can `new` for this interface or abstract class, common ones first, at
+        most 8. Scanning the class list took ~130 ms, so a JDK type's answer is kept. */
+    List<String> implementations(Unit u, TypeElement want) {
+        String key = want.getQualifiedName().toString();
+        boolean jdk = entryOf(u, want) != null;
+        List<String> cached = jdk ? implCache.get(key) : null;
+        if (cached != null) return cached;
+        try { buildIndex(); } catch (IOException e) { return List.of(); }
+        TypeMirror target = u.ty.erasure(want.asType());
+        List<TypeElement> found = new ArrayList<>();
+        for (String fqn : index) {
+            if (!isPublic(u, fqn)) continue;
+            TypeElement te = u.el.getTypeElement(fqn);
+            if (te != null && concrete(te) && u.ty.isAssignable(u.ty.erasure(te.asType()), target)) found.add(te);
+        }
+        found.sort(Comparator.comparing((TypeElement te) -> !COMMON.contains(te.getSimpleName().toString()))
+                             .thenComparing(te -> te.getSimpleName().toString()));
+        List<String> out = new ArrayList<>();
+        for (TypeElement te : found.subList(0, Math.min(8, found.size()))) out.add(te.getQualifiedName().toString());
+        if (jdk) implCache.put(key, out);
+        return out;
+    }
+
+    static boolean concrete(TypeElement te) {
+        return te.getKind() == ElementKind.CLASS && !te.getModifiers().contains(Modifier.ABSTRACT);
+    }
+
+    /** int[] -> inserts int[|]; int[][] -> int[|][] */
+    static Map<String, Object> arrayItem(TypeMirror t, String sort, boolean star) {
+        int dims = 0;
+        TypeMirror c = t;
+        while (c.getKind() == TypeKind.ARRAY) { dims++; c = ((ArrayType) c).getComponentType(); }
+        String label = simple(t), base = simple(c);
+        Map<String, Object> it = item(label, c.getKind().isPrimitive() ? "keyword" : "class", base + "[$0]" + "[]".repeat(dims - 1));
+        it.put("snippet", true);
+        it.put("sort", sort + label);
+        it.put("type", star ? "★ expected type" : "array");
+        return it;
     }
 
     static boolean matches(String name, char first, boolean annotation, TypeElement te) {
@@ -1424,6 +1533,10 @@ public class CvAssist {
         String v = sample.replace("@@", "A");
         Unit u = new Unit(v, new Req("complete", 0, "", "W.java", "", "", v));
         for (String fqn : index) isPublic(u, fqn);
+        for (String i : List.of("java.util.List", "java.util.Map", "java.util.Set", "java.util.Deque", "java.util.Queue", "java.util.Collection")) {
+            TypeElement te = u.el.getTypeElement(i);
+            if (te != null) implementations(u, te);
+        }
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("ok", true);
         res.put("classes", index.size());

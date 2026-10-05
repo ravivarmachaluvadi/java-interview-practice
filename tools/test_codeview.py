@@ -739,6 +739,44 @@ class AssistTest(unittest.TestCase):
         res = self.complete(method=f"java.util.Deque<Integer> d = new ArrayDe{CUR}")
         self.assertTrue(self.item(res, "ArrayDeque")["insert"].startswith("ArrayDeque<>("))
 
+    def first_after_new(self, src, fname="E.java"):
+        """The top item after `new`, as the editor sorts them, and the whole list."""
+        res = self.ask("complete", src, fname=fname)
+        return min(res["items"], key=lambda it: it["sort"]), res
+
+    def test_new_offers_the_expected_array_type_first(self):
+        """IntelliJ's ★: `int[] arr = new i` offers int[] first, caret inside the brackets."""
+        top, _ = self.first_after_new(self.wrap(f"int[] arr = new i{CUR}"))
+        self.assertEqual((top["label"], top["insert"]), ("int[]", "int[$0]"))
+        self.assertIn("★", top["type"])
+        top, _ = self.first_after_new(self.wrap(f"int[][] grid = new {CUR}"))      # nothing typed yet
+        self.assertEqual((top["label"], top["insert"]), ("int[][]", "int[$0][]"))
+        top, _ = self.first_after_new(self.wrap(f"String[] parts = new S{CUR}"))
+        self.assertEqual((top["label"], top["insert"]), ("String[]", "String[$0]"))
+
+    def test_new_offers_implementations_of_an_expected_interface(self):
+        top, res = self.first_after_new(self.wrap(f"List<Integer> list = new {CUR}", imports="import java.util.List;\n"))
+        self.assertEqual(top["label"], "ArrayList")
+        self.assertTrue(top["insert"].startswith("ArrayList<>("))
+        self.assertEqual(top["import"], "\nimport java.util.ArrayList;")
+        self.assertIn("★", self.item(res, "LinkedList")["type"])
+        top, _ = self.first_after_new(self.wrap(f"Deque<Integer> dq = new A{CUR}", imports="import java.util.*;\n"))
+        self.assertEqual(top["label"], "ArrayDeque")
+
+    def test_new_after_return_and_assignment(self):
+        src = f"class E {{\n    int[] f(int n) {{\n        return new {CUR}\n    }}\n}}\n"
+        self.assertEqual(self.first_after_new(src)[0]["label"], "int[]")
+        top, _ = self.first_after_new(self.wrap(f"long[] memo;\n        memo = new {CUR}"))
+        self.assertEqual(top["label"], "long[]")
+
+    def test_new_without_an_expected_type_still_offers_primitive_arrays(self):
+        _, res = self.first_after_new(self.wrap(f"Object o = new i{CUR}"))
+        self.assertEqual(self.item(res, "int[]")["insert"], "int[$0]")
+
+    @staticmethod
+    def wrap(body, imports=""):
+        return f"{imports}class E {{\n    void f() {{\n        {body}\n    }}\n}}\n"
+
     def test_postfix_var(self):
         src = DAILY.replace("@@", f"waiting.pop().va{CUR}").replace("%%", "")
         res = self.ask("complete", src)
