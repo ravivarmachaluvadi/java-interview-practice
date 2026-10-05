@@ -552,7 +552,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
-    <tr><td>⏱ at the top</td><td>Timer on any file: count down from 5-60 minutes (or your own) and hear three beeps at zero, or count up like a stopwatch. It keeps going across files and reloads. The practice time limit beeps too</td></tr>
+    <tr><td>⏱ at the top</td><td>Timer on any file: count down from 5-60 minutes (or your own) and hear three beeps at zero, or count up like a stopwatch. It keeps going across files and reloads; after a reload it shows 🔇 until you click the page, because the browser allows sound only then. The practice time limit beeps too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd></td><td>Java files open at the code; this goes up to the problem description above it</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td><td>Format the file the way IntelliJ does (indentation, spaces, blank lines), keeping your comments, one-line blocks and the extra spaces that line up test cases</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td><td>Introduce variable, as in IntelliJ: the selected expression (or one around the cursor, from a list) becomes <code>Type name = expr;</code> above the statement, here or at every occurrence; then type a better name and Enter</td></tr>
@@ -2358,7 +2358,10 @@ paintLimit();
    lets a page play sound after a click or key press, so the first one unlocks it. */
 let actx = null;
 function audio() {
-  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+  if (!actx) {
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+    actx.onstatechange = () => paintClock();             // the 🔇 goes once sound is allowed
+  }
   if (actx.state === 'suspended') actx.resume().catch(() => {});
   return actx;
 }
@@ -2393,6 +2396,9 @@ const clockElapsed = () => clock.banked + (clock.running ? Date.now() - clock.st
 const clockLeft = () => clock.minutes * 60000 - clockElapsed();
 const saveClock = () => store.set('clock', clock);
 const fmtMin = m => (Number.isInteger(m) ? m : +m.toFixed(2)) + (m === 1 ? ' minute' : ' minutes');
+const SOUND_OFF = 'Click anywhere on the page so it can beep at zero (the browser keeps a page silent until you click or type).';
+/* a running count-down that could not beep yet */
+const soundOff = () => clock.running && clock.mode === 'down' && (!actx || actx.state !== 'running');
 function cancelClockTones() { for (const o of clockTones) { try { o.stop(); o.disconnect(); } catch {} } clockTones = []; }
 function scheduleClockTones() {
   cancelClockTones();
@@ -2408,12 +2414,13 @@ function paintClock() {
     toast(`Time is up: ${fmtMin(clock.minutes)}.`);
   }
   const ms = down ? Math.max(0, clockLeft()) : clockElapsed();
-  const idle = !clock.running && !clock.banked && !clockRinging;
-  b.textContent = idle ? '⏱' : (down ? '⏳ ' : '⏱ ') + mmss(down ? Math.ceil(ms / 1000) * 1000 : ms);
+  const idle = !clock.running && !clock.banked && !clockRinging, mute = soundOff();
+  b.textContent = idle ? '⏱' : (down ? '⏳ ' : '⏱ ') + mmss(down ? Math.ceil(ms / 1000) * 1000 : ms) + (mute ? ' 🔇' : '');
   b.classList.toggle('on', clock.running);
   b.classList.toggle('ring', clockRinging);
   b.title = clockRinging ? 'Time is up. Click to stop the flashing.'
-    : `Timer: ${down ? 'counting down from ' + fmtMin(clock.minutes) : 'counting up'}${clock.running ? '' : idle ? '' : ' (paused)'}. Click for its settings.`;
+    : (mute ? `${SOUND_OFF} ` : '')
+      + `Timer: ${down ? 'counting down from ' + fmtMin(clock.minutes) : 'counting up'}${clock.running ? '' : idle ? '' : ' (paused)'}. Click for its settings.`;
   const base = document.title.replace(/^⏰ /, '');
   document.title = (clockRinging ? '⏰ ' : '') + base;
   if ($('#clockMenu').hidden) return;
@@ -2467,10 +2474,17 @@ $('#clockOther').addEventListener('change', e => {
 document.addEventListener('click', e => { if (!e.target.closest('#clockMenu') && !e.target.closest('#clockBtn')) $('#clockMenu').hidden = true; });
 // while it runs, repaint 4 times a second (the page's 1-second tick left it up to a second behind)
 setInterval(() => { if (clock.running) paintClock(); }, 250);
-/* after a reload a running count-down can only beep once the page is clicked or typed in */
+/* After a reload a running count-down can only beep once the page is clicked or typed in: the
+   browser keeps a page silent until then. 6 Oct: say so (🔇 on the timer and one message)
+   instead of letting zero pass without a sound and without a word. */
 ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => {
   if (clock.running && clock.mode === 'down' && !clockTones.length) { audio(); scheduleClockTones(); }
 }, true));
+if (clock.running && clock.mode === 'down' && clockLeft() > 0) {
+  audio();                                       // a browser that allows sound here starts it at once
+  if (actx && actx.state === 'running') scheduleClockTones();
+  else toast(`The timer is still counting down. ${SOUND_OFF}`);
+}
 paintClock();
 
 /* Hints: the header notes practice mode hides, one at a time, gentlest first (the server
