@@ -45,4 +45,21 @@ await suite(async t => {
   await format();
   ok = await waitFor(`/line 3/.test(document.querySelector('#toast').textContent)`, 8000);
   check('broken code: refused, naming the line', ok, await ev(`document.querySelector('#toast').textContent`));
+
+  // Try mode (Alt+T, a throwaway copy): Ctrl+Alt+L formats the copy (6 Oct, Ravi asked)
+  await t.fresh(C06);
+  await ev(`document.querySelector('#tryBtn').click()`);
+  ok = await waitFor(`/Try/.test(document.querySelector('#badge').textContent) || /try/i.test(document.querySelector('#badge').className)`, 8000);
+  await ev(`${ED}.getModel().setValue(${JSON.stringify(messy)}); ${ED}.setPosition({ lineNumber: 12, column: 3 }); ${ED}.focus()`);
+  await format();
+  const formatted = await waitFor(`${ED}.getModel().getValue() === ${JSON.stringify(expected)}`, 8000);
+  check('Try mode: Ctrl+Alt+L formats the copy', ok && formatted,
+        [await ev(`document.querySelector('#badge').textContent`), await ev(`document.querySelector('#toast').textContent`)]);
+
+  // right after a click on a button (Try, Edit...) the focus is on that button, not in the code
+  await ev(`${ED}.getModel().setValue(${JSON.stringify(messy)}); document.querySelector('#tryBtn').focus()`);
+  const focusOut = await ev(`!document.activeElement.closest('.monaco-editor')`);
+  await format();
+  ok = await waitFor(`${ED}.getModel().getValue() === ${JSON.stringify(expected)}`, 8000);
+  check('Ctrl+Alt+L also works when the focus is on a button, not in the code', focusOut && ok, focusOut);
 });
