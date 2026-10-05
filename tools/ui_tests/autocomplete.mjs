@@ -30,6 +30,29 @@ await suite(async t => {
   check('hover on a read-only file shows Javadoc', ok);
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
 
+  // --- Ctrl+P: parameter info inside a call's brackets (read-only too), file search elsewhere
+  const cursorOn = (lineText, word, plus = 0) => ev(`(() => { const e = ${ED}, m = e.getModel(); const n = m.getLinesContent().findIndex(l => l.includes(${JSON.stringify(lineText)})) + 1;
+    e.setPosition({ lineNumber: n, column: m.getLineContent(n).indexOf(${JSON.stringify(word)}) + 1 + ${plus} }); e.focus(); })()`);
+  const hints = `[...document.querySelectorAll('.parameter-hints-widget')].filter(w => w.offsetParent).map(w => w.textContent).join(' / ')`;
+  const activeParam = `(document.querySelector('.parameter-hints-widget .parameter.active') || {}).textContent`;
+  const filterFocused = `document.activeElement === document.querySelector('#filter')`;
+  const ctrlP = async () => { await press('Escape'); await press('Ctrl+p'); };
+  await cursorOn('waiting.push(today);', 'today');
+  await ctrlP();
+  ok = await waitFor(`(${hints}).includes('push(Integer item)')`, 8000);
+  check('Ctrl+P in `waiting.push(|today)` shows push(Integer item)', ok && !(await ev(filterFocused)), await ev(hints));
+  await cursorOn('new int[]{1, 1, 4, 2, 1, 1, 0, 0});', 'new');
+  await ctrlP();
+  ok = await waitFor(`(${hints}).includes('print(String label, int[] actual, int[] expected)') && ${activeParam} === 'int[] expected'`, 8000);
+  check('...across lines: the 3rd argument of print( two lines up, `expected` in bold', ok, [await ev(hints), await ev(activeParam)]);
+  await cursorOn('while (!waiting.isEmpty()', '!waiting');
+  await ctrlP();
+  check('in a `while (` header Ctrl+P still finds a file', await waitFor(filterFocused, 3000));
+  await cursorOn('int n = temperatures.length;', 'temperatures');
+  await ctrlP();
+  check('outside any call Ctrl+P still finds a file', await waitFor(filterFocused, 3000));
+  await ev(`${ED}.focus()`);
+
   // --- Edit, then suggestions after a dot
   await ev(`document.querySelector('#editBtn').click()`);
   await freshLine();
@@ -127,6 +150,11 @@ await suite(async t => {
     await type('args.');
     return waitFor(`(${suggestRows}).some(t => t.includes('length'))`, 6000);
   }
+  await cursorOn('new int[]{1, 1, 4, 2, 1, 1, 0, 0});', 'new');
+  await ctrlP();
+  check('Practice with suggestions off: Ctrl+P in a call says how to turn it on',
+        await waitFor(`/Parameter info is off in practice/.test(document.querySelector('#toast').textContent)`, 4000) && !(await ev(filterFocused)),
+        await ev(`document.querySelector('#toast').textContent`));
   check('Practice has no dropdown by default', !(await practiceDot()));
   await ev(`document.querySelector('#moreBtn').click()`);
   await ev(`document.querySelector('[data-act=assistPractice]').click()`);

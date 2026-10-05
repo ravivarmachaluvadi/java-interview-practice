@@ -559,7 +559,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Complete the statement, as in IntelliJ: closes open brackets and adds the <code>;</code>, or <code>{ }</code> after if / for / while / a method header; on a finished line, a new line below</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td><td>Parameter hints: the names of the arguments of the call you are in</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td><td>Parameter info, as in IntelliJ: inside a call's brackets, the parameters the method expects, the one you are on in bold (also while reading a solution). Ctrl+P anywhere else finds a file</td></tr>
     <tr><td><kbd>Tab</kbd> after a template</td><td>Expands it: <code>sout</code> <code>souf</code> <code>soutv</code> <code>serr</code> <code>psvm</code> <code>main</code> <code>fori</code> <code>itar</code> <code>ritar</code> <code>iter</code> <code>ifn</code> <code>inn</code> <code>thr</code>. After a value, <code>.var</code> <code>.for</code> <code>.fori</code> <code>.sout</code> <code>.return</code> <code>.nn</code> <code>.null</code> <code>.not</code> <code>.if</code> are in the list</td></tr>
   </table>
   <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. A Try copy is kept the same way until you Discard it, and Save never writes it; there is one at a time, so starting Try on another file deletes the older copy. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
@@ -1244,7 +1244,7 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | C.Enter, run);
   editor.addCommand(K.CtrlCmd | C.KeyE, toggleEdit);
   editor.addCommand(K.CtrlCmd | C.KeyS, save);
-  editor.addCommand(K.CtrlCmd | C.KeyP, focusFilter);
+  editor.addCommand(K.CtrlCmd | C.KeyP, ctrlP);
   editor.addCommand(K.CtrlCmd | C.KeyB, toggleSide);
   editor.addCommand(K.CtrlCmd | K.Shift | C.KeyF, openSearch);
   editor.addCommand(K.CtrlCmd | K.Shift | C.Enter, () => completeStatement());
@@ -1880,6 +1880,45 @@ function lineParts(line) {
   const close = [...open].reverse().map(c => ({ '(': ')', '[': ']', '{': '}' })[c]).join('');
   return { code, comment: line.slice(end).trim(), close };
 }
+/* Ctrl+P (6 Oct, Ravi): IntelliJ's Parameter Info inside a call's brackets - the parameters
+   the method expects, the one you are on in bold. Anywhere else it still finds a file. It
+   runs only when pressed, so typing is untouched. */
+function ctrlP() {
+  const m = editor.getModel(), pos = editor.getPosition(), c = S.cur;
+  if (!m || !pos || !c || c.kind !== 'java' || !inCallParens(m, pos)) return focusFilter();
+  if (c.mode === 'practice' && !assistPracticeOn())
+    return toast('Parameter info is off in practice, like the suggestions: ⋯ → Autocomplete in Practice turns it on.');
+  editor.getAction('editor.action.triggerParameterHints').run();
+}
+/* is the caret inside the ( ) of a method call or `new X(` - not an if / for / while header?
+   Strings, char literals and comments before it are skipped; a caret inside a comment is not. */
+function inCallParens(m, pos) {
+  const t = m.getValue(), end = m.getOffsetAt(pos), open = [];
+  for (let i = 0; i < end; i++) {
+    const c = t[i];
+    if (c === '/' && t[i + 1] === '/') { const j = t.indexOf('\n', i); if (j < 0 || j >= end) return false; i = j; continue; }
+    if (c === '/' && t[i + 1] === '*') { const j = t.indexOf('*/', i + 2); if (j < 0 || j + 2 > end) return false; i = j + 1; continue; }
+    if (t.startsWith('"""', i)) { const j = t.indexOf('"""', i + 3); if (j < 0 || j + 3 > end) break; i = j + 2; continue; }
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < t.length && t[j] !== c && t[j] !== '\n') j += t[j] === '\\' ? 2 : 1;
+      if (j >= end) break;                          // the caret is in this string: still inside the call
+      i = j; continue;
+    }
+    if ('([{'.includes(c)) open.push(i);
+    else if (')]}'.includes(c)) open.pop();
+  }
+  const at = open.length ? open[open.length - 1] : -1;
+  if (at < 0 || t[at] !== '(') return false;
+  let k = at - 1;                                    // the name before the (, past a <...> list
+  while (k >= 0 && /\s/.test(t[k])) k--;
+  if (t[k] === '>') {
+    for (let d = 0; k >= 0; k--) { if (t[k] === '>') d++; else if (t[k] === '<' && --d === 0) { k--; break; } }
+    while (k >= 0 && /\s/.test(t[k])) k--;
+  }
+  const name = (t.slice(Math.max(0, k - 80), k + 1).match(/[\w$]+$/) || [''])[0];
+  return !!name && !/^(if|for|while|switch|catch|synchronized|return|throw|else|do|try|assert|yield|case)$/.test(name);
+}
 /* index of the ) that closes the first ( in s, or -1 */
 function matchParen(s) {
   let depth = 0;
@@ -2117,7 +2156,7 @@ function initAssist() {
   L.registerSignatureHelpProvider('java', {
     signatureHelpTriggerCharacters: ['(', ','], signatureHelpRetriggerCharacters: [','],
     async provideSignatureHelp(model, pos, token) {
-      if (!assistModel(model)) return null;
+      if (!assistModel(model, true)) return null;         // read-only too: Ctrl+P while reading a solution
       const r = await assistAsk('signature', model, model.getOffsetAt(pos), token);
       if (!r || r.stale || !r.sigs || !r.sigs.length) return null;
       return {
