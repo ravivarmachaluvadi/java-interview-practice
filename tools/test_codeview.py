@@ -651,6 +651,187 @@ class SweepTest(unittest.TestCase):
         self.assertEqual(codeview.sweep_leftovers(self.root / "none", self.root / "none2"), (0, 0))
 
 
+MESSY = '''/*
+ * header comment stays as written
+ */
+import java.util.*;
+import java.util.function.Function;
+class Messy {
+      private static final String DOCUMENT =
+  "first part"
+   + " second part";
+   /** One-line doc stays one line. */
+  static int[] dailyTemperatures(int[]temperatures){
+int n=temperatures.length;
+      int[] result=new int[n];
+        Deque<Integer>waiting=new ArrayDeque< >();
+   for(int today=0;today<n;today++){
+        while(!waiting.isEmpty()&&temperatures[today]>temperatures[waiting.peek()]){
+                int colder=waiting.pop();
+             result[colder]=today-colder;
+        }
+          waiting.push(today);
+      }
+ return result;
+  }
+    static double cast(int a,int b){ return (double)(a-b)/b; }
+  static String kind(int x){
+      switch(x){
+          case 1:
+          return "one";
+          default:
+          return x>0?"many":"none";
+      }
+  }
+  static int arrow(char c){
+    return switch(c){
+        case '+'->1;
+        default->-1;
+    };
+  }
+  static void collect(Map<String,List<Integer>> map, int remaining, List<Integer> path,
+  List<List<Integer>> out){
+      for(Map.Entry<String,List<Integer>> e:map.entrySet()){ out.add(e.getValue()); }
+      map.forEach((k,v)->{
+          path.add(v.size());
+      });
+      List<Integer> lengths=map.keySet().stream()
+      .map(String::length)
+      .toList();
+  }
+  public static void main(String[] args){
+      check("case 1 typical",        dailyTemperatures(new int[]{73,74,75}), "[1, 1, 0]");
+      check("nested", Arrays.toString(dailyTemperatures(new int[]{1,
+      2, 3})), "[1, 1, 0]");
+      print("wrapped", find(6,
+      new int[][]{{1, 2}, {3, 4}}, 1),
+      "[0, 1]");
+      int[] arr={-1, +2, ~3};
+      if(arr.length>0)System.out.println(arr[0]);
+      else
+      System.out.println("empty");
+  }
+  static void check(String label, Object actual, String expected){ }
+  static void print(String label, Object actual, String expected){ }
+  static int find(int n, int[][] edges, int k){ return n; }
+}
+'''
+
+# IntelliJ's own formatter (2025.2, `format.bat -s` with "keep simple blocks / multiple
+# statements in one line" and Javadoc formatting off) gives exactly this, except for the two
+# rules Ravi chose to keep: `{ return n; }` keeps its inner spaces, and the extra spaces after
+# "case 1 typical", stay (his test-case columns).
+MESSY_FORMATTED = '''/*
+ * header comment stays as written
+ */
+
+import java.util.*;
+import java.util.function.Function;
+
+class Messy {
+    private static final String DOCUMENT =
+            "first part"
+                    + " second part";
+
+    /** One-line doc stays one line. */
+    static int[] dailyTemperatures(int[] temperatures) {
+        int n = temperatures.length;
+        int[] result = new int[n];
+        Deque<Integer> waiting = new ArrayDeque<>();
+        for (int today = 0; today < n; today++) {
+            while (!waiting.isEmpty() && temperatures[today] > temperatures[waiting.peek()]) {
+                int colder = waiting.pop();
+                result[colder] = today - colder;
+            }
+            waiting.push(today);
+        }
+        return result;
+    }
+
+    static double cast(int a, int b) { return (double) (a - b) / b; }
+
+    static String kind(int x) {
+        switch (x) {
+            case 1:
+                return "one";
+            default:
+                return x > 0 ? "many" : "none";
+        }
+    }
+
+    static int arrow(char c) {
+        return switch (c) {
+            case '+' -> 1;
+            default -> -1;
+        };
+    }
+
+    static void collect(Map<String, List<Integer>> map, int remaining, List<Integer> path,
+                        List<List<Integer>> out) {
+        for (Map.Entry<String, List<Integer>> e : map.entrySet()) { out.add(e.getValue()); }
+        map.forEach((k, v) -> {
+            path.add(v.size());
+        });
+        List<Integer> lengths = map.keySet().stream()
+                .map(String::length)
+                .toList();
+    }
+
+    public static void main(String[] args) {
+        check("case 1 typical",        dailyTemperatures(new int[]{73, 74, 75}), "[1, 1, 0]");
+        check("nested", Arrays.toString(dailyTemperatures(new int[]{1,
+                2, 3})), "[1, 1, 0]");
+        print("wrapped", find(6,
+                        new int[][]{{1, 2}, {3, 4}}, 1),
+                "[0, 1]");
+        int[] arr = {-1, +2, ~3};
+        if (arr.length > 0) System.out.println(arr[0]);
+        else
+            System.out.println("empty");
+    }
+
+    static void check(String label, Object actual, String expected) {}
+
+    static void print(String label, Object actual, String expected) {}
+
+    static int find(int n, int[][] edges, int k) { return n; }
+}
+'''
+
+
+@unittest.skipUnless(pathlib.Path(codeview.JAVAC).exists(), "no JDK")
+class FormatTest(unittest.TestCase):
+    """Ctrl+Alt+L. 5 Oct: measured against IntelliJ's formatter on all 692 AAScratches files,
+    as written and with their whitespace scrambled: 686 identical both times; the other 6 only
+    keep one-line blocks unsplit (Ravi's "keep my style")."""
+
+    def fmt(self, text, fname="Messy.java"):
+        res = codeview.ASSIST.ask("format", text, 0, None, fname, "", "")
+        self.assertNotIn("error", res, res)
+        return res
+
+    def test_messy_code_comes_out_as_intellij_formats_it(self):
+        self.assertEqual(self.fmt(MESSY)["text"], MESSY_FORMATTED)
+
+    def test_every_practice_file_keeps_its_code_and_formats_once(self):
+        """Only whitespace may change, and formatting a formatted file changes nothing."""
+        files = sorted((codeview.REPO / "AAScratches").rglob("*.java"))
+        self.assertGreater(len(files), 500)          # the check is not running on nothing
+        changed_code, not_stable = [], []
+        for p in files:
+            text = p.read_bytes().decode("utf-8")
+            once = self.fmt(text, p.name)["text"]
+            if re.sub(r"\s+", "", once) != re.sub(r"\s+", "", text):
+                changed_code.append(p.name)
+            elif self.fmt(once, p.name)["text"] != once:
+                not_stable.append(p.name)
+        self.assertEqual((changed_code, not_stable), ([], []))
+
+    def test_broken_code_is_refused_with_its_line(self):
+        res = self.fmt("class B {\n    void f() {\n        int x = ;\n    }\n}\n", "B.java")
+        self.assertIn("line 3", res["reject"])
+
+
 CUR = "‸"          # where the cursor is in a fixture; taken out before the code is sent
 DAILY = """import java.util.Arrays;
 import java.util.Stack;

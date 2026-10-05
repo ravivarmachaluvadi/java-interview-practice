@@ -532,6 +532,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td><td>Format the file the way IntelliJ does (indentation, spaces, blank lines), keeping your comments, one-line blocks and the extra spaces that line up test cases</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td><td>Introduce variable, as in IntelliJ: the selected expression (or one around the cursor, from a list) becomes <code>Type name = expr;</code> above the statement, here or at every occurrence; then type a better name and Enter</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
@@ -1221,6 +1222,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? editor.getAction('editor.action.quickFix').run() : toggleFull());
   editor.addCommand(K.Shift | C.F6, () => editor.getAction('editor.action.rename').run());
   editor.addCommand(K.CtrlCmd | K.Alt | C.KeyV, () => introduceVariable());
+  editor.addCommand(K.CtrlCmd | K.Alt | C.KeyL, () => formatFile());
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
@@ -1950,6 +1952,49 @@ async function introduceVariable() {
   editor.setSelection(new monaco.Range(line, col, line, col + r.name.length));
   editor.revealLineInCenterIfOutsideViewport(line);
   setTimeout(() => editor.getAction('editor.action.rename').run(), 60);
+}
+/* Ctrl+Alt+L (5 Oct): IntelliJ's default Java formatting from the helper, with Ravi's "keep my
+   style" (comments, one-line blocks and his aligned test-case columns stay). Only changed lines
+   are replaced, so the cursor and Ctrl+Z work as usual. Any editable Java file, practice too. */
+async function formatFile() {
+  const m = editor.getModel(), c = S.cur;
+  if (!m || !c || c.kind !== 'java') return;
+  if (!isEditable()) return toast('Formatting changes the code: press Edit (or Try) first.');
+  const v = m.getVersionId();
+  const r = await assistAsk('format', m, 0);
+  if (!r || m.getVersionId() !== v) return;
+  if (r.reject) return toast(r.reject);
+  const eol = m.getEOL(), old = m.getLinesContent(), now = r.text.split(/\r?\n/);
+  let a = 0, b = 0;
+  while (a < old.length && a < now.length && old[a] === now[a]) a++;            // same lines at the top
+  while (b < old.length - a && b < now.length - a && old[old.length - 1 - b] === now[now.length - 1 - b]) b++;   // and the bottom
+  if (a === old.length && a === now.length) return toast('Already formatted');
+  const edits = [];
+  if (old.length === now.length) {                                             // line for line
+    for (let i = a; i < old.length - b; i++) {
+      if (old[i] !== now[i]) edits.push({ range: new monaco.Range(i + 1, 1, i + 1, old[i].length + 1), text: now[i] });
+    }
+  } else {                                       // blank lines added or removed: replace whole lines between
+    const mid = now.slice(a, now.length - b), last = old.length;
+    if (b > 0) edits.push({ range: new monaco.Range(a + 1, 1, last - b + 1, 1), text: mid.map(l => l + eol).join('') });
+    else if (a < last) edits.push({ range: new monaco.Range(a + 1, 1, last, old[last - 1].length + 1), text: mid.join(eol) });
+    else edits.push({ range: new monaco.Range(last, old[last - 1].length + 1, last, old[last - 1].length + 1), text: eol + mid.join(eol) });
+  }
+  const pos = editor.getPosition();
+  editor.pushUndoStop();
+  editor.executeEdits('format', edits);
+  editor.pushUndoStop();
+  // back onto its own line of code: only whitespace and blank lines moved, so the n-th
+  // non-blank line before is the n-th non-blank line after
+  const code = arr => arr.reduce((acc, l, i) => (l.trim() && acc.push(i), acc), []);
+  const k = code(old).indexOf(pos.lineNumber - 1), to = code(now)[k];
+  if (k >= 0 && to != null) {
+    const was = old[pos.lineNumber - 1], is = now[to];
+    const shift = (is.length - is.trimStart().length) - (was.length - was.trimStart().length);
+    editor.setPosition({ lineNumber: to + 1, column: Math.max(is.length - is.trimStart().length + 1, pos.column + shift) });
+  }
+  const changed = now.filter((l, i) => l !== old[i]).length;
+  toast(`Formatted: ${edits.length === 1 && old.length !== now.length ? 'blank lines and ' : ''}${changed} line${changed === 1 ? '' : 's'} changed`);
 }
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;

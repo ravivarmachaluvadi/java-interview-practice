@@ -169,6 +169,7 @@ public class CvAssist {
             case "definition" -> definition(r);
             case "rename" -> rename(r);
             case "extract" -> extract(r);
+            case "format" -> format(r);
             default -> new LinkedHashMap<>(Map.of("error", "unknown op " + r.op));
         };
         res.put("ms", (System.nanoTime() - t0) / 1_000_000);
@@ -1702,6 +1703,641 @@ public class CvAssist {
             out.add(m);
         }
         return out;
+    }
+
+    /* ------------------------------------------------------------------ format (Ctrl+Alt+L) */
+
+    /* IntelliJ's default Java style (5 Oct, Ravi's choice "keep my style"): indentation 4,
+       continuation 8, IntelliJ's spaces and blank lines; but comments are left as written,
+       2+ spaces after a comma stay (his test-case columns), and lines are never split or
+       joined. Checked against IntelliJ's own command-line formatter run with those settings
+       (tools/test_codeview.py FormatTest has the rules it showed). */
+
+    /** A token: w word, n number, s string/char/text block, l // comment, b block comment, o operator. */
+    record Tok(char kind, int start, int end) {}
+
+    /** Positions javac's tree gives meaning to: which < > are generics, which ) ends a cast... */
+    static final class Marks {
+        final Set<Integer> genOpen = new HashSet<>(), genOpenSpaced = new HashSet<>(), genClose = new HashSet<>();
+        final Set<Integer> genCloseTight = new HashSet<>();      // a method call's own type arguments: no space after
+        final Set<Integer> castClose = new HashSet<>(), spacedColon = new HashSet<>(), ternary = new HashSet<>();
+        final Set<Integer> arrayBrace = new HashSet<>(), prefix = new HashSet<>(), postfix = new HashSet<>();
+        final Set<Integer> switchBrace = new HashSet<>(), colonCase = new HashSet<>();
+        final Set<Integer> alignParen = new HashSet<>();          // ( whose wrapped content lines up under its first item
+        final Set<Integer> enumBrace = new HashSet<>();           // an enum's body: a comma ends a constant
+        final Map<Integer, Long> braceOwner = new HashMap<>();   // a block's { -> where its statement starts
+    }
+
+    static final Set<String> CONTROL = Set.of("if", "for", "while", "switch", "catch", "synchronized", "try", "return",
+            "throw", "case", "assert", "yield", "else", "do");
+    static final Set<String> BINARY = Set.of("=", "==", "!=", "<", ">", "<=", ">=", "+", "-", "*", "/", "%", "&&", "||", "&",
+            "|", "^", "<<", ">>", ">>>", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>=", "->");
+    static final String[] OPS = {">>>=", "<<=", ">>=", ">>>", "...", "->", "::", "++", "--", "&&", "||", "==", "!=", "<=",
+            ">=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>"};
+
+    Map<String, Object> format(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        String t = r.text;
+        fm.setLocation(StandardLocation.SOURCE_PATH, List.of());
+        List<Diagnostic<? extends JavaFileObject>> diags = new ArrayList<>();
+        Source file = new Source(r.fileName.isEmpty() ? "Scratch.java" : r.fileName, t);
+        JavacTask task = (JavacTask) jc.getTask(Writer.nullWriter(), fm, diags::add, List.of("-proc:none"), null, List.of(file));
+        CompilationUnitTree cu = task.parse().iterator().next();
+        for (Diagnostic<? extends JavaFileObject> d : diags) {
+            if (d.getKind() == Diagnostic.Kind.ERROR) {
+                return reject(res, "Fix the syntax error on line " + d.getLineNumber() + " first (the red underline), then format");
+            }
+        }
+        SourcePositions sp = Trees.instance(task).getSourcePositions();
+        Marks mk = marks(cu, sp, t);
+        List<Tok> toks = lexJava(t, mk.genClose);
+        res.put("text", layout(t, toks, mk, cu, sp));
+        return res;
+    }
+
+    /* ---- tree marks */
+
+    Marks marks(CompilationUnitTree cu, SourcePositions sp, String t) {
+        Marks mk = new Marks();
+        new TreeScanner<Void, Void>() {
+            long s(Tree x) { return sp.getStartPosition(cu, x); }
+            long e(Tree x) { return sp.getEndPosition(cu, x); }
+            int after(long from, char c) { int i = t.indexOf(c, (int) Math.max(0, from)); return i; }
+            int before(long from, char c) { return t.lastIndexOf(c, (int) from - 1); }
+            void typeParams(List<? extends Tree> ps, boolean spaced) {
+                if (ps.isEmpty()) return;
+                int open = before(s(ps.get(0)), '<'), close = after(e(ps.get(ps.size() - 1)), '>');
+                if (open >= 0) (spaced ? mk.genOpenSpaced : mk.genOpen).add(open);
+                if (close >= 0) mk.genClose.add(close);
+            }
+            void typeArgs(List<? extends Tree> as, long fallbackFrom) {      // Collections.<Integer>emptyList()
+                if (as.isEmpty()) return;
+                int open = before(s(as.get(0)), '<'), close = after(e(as.get(as.size() - 1)), '>');
+                if (open >= 0) mk.genOpen.add(open);
+                if (close >= 0) { mk.genClose.add(close); mk.genCloseTight.add(close); }
+            }
+            @Override public Void visitParameterizedType(ParameterizedTypeTree n, Void v) {
+                int open = after(e(n.getType()), '<');
+                long end = e(n);
+                if (open >= 0 && end > open) { mk.genOpen.add(open); mk.genClose.add((int) end - 1); }
+                return super.visitParameterizedType(n, v);
+            }
+            @Override public Void visitClass(ClassTree n, Void v) {
+                typeParams(n.getTypeParameters(), false);
+                long bodyFrom = n.getTypeParameters().isEmpty() ? s(n) : e(n.getTypeParameters().get(n.getTypeParameters().size() - 1));
+                for (Tree x : List.of(n.getExtendsClause() == null ? n : n.getExtendsClause())) bodyFrom = Math.max(bodyFrom, x == n ? bodyFrom : e(x));
+                for (Tree x : n.getImplementsClause()) bodyFrom = Math.max(bodyFrom, e(x));
+                int brace = after(bodyFrom, '{');
+                if (brace >= 0 && brace < e(n)) mk.braceOwner.put(brace, s(n));
+                if (brace >= 0 && n.getKind() == Tree.Kind.ENUM) mk.enumBrace.add(brace);
+                return super.visitClass(n, v);
+            }
+            @Override public Void visitMethod(MethodTree n, Void v) {
+                typeParams(n.getTypeParameters(), true);
+                if (n.getBody() != null) mk.braceOwner.put((int) s(n.getBody()), s(n));
+                // IntelliJ aligns wrapped parameters under the first one
+                if (!n.getParameters().isEmpty()) { int p = before(s(n.getParameters().get(0)), '('); if (p >= 0) mk.alignParen.add(p); }
+                return super.visitMethod(n, v);
+            }
+            @Override public Void visitMethodInvocation(MethodInvocationTree n, Void v) {
+                typeArgs(n.getTypeArguments(), s(n));
+                return super.visitMethodInvocation(n, v);
+            }
+            @Override public Void visitTypeCast(TypeCastTree n, Void v) {
+                int close = after(e(n.getType()), ')');
+                if (close >= 0) mk.castClose.add(close);
+                return super.visitTypeCast(n, v);
+            }
+            @Override public Void visitConditionalExpression(ConditionalExpressionTree n, Void v) {
+                int q = after(e(n.getCondition()), '?'), c = after(e(n.getTrueExpression()), ':');
+                if (q >= 0) mk.ternary.add(q);
+                if (c >= 0) { mk.ternary.add(c); mk.spacedColon.add(c); }
+                return super.visitConditionalExpression(n, v);
+            }
+            @Override public Void visitEnhancedForLoop(EnhancedForLoopTree n, Void v) {
+                int c = after(e(n.getVariable()), ':');
+                if (c >= 0) mk.spacedColon.add(c);
+                own(n.getStatement(), s(n));
+                return super.visitEnhancedForLoop(n, v);
+            }
+            @Override public Void visitAssert(AssertTree n, Void v) {
+                if (n.getDetail() != null) { int c = after(e(n.getCondition()), ':'); if (c >= 0) mk.spacedColon.add(c); }
+                return super.visitAssert(n, v);
+            }
+            @Override public Void visitNewArray(NewArrayTree n, Void v) {
+                if (n.getInitializers() != null) {
+                    long from = n.getDimensions().isEmpty() ? s(n) : e(n.getDimensions().get(n.getDimensions().size() - 1));
+                    int open = n.getType() == null ? (int) s(n) : after(from, '{');
+                    if (open >= 0) mk.arrayBrace.add(open);
+                    mk.arrayBrace.add((int) e(n) - 1);
+                    if (open >= 0) mk.braceOwner.put(open, s(n));
+                }
+                return super.visitNewArray(n, v);
+            }
+            @Override public Void visitLiteral(LiteralTree n, Void v) {    // javac reads -1 as one literal
+                long st = s(n);
+                if (st >= 0 && st < t.length() && t.charAt((int) st) == '-') mk.prefix.add((int) st);
+                return super.visitLiteral(n, v);
+            }
+            @Override public Void visitUnary(UnaryTree n, Void v) {
+                switch (n.getKind()) {
+                    case POSTFIX_INCREMENT, POSTFIX_DECREMENT -> mk.postfix.add((int) e(n) - 2);
+                    default -> mk.prefix.add((int) s(n));
+                }
+                return super.visitUnary(n, v);
+            }
+            @Override public Void visitSwitch(SwitchTree n, Void v) {
+                int b = after(e(n.getExpression()), '{');
+                if (b >= 0) { mk.switchBrace.add(b); mk.braceOwner.put(b, s(n)); }
+                cases(n.getCases());
+                return super.visitSwitch(n, v);
+            }
+            @Override public Void visitSwitchExpression(SwitchExpressionTree n, Void v) {
+                int b = after(e(n.getExpression()), '{');
+                if (b >= 0) { mk.switchBrace.add(b); mk.braceOwner.put(b, s(n)); }
+                cases(n.getCases());
+                return super.visitSwitchExpression(n, v);
+            }
+            void cases(List<? extends CaseTree> cs) {
+                for (CaseTree c : cs) {
+                    if (c.getCaseKind() == CaseTree.CaseKind.STATEMENT) mk.colonCase.add((int) s(c));
+                    if (c.getBody() instanceof BlockTree b) mk.braceOwner.put((int) s(b), s(c));
+                }
+            }
+            /* a block's content is indented from where its statement starts (if, for, lambda...) */
+            void own(Tree body, long start) { if (body instanceof BlockTree b) mk.braceOwner.put((int) s(b), start); }
+            @Override public Void visitIf(IfTree n, Void v) { own(n.getThenStatement(), s(n)); return super.visitIf(n, v); }
+            @Override public Void visitForLoop(ForLoopTree n, Void v) {
+                own(n.getStatement(), s(n));
+                int p = after(s(n), '(');                                // IntelliJ aligns a wrapped for header
+                if (p >= 0) mk.alignParen.add(p);
+                return super.visitForLoop(n, v);
+            }
+            @Override public Void visitWhileLoop(WhileLoopTree n, Void v) { own(n.getStatement(), s(n)); return super.visitWhileLoop(n, v); }
+            @Override public Void visitDoWhileLoop(DoWhileLoopTree n, Void v) { own(n.getStatement(), s(n)); return super.visitDoWhileLoop(n, v); }
+            @Override public Void visitTry(TryTree n, Void v) {
+                own(n.getBlock(), s(n));
+                if (!n.getResources().isEmpty()) { int p = before(s(n.getResources().get(0)), '('); if (p >= 0) mk.alignParen.add(p); }
+                return super.visitTry(n, v);
+            }
+            @Override public Void visitCatch(CatchTree n, Void v) { own(n.getBlock(), s(n)); return super.visitCatch(n, v); }
+            @Override public Void visitSynchronized(SynchronizedTree n, Void v) { own(n.getBlock(), s(n)); return super.visitSynchronized(n, v); }
+            @Override public Void visitLambdaExpression(LambdaExpressionTree n, Void v) { own(n.getBody(), s(n)); return super.visitLambdaExpression(n, v); }
+        }.scan(cu, null);
+        return mk;
+    }
+
+    /* ---- lexer */
+
+    static List<Tok> lexJava(String t, Set<Integer> genClose) {
+        List<Tok> out = new ArrayList<>();
+        int i = 0, n = t.length();
+        while (i < n) {
+            char c = t.charAt(i);
+            if (c == ' ' || c == '\t' || c == '\f' || c == '\r' || c == '\n') { i++; continue; }
+            int j;
+            if (c == '/' && i + 1 < n && t.charAt(i + 1) == '/') {
+                j = i;
+                while (j < n && t.charAt(j) != '\n' && t.charAt(j) != '\r') j++;
+                out.add(new Tok('l', i, j));
+            } else if (c == '/' && i + 1 < n && t.charAt(i + 1) == '*') {
+                int close = t.indexOf("*/", i + 2);
+                j = close < 0 ? n : close + 2;
+                out.add(new Tok('b', i, j));
+            } else if (t.startsWith("\"\"\"", i)) {
+                j = i + 3;
+                while (j < n && !(t.startsWith("\"\"\"", j) && t.charAt(j - 1) != '\\')) j++;
+                j = Math.min(n, j + 3);
+                out.add(new Tok('s', i, j));
+            } else if (c == '"' || c == '\'') {
+                j = i + 1;
+                while (j < n && t.charAt(j) != c && t.charAt(j) != '\n') j += t.charAt(j) == '\\' ? 2 : 1;
+                j = Math.min(n, j + 1);
+                out.add(new Tok('s', i, j));
+            } else if (Character.isDigit(c) || c == '.' && i + 1 < n && Character.isDigit(t.charAt(i + 1))) {
+                j = i;
+                while (j < n) {
+                    char d = t.charAt(j);
+                    if (Character.isLetterOrDigit(d) || d == '_' || d == '.' && !t.startsWith("..", j)) j++;
+                    else if ((d == '+' || d == '-') && j > i && "eEpP".indexOf(t.charAt(j - 1)) >= 0 && !t.startsWith("0x", i) && !t.startsWith("0X", i)) j++;
+                    else break;
+                }
+                out.add(new Tok('n', i, j));
+            } else if (Character.isJavaIdentifierStart(c)) {
+                j = i + 1;
+                while (j < n && Character.isJavaIdentifierPart(t.charAt(j))) j++;
+                out.add(new Tok('w', i, j));
+            } else {
+                j = i + 1;
+                if (!(c == '>' && genClose.contains(i))) {
+                    for (String op : OPS) if (t.startsWith(op, i)) { j = i + op.length(); break; }
+                    // a generic close inside >> or >>> is its own token
+                    for (int k = i + 1; k < j; k++) if (t.charAt(k) == '>' && genClose.contains(k)) { j = k; break; }
+                }
+                out.add(new Tok('o', i, j));
+            }
+            i = j;
+        }
+        return out;
+    }
+
+    /* ---- layout */
+
+    /** One open bracket while laying out lines. */
+    static final class Open {
+        final String ch;
+        final int indent;          // where its content lines start
+        final int close;           // where a line starting with its closer goes
+        final boolean array, swtch;
+        boolean caseSeen, aligned, enumBody;
+        int argFrom = -1;          // a wrapped argument's first line's indent: its next line goes 8 past it
+        int start;                 // the bracket's position in the text
+        Ctx saved;                 // a block: the statement state outside it
+        Open(String ch, int indent, int close, boolean array, boolean swtch) {
+            this.ch = ch; this.indent = indent; this.close = close; this.array = array; this.swtch = swtch;
+        }
+    }
+
+    String layout(String t, List<Tok> toks, Marks mk, CompilationUnitTree cu, SourcePositions sp) {
+        String eol = t.contains("\r\n") ? "\r\n" : "\n";
+        List<Integer> starts = new ArrayList<>(List.of(0));
+        for (int i = 0; i < t.length(); i++) if (t.charAt(i) == '\n') starts.add(i + 1);
+        int nl = starts.size();
+        String[] lines = new String[nl];
+        for (int i = 0; i < nl; i++) {
+            int a = starts.get(i), b = i + 1 < nl ? starts.get(i + 1) - 1 : t.length();
+            String s = t.substring(a, b);
+            lines[i] = s.endsWith("\r") ? s.substring(0, s.length() - 1) : s;
+        }
+        // tokens by line; a token reaching past its line (block comment, text block) covers the next ones
+        List<List<Tok>> byLine = new ArrayList<>();
+        for (int i = 0; i < nl; i++) byLine.add(new ArrayList<>());
+        int[] coveredBy = new int[nl];
+        Arrays.fill(coveredBy, -1);
+        for (int k = 0; k < toks.size(); k++) {
+            Tok tk = toks.get(k);
+            int line = lineOf(starts, tk.start);
+            byLine.get(line).add(tk);
+            int last = lineOf(starts, Math.max(tk.start, tk.end - 1));
+            for (int x = line + 1; x <= last; x++) coveredBy[x] = k;
+        }
+        // A bracket "wraps" when one of its own items starts a later line. IntelliJ indents a
+        // bracket's content 8 past the nearest enclosing bracket that wraps (else past the line):
+        // print("x", find(6,\n...\n"y") puts find's next line 8 deeper than print's items.
+        // A call whose ) is followed by .next() on a later line is part of a wrapped chain:
+        // IntelliJ puts its arguments 8 past the chain's lines, and its ) on the chain's level.
+        Set<Integer> wrapped = new HashSet<>(), chainParen = new HashSet<>();
+        {
+            Deque<Tok> open = new ArrayDeque<>();
+            int prevLine = -1;
+            for (int k = 0; k < toks.size(); k++) {
+                Tok tk = toks.get(k);
+                int line = lineOf(starts, tk.start);
+                String s = tk.kind == 'o' ? text(t, tk) : "";
+                if (line != prevLine && !open.isEmpty() && coveredBy[line] < 0) {
+                    Tok owner = open.peek();
+                    if (lineOf(starts, owner.start) < line) wrapped.add(owner.start);
+                }
+                prevLine = line;
+                if (s.equals("(") || s.equals("[") || s.equals("{")) open.push(tk);
+                else if ((s.equals(")") || s.equals("]") || s.equals("}")) && !open.isEmpty()) {
+                    Tok o = open.pop();
+                    if (s.equals(")") && k + 1 < toks.size() && text(t, toks.get(k + 1)).equals(".")
+                            && lineOf(starts, toks.get(k + 1).start) > line && lineOf(starts, o.start) < line) chainParen.add(o.start);
+                }
+            }
+        }
+        String[] out = new String[nl];
+        int[] shift = new int[toks.size()];
+        Deque<Open> stack = new ArrayDeque<>();
+        Ctx ctx = new Ctx();
+        Map<Integer, Integer> lineIndent = new HashMap<>();
+        for (int i = 0; i < nl; i++) {
+            boolean verbatim = false;
+            if (coveredBy[i] >= 0) {                                   // inside a block comment or text block
+                Tok tk = toks.get(coveredBy[i]);
+                out[i] = tk.kind == 'b' ? shifted(lines[i], shift[coveredBy[i]]) : lines[i];
+                if (byLine.get(i).isEmpty()) continue;
+                // code after it on its last line (the ; after a text block): left as written, but
+                // it still ends the statement
+                out[i] = lines[i].stripTrailing();
+                verbatim = true;
+            }
+            List<Tok> lt = byLine.get(i);
+            if (lt.isEmpty()) { out[i] = ""; continue; }
+            Tok first = lt.get(0);
+            String ft = text(t, first);
+            boolean commentOnly = lt.stream().allMatch(x -> x.kind == 'l' || x.kind == 'b');
+            int oldIndent = first.start - starts.get(i);
+            int indent;
+            Open top = stack.peek();
+            boolean closer = ft.equals("}") || ft.equals(")") || ft.equals("]");
+            boolean caseLine = ft.equals("case") || ft.equals("default") && lt.size() > 1
+                    && (text(t, lt.get(1)).equals(":") || text(t, lt.get(1)).equals("->"));
+            boolean colonCase = mk.colonCase.contains(first.start);          // only `case x:` indents what follows
+            if (closer && top != null) {
+                indent = top.close;
+            } else if (top != null && !top.ch.equals("{")) {
+                indent = !top.aligned && top.argFrom >= 0 ? Math.max(top.indent, top.argFrom + 8) : top.indent;
+            } else if (top != null && top.array) {
+                indent = top.indent;
+            } else {
+                int base = top == null ? 0 : top.indent;
+                if (top != null && top.swtch && top.caseSeen && !caseLine) base += 4;
+                if (ctx.pendingBody >= 0 && !ctx.cont) indent = ctx.pendingBody;
+                else if (ctx.cont) indent = (ctx.afterAssign || ctx.exprFrom < 0 ? ctx.stmtIndent : ctx.exprFrom) + 8;
+                else indent = base;
+            }
+            if (top != null && top.swtch && caseLine && !closer) indent = top.indent;
+            if (commentOnly && oldIndent == 0) indent = 0;              // IntelliJ keeps first-column comments
+            indent = Math.max(0, indent);
+            Map<Integer, Integer> cols = new HashMap<>();
+            if (verbatim) {
+                indent = lines[i].length() - lines[i].stripLeading().length();
+            } else {
+                if (first.kind == 'b') shift[toks.indexOf(first)] = indent - oldIndent;
+                out[i] = " ".repeat(indent) + joinLine(t, lt, mk, lines[i], starts.get(i), cols, indent);
+            }
+            lineIndent.put(i, indent);
+            if (commentOnly) continue;
+            // the state after this line
+            boolean newStmt = !ctx.cont && (top == null || top.ch.equals("{") && !top.array);
+            if (newStmt) { ctx.stmtIndent = indent; ctx.exprFrom = -1; ctx.afterAssign = false; }
+            else if (ctx.cont && ctx.afterAssign && (top == null || top.ch.equals("{") && !top.array)) {
+                ctx.exprFrom = indent;                                  // the value after `=` starts here
+                ctx.afterAssign = false;
+            }
+            for (int k = 0; k < lt.size(); k++) {
+                Tok tk = lt.get(k);
+                if (tk.kind != 'o') continue;
+                String s = text(t, tk);
+                switch (s) {
+                    case "(", "[" -> {
+                        // content: 8 past the nearest enclosing bracket that wraps, else past this
+                        // line; a method's parameters (and a for or try header) line up under the first
+                        boolean aligned = mk.alignParen.contains(tk.start) && k + 1 < lt.size() && lt.get(k + 1).kind != 'l'
+                                && cols.containsKey(lt.get(k + 1).start);
+                        boolean chain = !aligned && chainParen.contains(tk.start);
+                        int at = aligned ? cols.get(lt.get(k + 1).start) : wrapBase(stack, wrapped, indent) + (chain ? 16 : 8);
+                        Open o = new Open(s, at, chain ? indent + 8 : indent, false, false);
+                        o.aligned = aligned;
+                        o.start = tk.start;
+                        stack.push(o);
+                    }
+                    case "{" -> {
+                        boolean arr = mk.arrayBrace.contains(tk.start);
+                        Long owner = mk.braceOwner.get(tk.start);
+                        int ownerIndent = owner == null ? indent : lineIndent.getOrDefault(lineOf(starts, owner.intValue()), indent);
+                        Open o = arr ? new Open("{", wrapBase(stack, wrapped, indent) + 8, indent, true, false)
+                                     : new Open("{", ownerIndent + 4, ownerIndent, false, mk.switchBrace.contains(tk.start));
+                        if (!arr) { o.saved = ctx; ctx = new Ctx(); }       // a block has statements of its own
+                        o.start = tk.start;
+                        o.enumBody = mk.enumBrace.contains(tk.start);
+                        stack.push(o);
+                    }
+                    case "}", ")", "]" -> {
+                        if (stack.isEmpty()) break;
+                        Open o = stack.pop();
+                        if (o.saved != null) ctx = o.saved;                // back to the statement around the block
+                    }
+                    default -> { }
+                }
+            }
+            Open now = stack.peek();
+            if (now != null && now.swtch && colonCase) now.caseSeen = true;
+            Tok last = null;
+            for (int k = lt.size() - 1; k >= 0; k--) if (lt.get(k).kind != 'l' && lt.get(k).kind != 'b') { last = lt.get(k); break; }
+            String lastText = last == null ? "" : text(t, last);
+            boolean annotationLine = ft.equals("@") && !lastText.equals(";") && !lastText.equals("{") && (now == null || now.ch.equals("{"));
+            boolean label = lt.size() == 2 && first.kind == 'w' && lastText.equals(":");
+            boolean ended = lastText.equals(";") || lastText.equals("{") || lastText.equals("}") || caseLine && lastText.equals(":")
+                    || annotationLine || label || lastText.equals("->") && caseLine
+                    || lastText.equals(",") && now != null && now.enumBody;           // MONDAY(1) {...},
+            boolean insideParen = now != null && !now.ch.equals("{");
+            if (insideParen) {
+                // inside ( ): a line not ending at a comma leaves its argument unfinished
+                if (lastText.equals(",") || lastText.equals("(") || lastText.equals("[")) now.argFrom = -1;
+                else if (now.argFrom < 0) now.argFrom = indent;
+                continue;
+            }
+            if (now != null && now.array) continue;
+            if (ended) {
+                ctx.cont = false;
+                ctx.pendingBody = -1;
+            } else if (headerDone(t, lt)) {
+                ctx.pendingBody = ctx.stmtIndent + 4;    // a body on the next line gets +4, not continuation +8
+                ctx.cont = false;
+            } else {
+                ctx.cont = true;
+                ctx.afterAssign = ASSIGN.contains(lastText);
+            }
+        }
+        return blankLines(out, cu, sp, t, starts, eol);
+    }
+
+    /** What a new bracket's content goes 8 past: the nearest enclosing bracket that wraps, else this line. */
+    static int wrapBase(Deque<Open> stack, Set<Integer> wrapped, int lineIndent) {
+        for (Open o : stack) {                                   // innermost first
+            if (o.ch.equals("{") && !o.array) break;             // a block starts afresh
+            if (wrapped.contains(o.start)) return Math.max(lineIndent, o.indent);
+        }
+        return lineIndent;
+    }
+
+    static final Set<String> ASSIGN = Set.of("=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ">>>=");
+
+    /** Where the statement being laid out stands. A block keeps the one around it to go back to. */
+    static final class Ctx {
+        boolean cont;              // the statement goes on to the next line
+        boolean afterAssign;       // ... and that line holds the value after `=`
+        int stmtIndent;            // its first line's indent
+        int exprFrom = -1;         // the line where that value started (its wrapped lines go 8 past it)
+        int pendingBody = -1;      // indent for an if / for / while body without braces
+    }
+
+    /* "if (...)" / "for (...)" / "while (...)" / "else" / "do" ending its line without { or ; */
+    static boolean headerDone(String t, List<Tok> lt) {
+        List<String> words = new ArrayList<>();
+        for (Tok tk : lt) if (tk.kind != 'l' && tk.kind != 'b') words.add(text(t, tk));
+        if (words.isEmpty()) return false;
+        int k = words.get(0).equals("}") ? 1 : 0;
+        if (k >= words.size()) return false;
+        String w = words.get(k), last = words.get(words.size() - 1);
+        if ((w.equals("else") || w.equals("do") || w.equals("try") || w.equals("finally")) && words.size() == k + 1) return true;
+        if (w.equals("else") && k + 1 < words.size() && words.get(k + 1).equals("if")) w = "if";
+        return (w.equals("if") || w.equals("for") || w.equals("while")) && last.equals(")");
+    }
+
+    static String shifted(String line, int by) {
+        if (by == 0) return line.stripTrailing();
+        int lead = 0;
+        while (lead < line.length() && line.charAt(lead) == ' ') lead++;
+        int now = Math.max(0, lead + by);
+        return (" ".repeat(now) + line.substring(lead)).stripTrailing();
+    }
+
+    static int lineOf(List<Integer> starts, int pos) {
+        int lo = 0, hi = starts.size() - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) / 2;
+            if (starts.get(mid) <= pos) lo = mid; else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    static String text(String t, Tok tk) { return t.substring(tk.start, tk.end); }
+
+    /** One line's tokens with IntelliJ's spaces between them; cols gets each token's column. */
+    String joinLine(String t, List<Tok> lt, Marks mk, String line, int lineStart, Map<Integer, Integer> cols, int indent) {
+        StringBuilder b = new StringBuilder();
+        for (int k = 0; k < lt.size(); k++) {
+            Tok tk = lt.get(k);
+            String s = tk.end > lineStart + line.length() ? line.substring(tk.start - lineStart) : text(t, tk);
+            if (k > 0) {
+                Tok p = lt.get(k - 1);
+                b.append(gap(t, p, tk, mk, t.substring(Math.min(p.end, tk.start), tk.start)));
+            }
+            cols.put(tk.start, indent + b.length());
+            b.append(s);
+        }
+        return b.toString().stripTrailing();
+    }
+
+    static String gap(String t, Tok p, Tok n, Marks mk, String orig) {
+        String pt = text(t, p), nt = text(t, n);
+        char pk = p.kind, nk = n.kind;
+        boolean pWord = pk == 'w' || pk == 'n' || pk == 's', nWord = nk == 'w' || nk == 'n' || nk == 's';
+        if (nk == 'l' || nk == 'b') return orig.isEmpty() ? " " : orig;        // comments keep their place
+        if (pk == 'b') return orig.isEmpty() ? "" : " ";
+        if (pt.equals(",")) return orig.length() >= 2 && orig.isBlank() ? orig : " ";   // his aligned columns
+        if (mk.genOpen.contains(p.start) || mk.genOpenSpaced.contains(p.start)) return "";
+        if (mk.genOpenSpaced.contains(n.start)) return " ";
+        if (mk.genOpen.contains(n.start)) return "";
+        if (mk.genClose.contains(n.start)) return "";
+        if (mk.genClose.contains(p.start)) {
+            if (mk.genCloseTight.contains(p.start)) return "";
+            if (nt.equals("{") && !mk.arrayBrace.contains(n.start)) return " ";      // implements Iterator<Integer> {
+            return nk == 'w' || nt.equals("@") ? " " : "";
+        }
+        if (pt.equals(".") || nt.equals(".") || pt.equals("::") || nt.equals("::")) return "";
+        if (pt.equals("(") || pt.equals("[")) return "";
+        if (pt.equals(";") && nt.equals(")")) return " ";                         // for (x = head; x != null; )
+        if (nt.equals(")") || nt.equals("]") || nt.equals(",") || nt.equals(";")) return "";
+        if (pt.equals(";")) return " ";
+        if (nt.equals("{") && mk.arrayBrace.contains(n.start)) return pt.equals("]") || pt.equals("{") ? "" : " ";
+        if (pt.equals("{") && mk.arrayBrace.contains(p.start)) return "";
+        if (nt.equals("}") && mk.arrayBrace.contains(n.start)) return "";
+        if (pt.equals("@")) return "";
+        if (mk.prefix.contains(p.start) && pk == 'o') return "";
+        if (mk.postfix.contains(n.start)) return "";
+        if (pt.equals("!") || pt.equals("~")) return "";
+        if (nt.equals("...")) return "";
+        if (pt.equals("...")) return " ";
+        if (nt.equals(":")) return mk.spacedColon.contains(n.start) ? " " : "";
+        if (pt.equals(":")) return " ";
+        if (nt.equals("?")) return mk.ternary.contains(n.start) ? " " : "";
+        if (pt.equals("?")) return mk.ternary.contains(p.start) || nk == 'w' ? " " : "";
+        if (nt.equals("(")) {
+            if (mk.castClose.contains(p.start)) return " ";                  // (double) (a - b)
+            if (pk == 'w') return CONTROL.contains(pt) ? " " : "";
+            if (pt.equals(")") || pt.equals("]")) return "";
+            return BINARY.contains(pt) ? " " : "";
+        }
+        if (pt.equals(")")) {
+            if (mk.castClose.contains(p.start)) return " ";
+            if (nWord || nt.equals("{") || BINARY.contains(nt) || nt.equals("@")) return " ";
+            return "";
+        }
+        if (pt.equals("{") && nt.equals("}")) return "";
+        if (nt.equals("{") || pt.equals("{") || nt.equals("}")) return " ";
+        if (pt.equals("}")) return nk == 'w' ? " " : "";
+        if (nt.equals("[")) return "";
+        if (pt.equals("]")) return nWord || BINARY.contains(nt) || nt.equals("@") ? " " : "";
+        if (BINARY.contains(pt) || BINARY.contains(nt)) return " ";
+        if (pWord && nWord) return " ";
+        if (pt.equals("++") || pt.equals("--")) return nWord ? " " : "";
+        return orig.isEmpty() ? "" : " ";
+    }
+
+    /* ---- blank lines: at most 2 in a row; 1 before and after imports, after package, and
+       around methods and classes (IntelliJ's minimums), counting comments as part of what follows */
+
+    String blankLines(String[] out, CompilationUnitTree cu, SourcePositions sp, String t, List<Integer> starts, String eol) {
+        int n = out.length;
+        boolean[] blankBefore = new boolean[n];
+        java.util.function.IntPredicate blank = i -> i >= 0 && i < n && out[i].isBlank();
+        List<? extends ImportTree> imports = cu.getImports();
+        if (cu.getPackage() != null) {
+            int pl = lineOf(starts, (int) sp.getEndPosition(cu, cu.getPackage()));
+            if (pl + 1 < n && !blank.test(pl + 1)) blankBefore[pl + 1] = true;
+        }
+        if (!imports.isEmpty()) {
+            int fi = lineOf(starts, (int) sp.getStartPosition(cu, imports.get(0)));
+            int li = lineOf(starts, (int) sp.getEndPosition(cu, imports.get(imports.size() - 1)));
+            if (fi > 0 && !blank.test(fi - 1)) blankBefore[fi] = true;
+            if (li + 1 < n && !blank.test(li + 1)) blankBefore[li + 1] = true;
+            // IntelliJ's import groups: everything else, then java/javax, then static; a blank between
+            for (int k = 1; k < imports.size(); k++) {
+                int a = lineOf(starts, (int) sp.getStartPosition(cu, imports.get(k - 1)));
+                int b = lineOf(starts, (int) sp.getStartPosition(cu, imports.get(k)));
+                if (b == a + 1 && importGroup(imports.get(k - 1)) != importGroup(imports.get(k))) blankBefore[b] = true;
+            }
+        }
+        new TreeScanner<Void, Void>() {
+            void members(List<? extends Tree> ms) {
+                Tree prev = null;
+                for (Tree m : ms) {
+                    if (sp.getStartPosition(cu, m) < 0 || sp.getEndPosition(cu, m) < 0) continue;   // javac's default constructor
+                    if (prev != null && (big(prev) || big(m))) {
+                        int pe = lineOf(starts, (int) sp.getEndPosition(cu, prev) - 1);
+                        int vs = lineOf(starts, (int) sp.getStartPosition(cu, m));
+                        // its /** */ and annotations belong to it, and so do // lines right above
+                        // it; but a // line above a /** */ does not (IntelliJ puts a blank between)
+                        boolean doc = false;
+                        while (vs - 1 > pe) {
+                            String s = out[vs - 1].strip();
+                            if (s.isEmpty()) break;
+                            if (s.startsWith("/*") || s.startsWith("*") || s.endsWith("*/") || s.startsWith("@")) { doc |= !s.startsWith("@"); vs--; }
+                            else if (s.startsWith("//") && !doc) vs--;
+                            else break;
+                        }
+                        if (vs > pe && !blank.test(vs - 1)) blankBefore[vs] = true;
+                        if (vs - 1 > pe && !blank.test(pe + 1)) blankBefore[pe + 1] = true;   // the // lines are apart from both
+                    }
+                    prev = m;
+                }
+            }
+            boolean big(Tree m) { return m instanceof MethodTree || m instanceof ClassTree; }
+            @Override public Void visitCompilationUnit(CompilationUnitTree c, Void v) { members(c.getTypeDecls()); return super.visitCompilationUnit(c, v); }
+            @Override public Void visitClass(ClassTree c, Void v) { members(c.getMembers()); return super.visitClass(c, v); }
+        }.scan(cu, null);
+        StringBuilder b = new StringBuilder();
+        int run = 0;
+        boolean started = false;
+        for (int i = 0; i < n; i++) {
+            if (!started && out[i].isBlank() && i < n - 1) continue;      // no blank lines at the top of a file
+            started = true;
+            if (blankBefore[i]) { if (run == 0 && b.length() > 0) b.append(eol); run = 1; }
+            if (out[i].isBlank()) {
+                if (++run > 2 || i == n - 1 && n > 1) { if (i == n - 1) b.append(""); continue; }
+                b.append(i == n - 1 ? "" : eol);
+                continue;
+            }
+            run = 0;
+            b.append(out[i]);
+            if (i < n - 1) b.append(eol);
+        }
+        return b.toString();
+    }
+
+    static int importGroup(ImportTree it) {
+        String q = it.getQualifiedIdentifier().toString();
+        return it.isStatic() ? 2 : q.startsWith("java.") || q.startsWith("javax.") ? 1 : 0;
+    }
+
+    static boolean isComment(String line) {
+        String s = line.strip();
+        return s.startsWith("//") || s.startsWith("/*") || s.startsWith("*") || s.startsWith("@");
     }
 
     /* ------------------------------------------------------------------ docs */
