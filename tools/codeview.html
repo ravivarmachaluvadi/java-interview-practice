@@ -435,6 +435,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <hr>
         <button data-act="limit"><span id="limitLabel">Practice time limit: 30 min</span></button>
         <button data-act="restartTimer">Restart the timer</button>
+        <button data-act="assistPractice" title="Suggestions, parameter hints and live error underlines while practising"><span id="assistPracticeLabel">Autocomplete in Practice: off</span></button>
         <button data-act="lastSolved" id="lastSolvedBtn" hidden title="The code of your last solved attempt, kept when a new attempt started">Bring back my last solution</button>
       </div>
       <select id="mainSel" hidden title="Which class's main() to run"></select>
@@ -510,7 +511,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy next to the file</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy or unsaved edit next to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>T</kbd></td><td>Try: a throwaway copy of this file to change and run; never saved. Again to Discard it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>V</kbd></td><td>Visual: play the solution step by step on a picture, on the file's examples or your own input (some problems; not in practice). Arrows, Space, Home/End and Esc work while it is open</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart)</td></tr>
@@ -524,9 +525,13 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd></td><td>Parameter hints: the names of the arguments of the call you are in</td></tr>
+    <tr><td><kbd>Tab</kbd> after a template</td><td>Expands it: <code>sout</code> <code>souf</code> <code>soutv</code> <code>serr</code> <code>psvm</code> <code>main</code> <code>fori</code> <code>itar</code> <code>ritar</code> <code>iter</code> <code>ifn</code> <code>inn</code> <code>thr</code>. After a value, <code>.var</code> <code>.for</code> <code>.fori</code> <code>.sout</code> <code>.return</code> <code>.nn</code> <code>.null</code> <code>.not</code> <code>.if</code> are in the list</td></tr>
   </table>
   <p>Edits stay a draft in this browser (orange dot in the tree) until you Save. A Try copy is kept the same way until you Discard it, and Save never writes it; there is one at a time, so starting Try on another file deletes the older copy. Practice attempts, their timer and the hints you opened are kept the same way, never in the file: the Attempts tab lists them and clears several at once. Clearing this browser's site data loses them. Done / Revise marks, solve times and reviews are saved on this PC in tools\codeview-state.json.</p>
   <p>Showing the solution, or Compare, before an attempt is solved marks the file ↻ revise (the bar that says so has Undo). A pass after that does not count as solved until you Reset and solve it fresh.</p>
+  <p>Java autocomplete, parameter hints, Javadoc on hover and red underlines for javac's errors work while you edit (Edit, Try, Scratch pad). In practice mode they are off, as in most interview editors; ⋯ → Autocomplete in Practice turns them on. They come from your JDK's own compiler, running in the background; the first suggestion after a start takes a few seconds.</p>
   <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
@@ -1188,6 +1193,8 @@ function initEditor() {
     stickyScroll: { enabled: true }, bracketPairColorization: { enabled: true },
     guides: { bracketPairs: 'active', indentation: true }, padding: { top: 10, bottom: 10 },
     wordWrap: S.wrap ? 'on' : 'off', tabSize: 4, mouseWheelZoom: true, renderLineHighlight: 'all',
+    // the suggestion options proper are set per file by applyAssist()
+    suggest: { showWords: false, showStatusBar: true }, snippetSuggestions: 'inline', hover: { delay: 500 },
   });
   const K = monaco.KeyMod, C = monaco.KeyCode;
   editor.addCommand(K.CtrlCmd | C.Enter, run);
@@ -1209,6 +1216,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
+  initAssist();
 }
 
 function modelFor(k, text, lang) {
@@ -1216,7 +1224,7 @@ function modelFor(k, text, lang) {
   const draft = store.get('draft:' + k, null);
   if (!m) {
     m = monaco.editor.createModel(draft ?? text, lang);
-    m.onDidChangeContent(debounce(() => saveDraft(k, m), 250));
+    m.onDidChangeContent(debounce(() => { if (!m.isDisposed()) saveDraft(k, m); }, 250));   // Try may have taken the edit meanwhile
     S.models.set(k, m);
     if (draft !== null) S.editing.add(k);
   } else if (draft === null && m.getValue() !== text) {
@@ -1338,6 +1346,7 @@ function showEditor(m) {
   const vs = S.views.get(viewKey());
   if (vs) editor.restoreViewState(vs); else editor.setScrollTop(0);
   editor.updateOptions({ readOnly: !isEditable() });
+  applyAssist();
   editor.layout();
 }
 async function showPractice(token) {
@@ -1450,6 +1459,14 @@ function showTry(fileView) {
   markDraft(c.path);
   return gone;
 }
+/* the file's unsaved edit, gone: the next showing of the file is the disk version */
+function dropDraft(c) {
+  store.del('draft:' + c.key);
+  const m = S.models.get(c.key);
+  if (m) { m.dispose(); S.models.delete(c.key); }
+  S.editing.delete(c.key);
+  markDraft(c.path);
+}
 function toggleTry() {
   const c = S.cur;
   if (!c || c.kind !== 'java' || c.path === SCRATCH || c.mode === 'practice') return;
@@ -1458,9 +1475,15 @@ function toggleTry() {
   saveView();
   if (c.mode !== 'try') {
     const fileView = editor.saveViewState();
+    // 5 Oct: Edit pressed instead of Try. An unsaved edit moves into the new copy (showTry
+    // starts it from what the editor showed) and the file goes back to its original.
+    const drafted = hasDraft(c), moving = drafted && !store.has('try:' + c.key);
     c.mode = 'try'; setMode(c.key, 'try');
     const gone = showTry(fileView);
-    toast('Try: a copy to change and run freely. The file is never touched; Discard when you are done.'
+    if (moving) dropDraft(c);
+    toast((moving ? 'Your unsaved edit moved into this Try copy. The file is back to its original.'
+                  : 'Try: a copy to change and run freely. The file is never touched; Discard when you are done.'
+                    + (drafted ? ' You also have an unsaved edit on the file itself.' : ''))
           + (gone.length ? ` Only one copy at a time, so your try copy of ${gone.join(', ')} was deleted.` : ''));
     editor.focus();
   } else {
@@ -1559,8 +1582,10 @@ function refreshBar() {
   $('#resetBtn').hidden = rendered || trying || !drafted;
   $('#runBtn').disabled = c.kind !== 'java' || S.running;
   const cb = $('#compareBtn');
-  cb.hidden = !practice && !trying;
+  const editDraft = !isScratch && !practice && !trying && !rendered && drafted;
+  cb.hidden = !practice && !trying && !editDraft;
   cb.title = trying ? 'Your try copy next to the file, every change marked (Alt+C)'
+    : editDraft ? 'Your unsaved edit next to the file on disk, every change marked (Alt+C)'
     : 'Your attempt next to the original solution, differences marked (Alt+C)';
   cb.textContent = S.comparing ? 'Close compare' : 'Compare';
   cb.classList.toggle('on', S.comparing);
@@ -1590,6 +1615,7 @@ function toggleEdit() {
   if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source)) return;
   if (S.editing.has(c.key)) S.editing.delete(c.key); else S.editing.add(c.key);
   editor.updateOptions({ readOnly: !isEditable() });
+  applyAssist();
   if (S.editing.has(c.key)) editor.focus();
   refreshBar();
 }
@@ -1638,6 +1664,191 @@ function replaceAll(m, text) {
   m.pushEditOperations([], [{ range: m.getFullModelRange(), text }], () => null);
   m.pushStackElement();
   monaco.editor.setModelMarkers(m, 'javac', []);
+}
+
+/* ------------------------------------------------------------ autocomplete */
+/* IntelliJ-style help for Java (5 Oct): the dropdown (members after a dot with real parameter
+   names, JDK classes that bring their import, postfix .var / .for / ...), parameter hints,
+   Javadoc on hover, and javac's errors underlined as you type. tools/CvAssist.java works them
+   out with the JDK's own compiler, behind /api/assist. On in Edit, Try and the Scratch pad;
+   in practice mode only after ⋯ → Autocomplete in Practice (Ravi's choice: interview editors
+   rarely have it). Hover also works on a read-only file. Live templates (sout, fori, ...) are
+   expanded here, without the server, and Tab expands them as in IntelliJ. */
+const TEMPLATES = [
+  ['sout', 'System.out.println($0);', 'System.out.println()'],
+  ['souf', 'System.out.printf("$1%n"$2);$0', 'System.out.printf()'],
+  ['soutv', 'System.out.println("${1:value} = " + ${1:value});$0', 'prints a variable and its name'],
+  ['serr', 'System.err.println($0);', 'System.err.println()'],
+  ['psvm', 'public static void main(String[] args) {\n\t$0\n}', 'main() method'],
+  ['main', 'public static void main(String[] args) {\n\t$0\n}', 'main() method'],
+  ['fori', 'for (int ${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++) {\n\t$0\n}', 'for (int i = 0; i < n; i++)'],
+  ['itar', 'for (int ${1:i} = 0; ${1:i} < ${2:array}.length; ${1:i}++) {\n\t${3:int} ${4:value} = ${2:array}[${1:i}];\n\t$0\n}', 'array loop with the index'],
+  ['ritar', 'for (int ${1:i} = ${2:array}.length - 1; ${1:i} >= 0; ${1:i}--) {\n\t${3:int} ${4:value} = ${2:array}[${1:i}];\n\t$0\n}', 'array loop, backwards'],
+  ['iter', 'for (${1:var} ${2:item} : ${3:items}) {\n\t$0\n}', 'for (T item : items)'],
+  ['ifn', 'if (${1:value} == null) {\n\t$0\n}', 'if (value == null)'],
+  ['inn', 'if (${1:value} != null) {\n\t$0\n}', 'if (value != null)'],
+  ['thr', 'throw new $0', 'throw new ...'],
+];
+const assistPracticeOn = () => store.get('assistPractice', false);
+function paintAssistLabel() { $('#assistPracticeLabel').textContent = 'Autocomplete in Practice: ' + (assistPracticeOn() ? 'on' : 'off'); }
+paintAssistLabel();
+function assistOn(c = S.cur) {
+  if (!c || c.kind !== 'java') return false;
+  if (c.mode === 'practice') return assistPracticeOn();
+  return c.path === SCRATCH || c.mode === 'try' || S.editing.has(c.key);
+}
+/* the model being typed in: the editor's, or the right side of Compare */
+function shownModel() { return S.comparing && diffEditor ? diffEditor.getModifiedEditor().getModel() : editor.getModel(); }
+function assistModel(model, readOnlyToo) {
+  const c = S.cur;
+  if (!c || c.kind !== 'java' || !model || model.isDisposed() || model !== shownModel()) return false;
+  return assistOn(c) || (!!readOnlyToo && c.mode !== 'practice' && !isEditable());
+}
+/* suggestion options for the file now showing: Java's come from the server, other files keep
+   Monaco's word list */
+function applyAssist() {
+  if (!editor || !S.cur) return;
+  const on = assistOn(), code = { other: 'on', comments: 'off', strings: 'off' };
+  const opts = S.cur.kind === 'java'
+    ? { wordBasedSuggestions: 'off', quickSuggestions: on ? code : false, suggestOnTriggerCharacters: on, parameterHints: { enabled: on } }
+    : { wordBasedSuggestions: 'matchingDocuments', quickSuggestions: code, suggestOnTriggerCharacters: true, parameterHints: { enabled: true } };
+  editor.updateOptions(opts);
+  if (diffEditor) diffEditor.getModifiedEditor().updateOptions(opts);
+  if (on) { assistWarm(); liveCheck(); }
+}
+let assistWarned = false, assistWarmed = false;
+/* null when it failed or was cancelled; {stale: true} when a newer request replaced it */
+async function assistAsk(op, model, offset, token, extra) {
+  const c = S.cur;
+  const body = { op, root: S.root, path: c && c.path !== SCRATCH ? c.path : null, offset: offset || 0, ...(extra || {}) };
+  if (model) body.code = model.getValue();
+  let r;
+  try { r = await api('/api/assist', body); } catch { return null; }
+  if (token && token.isCancellationRequested) return null;
+  if (r.error) {
+    if (!assistWarned) { assistWarned = true; toast(r.error); }     // once: it would repeat on every key
+    return null;
+  }
+  return r;
+}
+/* the helper's first start takes a few seconds; begin it when an editable Java file opens */
+function assistWarm() {
+  if (assistWarmed) return;
+  assistWarmed = true;
+  api('/api/assist', { op: 'warm' }).catch(() => {});
+}
+const offsetRange = (model, from, to) => {
+  const a = model.getPositionAt(from), b = model.getPositionAt(to);
+  return new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column);
+};
+/* a template's name typed at the start of a line, else null */
+function templateAt(model, pos) {
+  const w = model.getWordUntilPosition(pos);
+  if (!w.word || model.getLineContent(pos.lineNumber).slice(0, w.startColumn - 1).trim()) return null;
+  return { w, range: new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn) };
+}
+function templateItems(model, pos) {
+  const at = templateAt(model, pos);
+  if (!at) return [];
+  return TEMPLATES.filter(t => t[0].startsWith(at.w.word)).map(([key, body, what]) => ({
+    label: { label: key, description: what }, kind: monaco.languages.CompletionItemKind.Snippet,
+    insertText: body, insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+    range: at.range, sortText: '0' + key, detail: 'Live template: Tab expands it',
+    documentation: { value: '```java\n' + body.replace(/\$\{\d+:([^}]*)\}/g, '$1').replace(/\$\d/g, '') + '\n```' },
+  }));
+}
+/* javac's errors as red underlines, 0.6 s after typing stops; the same marker owner as Run's */
+const liveCheck = debounce(async () => {
+  const m = shownModel();
+  if (!m || !assistModel(m) || S.running) return;
+  const v = m.getVersionId();
+  const r = await assistAsk('check', m, 0);
+  if (!r || !r.diags || m.isDisposed() || m.getVersionId() !== v || S.running) return;
+  monaco.editor.setModelMarkers(m, 'javac', r.diags.map(d => {
+    const a = m.getPositionAt(d.start), b = m.getPositionAt(Math.max(d.end, d.start + 1));
+    return { severity: monaco.MarkerSeverity.Error, message: d.msg, source: 'javac',
+             startLineNumber: a.lineNumber, startColumn: a.column, endLineNumber: b.lineNumber, endColumn: b.column };
+  }));
+}, 600);
+function initAssist() {
+  const L = monaco.languages, K = L.CompletionItemKind;
+  const KINDS = { method: K.Method, field: K.Field, constant: K.Constant, enumConst: K.EnumMember, local: K.Variable,
+                  param: K.Variable, class: K.Class, interface: K.Interface, enum: K.Enum, annotation: K.Interface,
+                  record: K.Struct, keyword: K.Keyword, postfix: K.Snippet };
+  L.registerCompletionItemProvider('java', {
+    triggerCharacters: ['.'],
+    async provideCompletionItems(model, pos, ctx, token) {
+      if (!assistModel(model)) return { suggestions: [] };
+      const tpl = templateItems(model, pos);
+      const r = await assistAsk('complete', model, model.getOffsetAt(pos), token);
+      if (!r || r.stale || !r.items) return { suggestions: tpl, incomplete: !!(r && r.stale) };
+      const imp = r.importAt != null ? model.getPositionAt(r.importAt) : null;
+      const items = r.items.map(it => {
+        const s = {
+          label: it.detail != null || it.type ? { label: it.label, detail: it.detail || '', description: it.type || '' } : it.label,
+          kind: KINDS[it.kind] ?? K.Text, insertText: it.insert ?? it.label,
+          range: offsetRange(model, it.from ?? r.from, r.to), sortText: it.sort, filterText: it.filter, detail: it.sig,
+        };
+        if (it.snippet) s.insertTextRules = L.CompletionItemInsertTextRule.InsertAsSnippet;
+        if (it.deprecated) s.tags = [L.CompletionItemTag.Deprecated];
+        if (it.import && imp) s.additionalTextEdits = [{ range: new monaco.Range(imp.lineNumber, imp.column, imp.lineNumber, imp.column), text: it.import }];
+        if (it.cut) s.additionalTextEdits = [{ range: offsetRange(model, it.cut[0], it.cut[1]), text: '' }];   // postfix: drop `expr.`
+        if (it.params) s.command = { id: 'editor.action.triggerParameterHints', title: 'Parameter hints' };
+        if (it.key) s.cvKey = it.key;
+        return s;
+      });
+      return { suggestions: items.concat(tpl), incomplete: !!r.incomplete };
+    },
+    async resolveCompletionItem(item, token) {
+      if (!item.cvKey || item.documentation) return item;
+      const r = await assistAsk('doc', null, 0, token, { key: item.cvKey });
+      if (r && r.md) item.documentation = { value: r.md };
+      return item;
+    },
+  });
+  L.registerSignatureHelpProvider('java', {
+    signatureHelpTriggerCharacters: ['(', ','], signatureHelpRetriggerCharacters: [','],
+    async provideSignatureHelp(model, pos, token) {
+      if (!assistModel(model)) return null;
+      const r = await assistAsk('signature', model, model.getOffsetAt(pos), token);
+      if (!r || r.stale || !r.sigs || !r.sigs.length) return null;
+      return {
+        value: {
+          signatures: r.sigs.map(s => ({
+            label: s.label, documentation: s.doc ? { value: s.doc } : undefined,
+            parameters: s.params.map((p, i) => ({ label: p, documentation: s.pdocs && s.pdocs[i] ? { value: s.pdocs[i] } : undefined })),
+          })),
+          activeSignature: r.active, activeParameter: r.param,
+        },
+        dispose() {},
+      };
+    },
+  });
+  L.registerHoverProvider('java', {
+    async provideHover(model, pos, token) {
+      if (!assistModel(model, true)) return null;
+      const w = model.getWordAtPosition(pos);
+      if (!w) return null;
+      const r = await assistAsk('hover', model, model.getOffsetAt(pos), token);
+      if (!r || r.stale || !r.md) return null;
+      return { range: new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn), contents: [{ value: r.md }] };
+    },
+  });
+  editor.onDidChangeModelContent(() => liveCheck());
+  // Tab after `sout` at the start of a line expands it, as in IntelliJ; anywhere else Tab is Tab
+  const tplKey = editor.createContextKey('cvTemplate', false);
+  const tplHere = () => {
+    const m = editor.getModel(), pos = editor.getPosition();
+    if (!m || !pos || !assistModel(m)) return null;
+    const at = templateAt(m, pos), t = at && TEMPLATES.find(t => t[0] === at.w.word);
+    return t ? { body: t[1], len: at.w.word.length } : null;
+  };
+  editor.onDidChangeCursorPosition(() => tplKey.set(!!tplHere()));
+  editor.addCommand(monaco.KeyCode.Tab, () => {
+    const t = tplHere();
+    if (t) editor.getContribution('snippetController2').insert(t.body, { overwriteBefore: t.len });
+    else editor.trigger('keyboard', 'tab', null);
+  }, 'cvTemplate && !suggestWidgetVisible && !inSnippetMode && editorTextFocus && !editorReadonly');
 }
 
 /* ------------------------------------------------------------ practice: timer, hints, compare, next */
@@ -1803,12 +2014,15 @@ let diffEditor = null, diffOrig = null;
 function toggleCompare() { if (S.comparing) closeCompare(); else openCompare(); }
 function openCompare() {
   const c = S.cur, trying = c && c.mode === 'try';
-  const attempt = c && (trying ? S.tmodels.get(c.key) : c.mode === 'practice' ? S.pmodels.get(c.key) : null);
+  // 5 Oct: also an unsaved edit next to the file, to see what an Edit pressed by mistake changed
+  const editDraft = c && c.mode === 'file' && c.path !== SCRATCH && hasDraft(c) && S.models.has(c.key);
+  const attempt = c && (trying ? S.tmodels.get(c.key) : c.mode === 'practice' ? S.pmodels.get(c.key)
+                        : editDraft ? S.models.get(c.key) : null);
   if (!attempt) return;
   closeVisual(false);
   notePeek(c);
-  $('#diffLeft').textContent = trying ? 'The file (unchanged)' : 'Original solution';
-  $('#diffRight').textContent = trying ? 'Your try copy' : 'Your attempt';
+  $('#diffLeft').textContent = trying ? 'The file (unchanged)' : editDraft ? 'The file (on disk)' : 'Original solution';
+  $('#diffRight').textContent = trying ? 'Your try copy' : editDraft ? 'Your edit · not saved' : 'Your attempt';
   if (trying && attempt.getValue() === S.originals.get(c.key)) toast('No differences yet: your try copy matches the file.');
   if (!diffEditor) {
     diffEditor = monaco.editor.createDiffEditor($('#diff'), {
@@ -1816,14 +2030,17 @@ function openCompare() {
       hideUnchangedRegions: { enabled: true, contextLineCount: 3, minimumLineCount: 5, revealLineCount: 20 },
       fontFamily: "'JetBrains Mono', 'Cascadia Mono', Consolas, monospace", fontSize: S.font, lineHeight: 1.6,
       minimap: { enabled: false }, scrollBeyondLastLine: false, padding: { top: 10, bottom: 10 }, tabSize: 4,
-      wordWrap: S.wrap ? 'on' : 'off',
+      wordWrap: S.wrap ? 'on' : 'off', suggest: { showWords: false }, hover: { delay: 500 },
     });
+    diffEditor.getModifiedEditor().onDidChangeModelContent(() => liveCheck());
   }
   saveView();
-  diffOrig = monaco.editor.createModel(S.originals.get(c.key), 'java');
+  diffOrig = monaco.editor.createModel(S.originals.get(c.key), attempt.getLanguageId());
   diffEditor.setModel({ original: diffOrig, modified: attempt });
   diffEditor.updateOptions({ fontSize: S.font, wordWrap: S.wrap ? 'on' : 'off' });
+  diffEditor.getModifiedEditor().updateOptions({ readOnly: !isEditable() });   // a locked edit stays locked here too
   S.comparing = true;
+  applyAssist();
   $('#editor').hidden = true; $('#diffWrap').hidden = false;
   refreshBar();
   diffEditor.getModifiedEditor().focus();
@@ -2531,6 +2748,13 @@ $('#menu').addEventListener('click', async e => {
       setTimer(c.key, { ms: 0, paused: false, solved: false, at: Date.now(), ...(timerOf(c.key).peeked ? { peeked: true } : {}) });
       overToastFor = null; paintTimer();
       toast(c.path === SCRATCH ? 'Scratch timer restarted from zero' : 'Practice timer restarted');
+      break;
+    case 'assistPractice':
+      store.set('assistPractice', !store.get('assistPractice', false));
+      paintAssistLabel();
+      applyAssist();
+      toast(store.get('assistPractice', false) ? 'Practice mode now has autocomplete, parameter hints and live error underlines'
+                                               : 'Practice mode is back to a plain editor, as in most interviews');
       break;
     case 'lastSolved': {
       const m = c && c.mode === 'practice' && S.pmodels.get(c.key), code = c && store.get('lastSolved:' + c.key, null);
