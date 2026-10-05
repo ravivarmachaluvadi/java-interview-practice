@@ -168,6 +168,7 @@ public class CvAssist {
             case "imports" -> imports(r);
             case "definition" -> definition(r);
             case "rename" -> rename(r);
+            case "extract" -> extract(r);
             default -> new LinkedHashMap<>(Map.of("error", "unknown op " + r.op));
         };
         res.put("ms", (System.nanoTime() - t0) / 1_000_000);
@@ -1339,6 +1340,368 @@ public class CvAssist {
         res.put("spots", new ArrayList<>(spots));
         res.put("len", name.length());
         return res;
+    }
+
+    /* ------------------------------------------------------------------ introduce variable */
+
+    /** Ctrl+Alt+V, IntelliJ's Introduce Variable (5 Oct, Ravi asked). With a selection: that
+        expression. At a bare cursor: the expressions around it, innermost first, for the page
+        to offer (a single one is used at once). Answers the declaration's type and a free name,
+        where it goes for this occurrence and, if the same expression appears again, for all
+        of them, and any import the type needs. Refuses what cannot be a variable, and an
+        expression using a variable that would not exist where the declaration goes.
+        Request: offset = selection start, extra = selection end. */
+    Map<String, Object> extract(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        String t = r.text;
+        int a = Math.max(0, Math.min(r.offset, t.length())), b = a;
+        try { b = Math.max(0, Math.min(Integer.parseInt(r.extra.trim()), t.length())); } catch (NumberFormatException e) { /* a bare cursor */ }
+        if (b < a) { int x = a; a = b; b = x; }
+        while (a < b && Character.isWhitespace(t.charAt(a))) a++;
+        while (b > a && Character.isWhitespace(t.charAt(b - 1))) b--;
+        Unit u = new Unit(t, r);
+        List<TreePath> around = expressionsAround(u, a, b);
+        TreePath target = null;
+        if (a < b) {
+            for (TreePath p : around) if (u.start(p.getLeaf()) == a && u.end(p.getLeaf()) == b) { target = p; break; }
+            if (target == null) return reject(res, "Select a whole expression, such as temperatures[i] or stack.peek()");
+        } else {
+            List<TreePath> cands = new ArrayList<>();
+            for (TreePath p : around) {
+                Tree leaf = p.getLeaf();
+                if (!(leaf instanceof IdentifierTree) && !(leaf instanceof ParenthesizedTree) && whyNot(u, p) == null) cands.add(p);
+            }
+            if (cands.isEmpty()) return reject(res, "Put the cursor in an expression, or select one");
+            if (cands.size() > 1) {
+                List<Map<String, Object>> list = new ArrayList<>();
+                for (TreePath p : cands.subList(0, Math.min(6, cands.size()))) {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("start", u.start(p.getLeaf()));
+                    c.put("end", u.end(p.getLeaf()));
+                    c.put("text", t.substring((int) u.start(p.getLeaf()), (int) u.end(p.getLeaf())).replaceAll("\\s+", " "));
+                    list.add(c);
+                }
+                res.put("candidates", list);
+                return res;
+            }
+            target = cands.get(0);
+        }
+        String why = whyNot(u, target);
+        if (why != null) return reject(res, why);
+        TreePath anchor = (TreePath) anchorOf(target);
+        String gone = invisible(u, target, anchor);
+        if (gone != null) {
+            return reject(res, "It uses `" + gone + "`, which does not exist yet where the new variable would go (above the"
+                    + " statement). Put { } around the loop's or if's body first.");
+        }
+        long start = u.start(target.getLeaf()), end = u.end(target.getLeaf());
+        TypeMirror tm = u.trees.getTypeMirror(target);
+        String type = simple(tm);
+        if (type.contains("?") || type.contains("&")) type = "var";
+        TreePath body = bodyOf(target);
+        res.put("type", type);
+        res.put("name", freeName(u, target, tm, anchor, body));
+        res.put("expr", t.substring((int) start, (int) end));
+        res.put("start", start);
+        res.put("end", end);
+        Tree parent = target.getParentPath().getLeaf();
+        if (parent instanceof ExpressionStatementTree es) {     // `list.add(x);` becomes `boolean add = list.add(x);`
+            res.put("statement", List.of(u.start(es), u.end(es)));
+        } else {
+            res.put("one", place(u, t, anchor.getLeaf()));
+            List<TreePath> occ = occurrences(u, target, body);
+            if (occ.size() > 1) {
+                TreePath common = commonAnchor(u, occ);
+                if (common != null && invisible(u, target, common) == null) {
+                    Map<String, Object> all = place(u, t, common.getLeaf());
+                    List<List<Long>> spots = new ArrayList<>();
+                    for (TreePath p : occ) spots.add(List.of(u.start(p.getLeaf()), u.end(p.getLeaf())));
+                    all.put("spots", spots);
+                    res.put("all", all);
+                }
+            }
+        }
+        res.put("imports", importsFor(u, r, tm, type));
+        return res;
+    }
+
+    static Map<String, Object> reject(Map<String, Object> res, String why) {
+        res.clear();
+        res.put("reject", why);
+        return res;
+    }
+
+    /** Every expression around [a, b], innermost first. */
+    List<TreePath> expressionsAround(Unit u, int a, int b) {
+        List<TreePath> out = new ArrayList<>();
+        new TreePathScanner<Void, Void>() {
+            @Override public Void scan(Tree tree, Void v) {
+                if (tree == null) return null;
+                long s = u.start(tree), e = u.end(tree);
+                if (s >= 0 && e >= 0 && (s > a || e < b)) return null;
+                if (tree instanceof ExpressionTree && s >= 0 && e >= 0 && getCurrentPath() != null) out.add(new TreePath(getCurrentPath(), tree));
+                return super.scan(tree, v);
+            }
+        }.scan(u.cu, null);
+        out.sort(Comparator.comparingLong(p -> u.end(p.getLeaf()) - u.start(p.getLeaf())));
+        return out;
+    }
+
+    /** Why this expression cannot become a variable, or null. */
+    String whyNot(Unit u, TreePath p) {
+        Tree leaf = p.getLeaf();
+        Tree parent = p.getParentPath() == null ? null : p.getParentPath().getLeaf();
+        if (parent instanceof MethodInvocationTree mi && mi.getMethodSelect() == leaf) return "That is a method's name; select the whole call, with its ( )";
+        if (parent instanceof AssignmentTree as && as.getVariable() == leaf
+                || parent instanceof CompoundAssignmentTree ca && ca.getVariable() == leaf
+                || parent instanceof UnaryTree ut && incDec(ut)) {
+            return "That is the left side of an assignment: a place to store into, not a value";
+        }
+        if (leaf instanceof AssignmentTree || leaf instanceof CompoundAssignmentTree || leaf instanceof UnaryTree ut2 && incDec(ut2)) {
+            return "That is an assignment, not a value to keep";
+        }
+        if (parent instanceof CaseTree) return "A case label must stay a constant";
+        Element el = u.trees.getElement(p);
+        if ((leaf instanceof IdentifierTree || leaf instanceof MemberSelectTree) && (el instanceof TypeElement || el instanceof PackageElement)) {
+            return "That is a class name, not a value";
+        }
+        TypeMirror tm = u.trees.getTypeMirror(p);
+        if (tm == null || tm.getKind() == TypeKind.ERROR) return "javac cannot tell this expression's type; fix the red underline first";
+        if (tm.getKind() == TypeKind.VOID) return "This call returns nothing (void), so there is no value to keep";
+        if (tm.getKind() == TypeKind.NULL) return "A plain null has no type to declare";
+        if (tm.getKind() == TypeKind.PACKAGE || tm.getKind() == TypeKind.EXECUTABLE || tm.getKind() == TypeKind.NONE) return "That is not a value";
+        Object anchor = anchorOf(p);
+        return anchor instanceof String s ? s : null;
+    }
+
+    static boolean incDec(UnaryTree u) {
+        return switch (u.getKind()) { case PREFIX_INCREMENT, PREFIX_DECREMENT, POSTFIX_INCREMENT, POSTFIX_DECREMENT -> true; default -> false; };
+    }
+
+    /** The statement the declaration goes above (its path), or why there is none (a String). */
+    static Object anchorOf(TreePath p) {
+        TreePath child = p;
+        for (TreePath q = p.getParentPath(); q != null; child = q, q = q.getParentPath()) {
+            Tree leaf = q.getLeaf(), c = child.getLeaf();
+            if (leaf instanceof BlockTree bt && bt.getStatements().contains(c)) return child;
+            if (leaf instanceof CaseTree ct && ct.getStatements() != null && ct.getStatements().contains(c)) return child;
+            if (leaf instanceof LambdaExpressionTree lt && lt.getBodyKind() == LambdaExpressionTree.BodyKind.EXPRESSION) {
+                return "Inside a one-line lambda (x -> ...); give it a { } body first";
+            }
+            // the declaration would go above the loop and be computed once (5 Oct)
+            if (leaf instanceof WhileLoopTree w && w.getCondition() == c || leaf instanceof DoWhileLoopTree d && d.getCondition() == c
+                    || leaf instanceof ForLoopTree f && (f.getCondition() == c || f.getUpdate().contains(c))) {
+                return "It is in the loop's condition, which runs every time round; a variable above the loop "
+                        + "would be computed only once. Make it a variable inside the loop by hand.";
+            }
+            if (leaf instanceof ClassTree || leaf instanceof CompilationUnitTree) break;
+        }
+        return "Only inside a method's body";
+    }
+
+    /** The first local variable the expression uses that is not visible at the anchor, or null.
+        Visible: declared before the anchor, in a block (or for, method...) that contains the
+        anchor. Asked of the trees, not of Trees.getScope: at a statement inside a loop, getScope
+        left out the method's own locals (5 Oct: `waiting` looked invisible inside the for). */
+    String invisible(Unit u, TreePath expr, TreePath anchor) {
+        long as = u.start(anchor.getLeaf()), ae = u.end(anchor.getLeaf());
+        Set<Element> inside = new HashSet<>();
+        String[] bad = {null};
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree n, Void v) {      // a lambda's own parameters
+                Element e = u.trees.getElement(getCurrentPath());
+                if (e != null) inside.add(e);
+                return super.visitVariable(n, v);
+            }
+            @Override public Void visitIdentifier(IdentifierTree n, Void v) {
+                Element e = u.trees.getElement(getCurrentPath());
+                if (bad[0] != null || e == null || !isLocal(e) || inside.contains(e)) return null;
+                TreePath decl = u.trees.getPath(e);
+                if (decl == null || decl.getParentPath() == null) return null;
+                Tree holder = decl.getParentPath().getLeaf();
+                boolean seen = u.start(decl.getLeaf()) < as && u.start(holder) <= as && ae <= u.end(holder);
+                if (!seen) bad[0] = e.getSimpleName().toString();
+                return null;
+            }
+        }.scan(expr, null);
+        return bad[0];
+    }
+
+    static boolean isLocal(Element e) {
+        return switch (e.getKind()) {
+            case LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE, BINDING_VARIABLE -> true;
+            default -> false;
+        };
+    }
+
+    /** The method (or lambda, or initializer) the expression is in. */
+    static TreePath bodyOf(TreePath p) {
+        TreePath last = p;
+        for (TreePath q = p; q != null; last = q, q = q.getParentPath()) {
+            Tree leaf = q.getLeaf();
+            if (leaf instanceof MethodTree || leaf instanceof LambdaExpressionTree) return q;
+            if (leaf instanceof ClassTree) return last;
+        }
+        return last;
+    }
+
+    /** Where the declaration goes: the start of the anchor's line, indented like it; or, when the
+        line has other code before the statement, right before the statement on that line. */
+    static Map<String, Object> place(Unit u, String t, Tree stmt) {
+        int s = (int) u.start(stmt);
+        int ls = t.lastIndexOf('\n', s - 1) + 1;
+        String before = t.substring(ls, s);
+        Map<String, Object> m = new LinkedHashMap<>();
+        boolean own = before.isBlank();
+        m.put("at", own ? ls : s);
+        m.put("indent", own ? before : "");
+        m.put("inline", !own);
+        return m;
+    }
+
+    /** The same expression elsewhere in the method: same text (spaces aside), same variables. */
+    List<TreePath> occurrences(Unit u, TreePath target, TreePath body) {
+        String text = squash(u, target.getLeaf());
+        List<Element> refs = refs(u, target);
+        Tree.Kind kind = target.getLeaf().getKind();
+        List<TreePath> out = new ArrayList<>();
+        new TreePathScanner<Void, Void>() {
+            @Override public Void scan(Tree tree, Void v) {
+                if (tree != null && tree.getKind() == kind && getCurrentPath() != null) {
+                    TreePath p = new TreePath(getCurrentPath(), tree);
+                    if (squash(u, tree).equals(text) && refs(u, p).equals(refs) && whyNot(u, p) == null
+                            && !(p.getParentPath().getLeaf() instanceof ExpressionStatementTree)) out.add(p);
+                }
+                return super.scan(tree, v);
+            }
+        }.scan(body, null);
+        return out;
+    }
+
+    String squash(Unit u, Tree tree) {
+        long s = u.start(tree), e = u.end(tree);
+        String all = u.file.text;
+        return s < 0 || e < s ? "" : all.substring((int) s, (int) e).replaceAll("\\s+", "");
+    }
+
+    List<Element> refs(Unit u, TreePath p) {
+        List<Element> out = new ArrayList<>();
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitIdentifier(IdentifierTree n, Void v) {
+                out.add(u.trees.getElement(getCurrentPath()));
+                return null;
+            }
+        }.scan(p, null);
+        return out;
+    }
+
+    /** Above the first occurrence, in the innermost block that holds all of them. */
+    TreePath commonAnchor(Unit u, List<TreePath> occ) {
+        List<List<Tree[]>> chains = new ArrayList<>();
+        for (TreePath p : occ) {
+            List<Tree[]> chain = new ArrayList<>();
+            TreePath child = p;
+            for (TreePath q = p.getParentPath(); q != null; child = q, q = q.getParentPath()) {
+                Tree leaf = q.getLeaf(), c = child.getLeaf();
+                if (leaf instanceof BlockTree bt && bt.getStatements().contains(c)
+                        || leaf instanceof CaseTree ct && ct.getStatements() != null && ct.getStatements().contains(c)) {
+                    chain.add(new Tree[]{leaf, c});
+                }
+                if (leaf instanceof MethodTree || leaf instanceof ClassTree) break;
+            }
+            if (chain.isEmpty()) return null;
+            chains.add(chain);
+        }
+        for (Tree[] link : chains.get(0)) {
+            Tree best = null;
+            boolean everywhere = true;
+            for (List<Tree[]> chain : chains) {
+                Tree stmt = null;
+                for (Tree[] l : chain) if (l[0] == link[0]) { stmt = l[1]; break; }
+                if (stmt == null) { everywhere = false; break; }
+                if (best == null || u.start(stmt) < u.start(best)) best = stmt;
+            }
+            if (everywhere) return TreePath.getPath(u.cu, best);
+        }
+        return null;
+    }
+
+    /** A name like IntelliJ's: the call's name, the field's, the array's singular, else from the
+        type; then 1, 2... until no local variable or parameter of the method has it. */
+    String freeName(Unit u, TreePath target, TypeMirror tm, TreePath anchor, TreePath body) {
+        ExpressionTree e = (ExpressionTree) target.getLeaf();
+        while (e instanceof ParenthesizedTree pt) e = pt.getExpression();
+        String base = null;
+        if (e instanceof MethodInvocationTree) base = nameFor(tm, e).get(0);
+        else if (e instanceof MemberSelectTree ms) base = ms.getIdentifier().toString();
+        else if (e instanceof ArrayAccessTree aa) {
+            ExpressionTree arr = aa.getExpression();
+            String an = arr instanceof IdentifierTree id ? id.getName().toString()
+                    : arr instanceof MemberSelectTree m2 ? m2.getIdentifier().toString() : null;
+            if (an != null && an.matches(".*[^s]s$")) base = an.endsWith("ies") ? an.substring(0, an.length() - 3) + "y" : an.substring(0, an.length() - 1);
+        }
+        if (base == null || base.isEmpty() || !Character.isJavaIdentifierStart(base.charAt(0))) {
+            List<String> byType = nameFor(tm, null);
+            base = byType.get(byType.size() - 1);
+        }
+        base = safe(base);
+        Set<String> taken = new HashSet<>();
+        for (Scope s = u.scope(anchor); s != null; s = s.getEnclosingScope()) {
+            for (Element x : s.getLocalElements()) taken.add(x.getSimpleName().toString());
+        }
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree n, Void v) {
+                taken.add(n.getName().toString());
+                return super.visitVariable(n, v);
+            }
+        }.scan(body, null);
+        String name = base;
+        for (int i = 1; taken.contains(name); i++) name = base + i;
+        return name;
+    }
+
+    /** The import lines the declared type needs: JDK classes this file does not import yet. */
+    List<Map<String, Object>> importsFor(Unit u, Req r, TypeMirror tm, String type) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (r.compact() || type.equals("var")) return out;
+        Set<String> imported = new HashSet<>(), star = new HashSet<>(Set.of("java.lang"));
+        for (ImportTree it : u.cu.getImports()) {
+            if (it.isStatic()) continue;
+            String q = it.getQualifiedIdentifier().toString();
+            if (q.endsWith(".*")) star.add(q.substring(0, q.length() - 2)); else imported.add(q);
+        }
+        if (u.cu.getPackageName() != null) star.add(u.cu.getPackageName().toString());
+        Set<String> need = new LinkedHashSet<>();
+        Deque<TypeMirror> todo = new ArrayDeque<>(List.of(tm));
+        while (!todo.isEmpty()) {
+            TypeMirror x = todo.poll();
+            if (x instanceof DeclaredType d) {
+                Element top = d.asElement();
+                while (top.getEnclosingElement() instanceof TypeElement o) top = o;
+                TypeElement te = (TypeElement) top;
+                String pkg = u.el.getPackageOf(te).getQualifiedName().toString();
+                String fqn = te.getQualifiedName().toString();
+                if (entryOf(u, te) != null && !star.contains(pkg) && !imported.contains(fqn)) need.add(fqn);
+                todo.addAll(d.getTypeArguments());
+            } else if (x instanceof ArrayType at) todo.add(at.getComponentType());
+            else if (x instanceof WildcardType w) {
+                if (w.getExtendsBound() != null) todo.add(w.getExtendsBound());
+                if (w.getSuperBound() != null) todo.add(w.getSuperBound());
+            }
+        }
+        if (need.isEmpty()) return out;
+        Map<String, Object> tmp = new LinkedHashMap<>();
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (String fqn : need) { Map<String, Object> it = new LinkedHashMap<>(); it.put("importFqn", fqn); items.add(it); }
+        tmp.put("items", items);
+        importPlace(u, r, tmp);
+        for (Map<String, Object> it : items) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("text", it.get("import"));
+            m.put("at", tmp.get("importAt"));
+            out.add(m);
+        }
+        return out;
     }
 
     /* ------------------------------------------------------------------ docs */

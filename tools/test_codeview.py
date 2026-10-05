@@ -973,6 +973,82 @@ class AssistTest(unittest.TestCase):
         src = DAILY.replace("waiting.peek()", f"waiting.pe{CUR}ek()").replace("@@", "").replace("%%", "")
         self.assertIn("reject", self.ask("rename", src))
 
+    # --- Ctrl+Alt+V introduce variable
+    def extract(self, src, fname="DailyTemperatures.java", flags=""):
+        """[A] and [B] mark the selection; one ‸ is a bare cursor."""
+        if "[A]" in src:
+            a = src.index("[A]")
+            clean = src.replace("[A]", "", 1)
+            b = clean.index("[B]")
+            clean = clean.replace("[B]", "", 1)
+        else:
+            a = b = src.index(CUR)
+            clean = src.replace(CUR, "")
+        res = codeview.ASSIST.ask("extract", clean, a, None, fname, flags, str(b))
+        self.assertNotIn("error", res, res)
+        return res, clean
+
+    def daily(self, method="", main=""):
+        return DAILY.replace("@@", method).replace("%%", main)
+
+    def test_extract_a_call_into_a_variable_above_its_statement(self):
+        res, src = self.extract(self.daily().replace("int colderDay = waiting.pop();", f"int colderDay = waiting.po{CUR}p();"))
+        self.assertEqual((res["type"], res["name"], res["expr"]), ("Integer", "pop", "waiting.pop()"))
+        line = src.index("                int colderDay")
+        self.assertEqual((res["one"]["at"], res["one"]["indent"]), (line, " " * 16))
+        self.assertNotIn("all", res)                       # it appears once
+
+    def test_extract_offers_every_occurrence(self):
+        src = ("class E {\n    void f(int[] nums) {\n        int a = nums.length * 2;\n"
+               "        int b = [A]nums.length[B] + 1;\n    }\n}\n")
+        res, clean = self.extract(src, fname="E.java")
+        self.assertEqual((res["type"], res["name"]), ("int", "length"))
+        self.assertEqual(sorted(map(tuple, res["all"]["spots"])), [(m.start(), m.end()) for m in re.finditer(r"nums\.length", clean)])
+        self.assertEqual(res["all"]["at"], clean.index("        int a"))       # before the first one
+
+    def test_extract_at_a_bare_cursor_lists_the_enclosing_expressions(self):
+        res, _ = self.extract(self.daily(method=f"int top = Math.max(temperatures[today], temperatures[colder{CUR}Day]) + 1;"))
+        texts = [c["text"] for c in res["candidates"]]
+        self.assertEqual(texts, ["temperatures[colderDay]", "Math.max(temperatures[today], temperatures[colderDay])",
+                                 "Math.max(temperatures[today], temperatures[colderDay]) + 1"])
+
+    def test_extract_names_an_array_element_after_the_array(self):
+        res, _ = self.extract(self.daily(method="int warm = [A]temperatures[colderDay][B];"))
+        self.assertEqual((res["type"], res["name"]), ("int", "temperature"))
+
+    def test_extract_refuses_a_loop_condition(self):
+        """Above the loop it would be computed once, but the condition runs every time round."""
+        res, _ = self.extract(self.daily().replace("temperatures[waiting.peek()]", "[A]temperatures[waiting.peek()][B]"))
+        self.assertIn("every time round", res["reject"])
+        res, _ = self.extract(self.daily().replace("today < n; today++", "today < [A]n + 0[B]; today++"))
+        self.assertIn("every time round", res["reject"])
+
+    def test_extract_avoids_a_name_already_taken(self):
+        res, _ = self.extract(self.daily(method="int pop = 0;\n                int top = [A]waiting.pop()[B];"))
+        self.assertEqual(res["name"], "pop1")
+
+    def test_extract_a_whole_call_statement_becomes_the_declaration(self):
+        """`waiting.push(today);` returns the item, so it becomes `Integer push = waiting.push(today);`."""
+        res, src = self.extract(self.daily().replace("waiting.push(today);", "[A]waiting.push(today)[B];"))
+        start = src.index("waiting.push(today);")
+        self.assertEqual(res["statement"], [start, start + len("waiting.push(today);")])
+        self.assertEqual((res["type"], res["name"]), ("Integer", "push"))
+
+    def test_extract_refuses_what_cannot_be_a_variable(self):
+        res, _ = self.extract(self.daily().replace('System.out.println(label + ": "', '[A]System.out.println(label + ": " + Arrays.toString(actual))[B]//'))
+        self.assertIn("void", res["reject"])
+        res, _ = self.extract(self.daily(method="for (int i = 0; i < n; i++) result[i] = [A]i * 2[B];"))
+        self.assertIn("`i`", res["reject"])                     # i only exists inside the loop
+        res, _ = self.extract(self.daily().replace("result[colderDay] = today", "[A]result[colderDay][B] = today"))
+        self.assertIn("left side", res["reject"])
+
+    def test_extract_imports_the_type(self):
+        res, src = self.extract(f"class E {{\n    void f() {{\n        Object o = [A]java.util.List.of(1, 2)[B];\n    }}\n}}\n", fname="E.java")
+        self.assertEqual((res["type"], res["name"]), ("List<Integer>", "of"))
+        self.assertEqual(res["imports"], [{"text": "import java.util.List;\n\n", "at": 0}])
+        res, _ = self.extract(f"void main() {{\n    Object o = [A]java.util.List.of(1, 2)[B];\n}}\n", fname="Scratch.java", flags="c")
+        self.assertEqual(res["imports"], [])                    # a compact file imports java.base itself
+
     def test_restarts_after_the_helper_dies(self):
         self.complete(method=f"waiting.{CUR}")
         codeview.ASSIST.proc.kill()

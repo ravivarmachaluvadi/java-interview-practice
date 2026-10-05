@@ -178,6 +178,12 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .menu button kbd { color: var(--muted); font: 11px var(--code); }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .menu .ck { display: inline-block; width: 16px; color: var(--accent); font-weight: 700; }
+/* Ctrl+Alt+V's pick list at the cursor (which expression; this one or all) */
+.menu.chooser { position: fixed; top: auto; right: auto; z-index: 40; max-width: min(560px, 90vw); }
+.menu.chooser .chooser-title { font-size: 12px; color: var(--muted); padding: 4px 8px 6px; }
+.menu.chooser button { font: 13px var(--code); justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu.chooser button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.monaco-editor .extract-hl { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 /* Prev · Next · mode, joined into one control */
 .seg { display: inline-flex; flex: none; }
 .seg button { border-radius: 0; }
@@ -526,6 +532,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td><td>Introduce variable, as in IntelliJ: the selected expression (or one around the cursor, from a list) becomes <code>Type name = expr;</code> above the statement, here or at every occurrence; then type a better name and Enter</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Complete the statement, as in IntelliJ: closes open brackets and adds the <code>;</code>, or <code>{ }</code> after if / for / while / a method header; on a finished line, a new line below</td></tr>
@@ -1213,6 +1220,7 @@ function initEditor() {
   // (getAction().run(), not trigger(..., null): with a null argument the quick fix menu never opened)
   editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? editor.getAction('editor.action.quickFix').run() : toggleFull());
   editor.addCommand(K.Shift | C.F6, () => editor.getAction('editor.action.rename').run());
+  editor.addCommand(K.CtrlCmd | K.Alt | C.KeyV, () => introduceVariable());
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
@@ -1859,6 +1867,89 @@ function importFixHere() {
   return monaco.editor.getModelMarkers({ resource: m.uri, owner: 'javac' }).some(mk => /cannot find symbol/.test(mk.message)
     && mk.startLineNumber <= p.lineNumber && p.lineNumber <= mk.endLineNumber
     && (mk.startLineNumber < p.lineNumber || mk.startColumn <= p.column) && (mk.endLineNumber > p.lineNumber || p.column <= mk.endColumn));
+}
+/* A small pick list at the cursor, like IntelliJ's: arrows and Enter, or a click; Esc or a
+   click elsewhere closes it. The focused row's code is highlighted in the editor.
+   Resolves to the row's index, or null. */
+function chooser(title, rows) {
+  return new Promise(resolve => {
+    const box = document.createElement('div');
+    box.className = 'menu chooser';
+    box.innerHTML = `<div class="chooser-title">${esc(title)}</div>` + rows.map((r, i) => `<button data-i="${i}">${esc(r.label)}</button>`).join('');
+    document.body.append(box);
+    const p = editor.getScrolledVisiblePosition(editor.getPosition()), er = editor.getDomNode().getBoundingClientRect();
+    box.style.left = Math.max(8, Math.min(er.left + p.left, innerWidth - box.offsetWidth - 8)) + 'px';
+    const below = er.top + p.top + p.height + 4;
+    box.style.top = (below + box.offsetHeight < innerHeight - 8 ? below : Math.max(8, er.top + p.top - box.offsetHeight - 4)) + 'px';
+    const hl = editor.createDecorationsCollection(), btns = [...box.querySelectorAll('button')];
+    let cur = 0;
+    const focus = i => {
+      cur = (i + btns.length) % btns.length;
+      btns.forEach((b, j) => b.classList.toggle('on', j === cur));
+      btns[cur].focus();
+      hl.set((rows[cur].ranges || []).map(range => ({ range, options: { className: 'extract-hl' } })));
+    };
+    const outside = e => { if (!box.contains(e.target)) done(null); };
+    const done = v => { hl.clear(); box.remove(); document.removeEventListener('mousedown', outside, true); editor.focus(); resolve(v); };
+    box.addEventListener('keydown', e => {
+      const k = { ArrowDown: () => focus(cur + 1), ArrowUp: () => focus(cur - 1), Enter: () => done(cur), Escape: () => done(null) }[e.key];
+      if (k) { e.preventDefault(); e.stopPropagation(); k(); }
+    });
+    btns.forEach((b, i) => { b.onclick = () => done(i); b.onmouseenter = () => focus(i); });
+    document.addEventListener('mousedown', outside, true);
+    focus(0);
+  });
+}
+/* Ctrl+Alt+V, IntelliJ's Introduce Variable (5 Oct): the helper works out the expression, its
+   type, a free name and where the declaration goes; this asks the questions, makes the edit
+   as one undo step, then opens rename on the new name so a better one can be typed. */
+async function introduceVariable() {
+  const m = editor.getModel();
+  if (!m || !assistModel(m)) return toast('Introduce variable (Ctrl+Alt+V) works while editing Java: Edit, Try or the Scratch pad.');
+  const sel = editor.getSelection();
+  const ask = (a, b) => assistAsk('extract', m, a, null, { key: String(b) });
+  let r = await ask(m.getOffsetAt(sel.getStartPosition()), m.getOffsetAt(sel.getEndPosition()));
+  if (!r) return;
+  if (r.candidates) {
+    const i = await chooser('Expression to put in a variable', r.candidates.map(c => ({ label: c.text, ranges: [offsetRange(m, c.start, c.end)] })));
+    if (i == null) return;
+    r = await ask(r.candidates[i].start, r.candidates[i].end);
+    if (!r) return;
+  }
+  if (r.reject) return toast(r.reject);
+  let where = r.one, spots = [[r.start, r.end]];
+  if (r.all) {
+    const n = r.all.spots.length;
+    const i = await chooser(`The expression appears ${n} times`, [
+      { label: 'Replace this occurrence only', ranges: [offsetRange(m, r.start, r.end)] },
+      { label: `Replace all ${n} occurrences`, ranges: r.all.spots.map(([s, e]) => offsetRange(m, s, e)) }]);
+    if (i == null) return;
+    if (i === 1) { where = r.all; spots = r.all.spots; }
+  }
+  const decl = `${r.type} ${r.name} = ${r.expr};`, edits = [];
+  let line, col;
+  if (r.statement) {                                    // `list.add(x);` becomes the declaration itself
+    const a = m.getPositionAt(r.statement[0]);
+    edits.push({ range: offsetRange(m, r.statement[0], r.statement[1]), text: decl });
+    line = a.lineNumber; col = a.column + r.type.length + 1;
+  } else {
+    const a = m.getPositionAt(where.at);
+    edits.push({ range: new monaco.Range(a.lineNumber, a.column, a.lineNumber, a.column),
+                 text: where.inline ? decl + ' ' : where.indent + decl + m.getEOL() });
+    for (const [s, e] of spots) edits.push({ range: offsetRange(m, s, e), text: r.name });
+    line = a.lineNumber; col = (where.inline ? a.column : where.indent.length + 1) + r.type.length + 1;
+  }
+  for (const im of r.imports || []) {
+    const p = m.getPositionAt(im.at);
+    edits.push({ range: new monaco.Range(p.lineNumber, p.column, p.lineNumber, p.column), text: im.text });
+    line += (im.text.match(/\n/g) || []).length;       // imports go above, so the declaration moves down
+  }
+  editor.pushUndoStop();
+  editor.executeEdits('introduceVariable', edits);
+  editor.pushUndoStop();
+  editor.setSelection(new monaco.Range(line, col, line, col + r.name.length));
+  editor.revealLineInCenterIfOutsideViewport(line);
+  setTimeout(() => editor.getAction('editor.action.rename').run(), 60);
 }
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;
