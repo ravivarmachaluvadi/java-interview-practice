@@ -375,6 +375,10 @@ public class CvAssist {
                     List<Map<String, Object>> items, Map<String, Object> res) {
         Scope scope = u.scope(s.path);
         boolean typesOnly = s.kind.equals("new") || s.kind.equals("annotation");
+        // the start of a statement: `re__CVMARK__();` alone on its line
+        TreePath up = s.path.getParentPath();
+        if (up != null && up.getLeaf() instanceof MethodInvocationTree mi && mi.getMethodSelect() == s.path.getLeaf()) up = up.getParentPath();
+        boolean statementStart = up != null && up.getLeaf() instanceof ExpressionStatementTree;
         char first = prefix.isEmpty() ? 0 : Character.toLowerCase(prefix.charAt(0));
         Set<String> seen = new HashSet<>();
         if (scope != null && !typesOnly) {
@@ -439,11 +443,11 @@ public class CvAssist {
             }
         }
         if (first == 0) {
-            if (!typesOnly) for (String k : KEYWORDS) if (k.length() > 1) items.add(keyword(k));
+            if (!typesOnly) for (String k : KEYWORDS) if (k.length() > 1) items.add(keyword(k, statementStart));
             return;
         }
         if (!typesOnly) {
-            for (String k : KEYWORDS) if (k.charAt(0) == first) items.add(keyword(k));
+            for (String k : KEYWORDS) if (k.charAt(0) == first) items.add(keyword(k, statementStart));
         }
         // types: this file's own, imported, java.lang, then the JDK index (with an import)
         List<TypeElement> own = new ArrayList<>();
@@ -629,9 +633,22 @@ public class CvAssist {
         return it;
     }
 
-    static Map<String, Object> keyword(String k) {
+    static Map<String, Object> keyword(String k) { return keyword(k, false); }
+
+    /* 5 Oct: `re` at the end of a method listed `record` first (every keyword ranked the same,
+       so A-Z). Now, where a statement starts, `return` comes first, as in IntelliJ, then the
+       words that start statements; words rarely typed go last. */
+    static final Set<String> STATEMENT_WORDS = Set.of("if", "for", "while", "switch", "try", "throw", "break", "continue",
+            "do", "final", "var", "new", "this", "super", "int", "long", "double", "boolean", "char", "byte", "short", "float");
+    static final Set<String> RARE_WORDS = Set.of("record", "enum", "interface", "class", "abstract", "native", "strictfp",
+            "transient", "volatile", "synchronized", "implements", "extends", "throws", "import", "default", "case",
+            "assert", "yield", "instanceof");
+
+    static Map<String, Object> keyword(String k, boolean statementStart) {
         Map<String, Object> it = item(k, "keyword", k);
-        it.put("sort", "4" + k);
+        it.put("sort", statementStart && k.equals("return") ? "0"
+                : statementStart && STATEMENT_WORDS.contains(k) ? "1" + k
+                : RARE_WORDS.contains(k) ? "8" + k : "4" + k);
         return it;
     }
 

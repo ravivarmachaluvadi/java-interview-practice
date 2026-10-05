@@ -178,6 +178,18 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .menu button kbd { color: var(--muted); font: 11px var(--code); }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 .menu .ck { display: inline-block; width: 16px; color: var(--accent); font-weight: 700; }
+/* the header timer: count down (beeps at zero) or count up, on any file */
+#clockBtn { font: 600 12px var(--code); min-width: 30px; padding: 0 8px; flex: none; }
+#clockBtn.on { color: var(--accent); }
+#clockBtn.ring { color: var(--bad); animation: clockRing .8s steps(2) infinite; }
+@keyframes clockRing { 50% { background: color-mix(in srgb, var(--bad) 25%, transparent); } }
+.menu.clock { position: fixed; top: auto; right: auto; width: 260px; padding: 8px; z-index: 40; }
+.clock .modes, .clock .mins, .clock .acts { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.clock .modes button, .clock .mins button, .clock .acts button { width: auto; flex: 1 0 auto; height: 28px; justify-content: center; }
+.clock button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.clock .other { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.clock .other input { width: 64px; }
+.clock .big { font: 600 28px var(--code); text-align: center; margin: 6px 0; }
 /* Ctrl+Alt+V's pick list at the cursor (which expression; this one or all) */
 .menu.chooser { position: fixed; top: auto; right: auto; z-index: 40; max-width: min(560px, 90vw); }
 .menu.chooser .chooser-title { font-size: 12px; color: var(--muted); padding: 4px 8px 6px; }
@@ -328,6 +340,14 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="brand"><span class="logo">{ }</span>Code Viewer</div>
   <span class="pill" id="jdk">JDK …</span>
   <span class="spacer"></span>
+  <button id="clockBtn" title="Timer: count down (beeps at zero) or count up, on any file">⏱</button>
+  <div class="menu clock" id="clockMenu" hidden>
+    <div class="modes"><button data-mode="down">Count down</button><button data-mode="up">Count up</button></div>
+    <div class="mins" id="clockMins"></div>
+    <label class="other">Other <input id="clockOther" type="number" min="0.05" step="any" inputmode="decimal"> min</label>
+    <div class="big" id="clockShow">20:00</div>
+    <div class="acts"><button id="clockGo">Start</button><button id="clockReset">Reset</button></div>
+  </div>
   <button class="icon" id="fullBtn" title="Full screen: hide the browser's tabs, address and bookmarks bars and this header (Alt+Enter)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
   <button class="icon" id="themeBtn" title="Light / dark">◐</button>
   <button class="icon" id="helpBtn" title="Shortcuts and settings">?</button>
@@ -532,6 +552,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
+    <tr><td>⏱ at the top</td><td>Timer on any file: count down from 5-60 minutes (or your own) and hear three beeps at zero, or count up like a stopwatch. It keeps going across files and reloads. The practice time limit beeps too</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd></td><td>Java files open at the code; this goes up to the problem description above it</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td><td>Format the file the way IntelliJ does (indentation, spaces, blank lines), keeping your comments, one-line blocks and the extra spaces that line up test cases</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td><td>Introduce variable, as in IntelliJ: the selected expression (or one around the cursor, from a list) becomes <code>Type name = expr;</code> above the statement, here or at every occurrence; then type a better name and Enter</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
@@ -1179,6 +1201,11 @@ function initEditor() {
       'editor.lineHighlightBackground': '#26282E', 'editor.selectionBackground': '#214283',
       'editor.findMatchBackground': '#32593D', 'editor.findMatchHighlightBackground': '#2E4A3988',
       'editorWidget.background': '#2B2D30', 'editorIndentGuide.background1': '#2E3036',
+      // Compare (5 Oct, Ravi: hard to read). Monaco's red/green left plain text at 4.0:1 on a
+      // changed word; these calm tints keep it at 5.7:1 or more, lines at 7:1 or more
+      'diffEditor.insertedLineBackground': '#1a3521', 'diffEditor.insertedTextBackground': '#1f472a',
+      'diffEditor.removedLineBackground': '#25282b', 'diffEditor.removedTextBackground': '#30363b',
+      'diffEditor.diagonalFill': '#3a3d4166',
     },
   });
   monaco.editor.defineTheme('idea-light', {
@@ -1193,6 +1220,9 @@ function initEditor() {
     colors: {
       'editor.background': '#FFFFFF', 'editorLineNumber.foreground': '#ADADAD', 'editorLineNumber.activeForeground': '#767A8A',
       'editor.lineHighlightBackground': '#FCFAED', 'editor.selectionBackground': '#A6D2FF',
+      'diffEditor.insertedLineBackground': '#dcf2e2', 'diffEditor.insertedTextBackground': '#b4e6c2',
+      'diffEditor.removedLineBackground': '#ecedef', 'diffEditor.removedTextBackground': '#d8dbde',
+      'diffEditor.diagonalFill': '#2222221a',
     },
   });
   editor = monaco.editor.create($('#editor'), {
@@ -1361,7 +1391,14 @@ function showEditor(m) {
   $('#editor').hidden = false;
   editor.setModel(m);
   const vs = S.views.get(viewKey());
-  if (vs) editor.restoreViewState(vs); else editor.setScrollTop(0);
+  if (vs) editor.restoreViewState(vs);
+  else if (m.getLanguageId() === 'java') {
+    // 5 Oct, Ravi: Practice and Next showed the description; open at the code instead (the
+    // problem stays just above: scroll up or Ctrl+Home). A file he scrolled keeps its place.
+    const start = codeStart(m);
+    editor.setScrollTop(editor.getTopForLineNumber(start));
+    editor.setPosition({ lineNumber: start, column: 1 });
+  } else editor.setScrollTop(0);
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
   editor.layout();
@@ -2126,6 +2163,57 @@ function initAssist() {
     },
   });
   editor.onDidChangeModelContent(() => liveCheck());
+  // `Map<` gets its `>` (5 Oct, Ravi), as in IntelliJ. Only right after a capitalised name
+  // (Map, List, HashMap - not MAX, not i), so `i < n` stays as typed. A typed `>` steps over
+  // the added one, and Backspace right after the `<` removes both.
+  const angles = editor.createDecorationsCollection();
+  const angleOpts = { description: 'auto-angle', stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges };
+  editor.onDidChangeModel(() => angles.clear());
+  editor.onDidChangeModelContent(e => {
+    if (e.isUndoing || e.isRedoing || e.changes.length !== 1) return;
+    const ch = e.changes[0], m = editor.getModel(), c = S.cur;
+    if (ch.text === '>' && ch.rangeLength === 0 && m && angles.length) {
+      // a `>` that arrived without a key press (pasted, an input method) right before ours: drop ours
+      const r = ch.range, mine = angles.getRanges().find(x => x.startLineNumber === r.startLineNumber && x.startColumn === r.startColumn + 1);
+      if (mine) setTimeout(() => {
+        if (m.isDisposed() || m.getValueInRange(mine) !== '>') return;
+        editor.executeEdits('autoAngle', [{ range: mine, text: '' }]);
+        angles.set(angles.getRanges().filter(x => !x.equalsRange(mine)).map(range => ({ range, options: angleOpts })));
+      }, 0);
+      return;
+    }
+    if (ch.text !== '<' || ch.rangeLength !== 0 || !m || !c || c.kind !== 'java' || !isEditable()) return;
+    const ln = ch.range.startLineNumber, col = ch.range.startColumn, line = m.getLineContent(ln);
+    const name = (line.slice(0, col - 1).match(/[\w$]+$/) || [''])[0];
+    if (!/^[A-Z]/.test(name) || !/[a-z]/.test(name) || /^[\w$]/.test(line.slice(col))) return;
+    const toks = monaco.editor.tokenize(line, 'java')[0] || [];
+    const at = toks.filter(tk => tk.offset <= col - 1).pop();
+    if (at && /string|comment/.test(at.type)) return;
+    setTimeout(() => {                                    // not inside the change event itself
+      if (m.isDisposed() || m.getLineContent(ln).charAt(col - 1) !== '<') return;
+      editor.executeEdits('autoAngle', [{ range: new monaco.Range(ln, col + 1, ln, col + 1), text: '>' }]);
+      editor.setPosition({ lineNumber: ln, column: col + 1 });
+      angles.append([{ range: new monaco.Range(ln, col + 1, ln, col + 2), options: angleOpts }]);
+    }, 0);
+  });
+  editor.onKeyDown(e => {
+    const m = editor.getModel(), sel = editor.getSelection();
+    if (!m || !sel || !sel.isEmpty() || !angles.length) return;
+    const p = sel.getPosition(), mine = angles.getRanges().filter(r => !r.isEmpty() && m.getValueInRange(r) === '>');
+    const here = mine.find(r => r.startLineNumber === p.lineNumber && r.startColumn === p.column);
+    if (!here) return;
+    const keep = () => angles.set(mine.filter(r => r !== here).map(range => ({ range, options: angleOpts })));
+    if (e.browserEvent.key === '>') {                     // step over the one we added
+      e.preventDefault(); e.stopPropagation();
+      editor.setPosition({ lineNumber: p.lineNumber, column: p.column + 1 });
+      keep();
+    } else if (e.keyCode === monaco.KeyCode.Backspace && p.column > 1
+               && m.getValueInRange(new monaco.Range(p.lineNumber, p.column - 1, p.lineNumber, p.column)) === '<') {
+      e.preventDefault(); e.stopPropagation();
+      editor.executeEdits('autoAngle', [{ range: new monaco.Range(p.lineNumber, p.column - 1, p.lineNumber, p.column + 1), text: '' }]);
+      keep();
+    }
+  });
   // Tab after `sout` at the start of a line expands it, as in IntelliJ; anywhere else Tab is Tab
   const tplKey = editor.createContextKey('cvTemplate', false);
   const tplHere = () => {
@@ -2157,6 +2245,7 @@ let lastTick = Date.now(), overToastFor = null;
 setInterval(() => {
   const now = Date.now(), dt = Math.min(now - lastTick, 2000);   // a sleeping laptop is not practice time
   lastTick = now;
+  paintClock();
   const c = S.cur;
   if (!timed(c) || document.visibilityState !== 'visible') return;
   const t = timerOf(c.key);
@@ -2181,6 +2270,7 @@ function paintTimer() {
   if (over && !t.solved && !t.paused && overToastFor !== c.key) {
     overToastFor = c.key;
     toast(`Time is up: ${limitMin} minutes.` + (scratch ? ' Keep going, or stop the timer.' : ' Keep going, or take a hint.'));
+    beep();                                    // 5 Oct, Ravi: a sound when the time is up
   }
 }
 $('#timerBtn').onclick = () => {
@@ -2191,6 +2281,125 @@ $('#timerBtn').onclick = () => {
 };
 function paintLimit() { $('#limitLabel').textContent = 'Practice time limit: ' + (limitMin ? limitMin + ' min' : 'none'); }
 paintLimit();
+
+/* Beeps (5 Oct): three short tones from Web Audio, so no sound file is needed. A browser only
+   lets a page play sound after a click or key press, so the first one unlocks it. */
+let actx = null;
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+/* three beeps `delay` seconds from now, on the audio clock: they sound on time even when the
+   browser slows a hidden tab's timers. Returns the tones, so a Pause can cancel them. */
+function beepAt(delay) {
+  const a = audio();
+  if (!a) return [];
+  const t0 = a.currentTime + Math.max(0, delay), tones = [];
+  for (let i = 0; i < 3; i++) {
+    const o = a.createOscillator(), g = a.createGain(), at = t0 + i * 0.35;
+    o.type = 'sine'; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.3, at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+    o.connect(g).connect(a.destination);
+    o.start(at); o.stop(at + 0.25);
+    tones.push(o);
+  }
+  return tones;
+}
+const beep = () => beepAt(0);
+
+/* The header timer (5 Oct, Ravi's choice): one for the whole page, any file. Count down from
+   a few minutes and beep at zero, or count up like a stopwatch. It runs on the wall clock and
+   is kept in this browser, so changing files, a hidden tab or a reload does not stop it -
+   unlike the practice timer, which counts only while you look at that file. */
+const CLOCK_MINS = [5, 10, 15, 20, 30, 45, 60];
+let clock = store.get('clock', { mode: 'down', minutes: 20, running: false, startedAt: 0, banked: 0, rang: false });
+let clockTones = [], clockRinging = false;
+const clockElapsed = () => clock.banked + (clock.running ? Date.now() - clock.startedAt : 0);
+const clockLeft = () => clock.minutes * 60000 - clockElapsed();
+const saveClock = () => store.set('clock', clock);
+const fmtMin = m => (Number.isInteger(m) ? m : +m.toFixed(2)) + (m === 1 ? ' minute' : ' minutes');
+function cancelClockTones() { for (const o of clockTones) { try { o.stop(); o.disconnect(); } catch {} } clockTones = []; }
+function scheduleClockTones() {
+  cancelClockTones();
+  if (clock.running && clock.mode === 'down' && clockLeft() > 0) clockTones = beepAt(clockLeft() / 1000);
+}
+function paintClock() {
+  const b = $('#clockBtn'), down = clock.mode === 'down';
+  if (down && clock.running && clockLeft() <= 0) {                      // zero: stop, beep, flash
+    clock.running = false; clock.banked = clock.minutes * 60000; clock.rang = true; saveClock();
+    if (!clockTones.length || !actx || actx.state !== 'running') beep();  // the scheduled tones could not play
+    clockTones = [];
+    clockRinging = true;
+    toast(`Time is up: ${fmtMin(clock.minutes)}.`);
+  }
+  const ms = down ? Math.max(0, clockLeft()) : clockElapsed();
+  const idle = !clock.running && !clock.banked && !clockRinging;
+  b.textContent = idle ? '⏱' : (down ? '⏳ ' : '⏱ ') + mmss(down ? Math.ceil(ms / 1000) * 1000 : ms);
+  b.classList.toggle('on', clock.running);
+  b.classList.toggle('ring', clockRinging);
+  b.title = clockRinging ? 'Time is up. Click to stop the flashing.'
+    : `Timer: ${down ? 'counting down from ' + fmtMin(clock.minutes) : 'counting up'}${clock.running ? '' : idle ? '' : ' (paused)'}. Click for its settings.`;
+  const base = document.title.replace(/^⏰ /, '');
+  document.title = (clockRinging ? '⏰ ' : '') + base;
+  if ($('#clockMenu').hidden) return;
+  $('#clockShow').textContent = mmss(down ? Math.ceil(ms / 1000) * 1000 : ms);
+  document.querySelectorAll('.clock .modes button').forEach(x => x.classList.toggle('on', x.dataset.mode === clock.mode));
+  $('#clockMins').hidden = $('#clockOther').parentElement.hidden = !down;
+  document.querySelectorAll('#clockMins button').forEach(x => x.classList.toggle('on', +x.dataset.min === clock.minutes));
+  $('#clockGo').textContent = clock.running ? 'Pause' : clock.banked && !(down && clockLeft() <= 0) ? 'Resume' : 'Start';
+}
+$('#clockMins').innerHTML = CLOCK_MINS.map(m => `<button data-min="${m}">${m}</button>`).join('');
+function clockReset() {
+  cancelClockTones();
+  clock.running = false; clock.banked = 0; clock.rang = false; clockRinging = false;
+  saveClock(); paintClock();
+}
+$('#clockBtn').onclick = e => {
+  e.stopPropagation();
+  audio();                                                   // a click: sound is allowed from now on
+  if (clockRinging) { clockRinging = false; paintClock(); return; }
+  const m = $('#clockMenu');
+  m.hidden = !m.hidden;
+  if (!m.hidden) {
+    const r = $('#clockBtn').getBoundingClientRect();
+    m.style.top = (r.bottom + 4) + 'px';
+    m.style.left = Math.max(8, Math.min(r.right - 260, innerWidth - 268)) + 'px';
+    $('#clockOther').value = CLOCK_MINS.includes(clock.minutes) ? '' : clock.minutes;
+  }
+  paintClock();
+};
+$('#clockMenu').addEventListener('click', e => {
+  e.stopPropagation();
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.mode && t.dataset.mode !== clock.mode) { clock.mode = t.dataset.mode; clockReset(); }
+  else if (t.dataset.min) { clock.minutes = +t.dataset.min; $('#clockOther').value = ''; clockReset(); }
+  else if (t.id === 'clockReset') clockReset();
+  else if (t.id === 'clockGo') {
+    audio();
+    if (clock.running) { clock.banked = clockElapsed(); clock.running = false; cancelClockTones(); }
+    else {
+      if (clock.mode === 'down' && clockLeft() <= 0) clock.banked = 0;     // finished: start again
+      clock.running = true; clock.startedAt = Date.now(); clock.rang = false; clockRinging = false;
+    }
+    saveClock(); scheduleClockTones(); paintClock();
+  }
+});
+$('#clockOther').addEventListener('change', e => {
+  const m = parseFloat(e.target.value);
+  if (m > 0) { clock.minutes = m; clockReset(); }
+});
+document.addEventListener('click', e => { if (!e.target.closest('#clockMenu') && !e.target.closest('#clockBtn')) $('#clockMenu').hidden = true; });
+// while it runs, repaint 4 times a second (the page's 1-second tick left it up to a second behind)
+setInterval(() => { if (clock.running) paintClock(); }, 250);
+/* after a reload a running count-down can only beep once the page is clicked or typed in */
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => {
+  if (clock.running && clock.mode === 'down' && !clockTones.length) { audio(); scheduleClockTones(); }
+}, true));
+paintClock();
 
 /* Hints: the header notes practice mode hides, one at a time, gentlest first (the server
    orders them: KEY INSIGHT, then APPROACH, then COMPLEXITY, then follow-ups). */

@@ -930,6 +930,14 @@ class AssistTest(unittest.TestCase):
         self.assertNotIn("dailyTemperatures", in_main)
         self.assertIn("print", self.labels(self.complete(main=f"pri{CUR}")))
 
+    def test_return_comes_first_at_the_start_of_a_statement(self):
+        """5 Oct: `re` at the end of a method listed `record` first (all keywords tied, so A-Z)."""
+        res = self.complete(method=f"re{CUR}")
+        ranked = sorted((it for it in res["items"] if it["label"].startswith("re")), key=lambda it: it["sort"])
+        self.assertEqual(ranked[0]["label"], "return")
+        labels = [it["label"] for it in ranked]
+        self.assertLess(labels.index("return"), labels.index("record"))
+
     def test_class_name_brings_its_import(self):
         src = DAILY.replace("@@", f"ArrayDe{CUR}").replace("%%", "")
         res = self.ask("complete", src)
