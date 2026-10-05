@@ -68,6 +68,7 @@ class RecursivePostorder {
         return result;
     }
 
+    // left , right , root
     private void collectPostorder(TreeNode node, List<Integer> result) {
         if (node == null) {
             return;

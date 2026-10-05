@@ -54,7 +54,8 @@ Start with `00-Patterns`: 110 files, one per pattern, each saying how to recogni
 | [18-Sorting-Searching-Algorithms](18-Sorting-Searching-Algorithms/) | 14 | 5 | Sorting algorithm implementations, quick select, KMP, Rabin-Karp, segment tree. |
 | [19-Design-Data-Structures](19-Design-Data-Structures/) | 18 | 6 | LeetCode design problems: LRU and LFU cache, min stack, hit counter, time-based KV store. |
 | [20-Scenario-Based-Problems](20-Scenario-Based-Problems/) | 13 | 4 | Real-world style questions from Karat, Atlassian and onsite rounds: logs, votes, ratings, distances. |
-| **Total** | **600** | **206** | |
+| [RealTimeInterviewQs](RealTimeInterviewQs/) | 2 | 0 |  |
+| **Total** | **602** | **206** | |
 
 ## 00-Patterns/01-Arrays-Prefix-Sums
 
@@ -1119,5 +1120,14 @@ Real-world style questions from Karat, Atlassian and onsite rounds: logs, votes,
 - Common Ancestor (Karat, 3 parts): given parent/child pairs, (1) list individuals with zero parents and with exactly one parent, (2) do two individuals share any common ancestor, (3) find the earliest/furthest ancestor of an individual: Build a directed graph from edge pairs (child->parents), degree counting for part 1, BFS/DFS upward + ancestor-set intersection for part 2, BFS with level tracking for part 3
 - Longest Common Continuous Subarray / browsing history (Karat): given two users' ordered page-visit lists, return the longest contiguous run they share; follow-up, do it across many users and return the pair with the longest shared run: DP grid over two sequences (or rolling-hash / suffix comparison), then all-pairs over users for the follow-up
 - Student Course Pairs (Karat): given (student, course) pairs, output every pair of students with the courses they have in common; follow-up, return the pair sharing the most courses: Group student->set(courses), enumerate all student pairs, set intersection; or invert to course->students and count co-occurrences per pair with a composite key
+
+## RealTimeInterviewQs
+
+
+
+| File | Problem | Level | Key insight |
+|---|---|---|---|
+| [InfosysGrumpyOwner.java](RealTimeInterviewQs/InfosysGrumpyOwner.java) | InfosysGrumpyOwner |  |  |
+| [InfosysGrumpyOwnerOptimised.java](RealTimeInterviewQs/InfosysGrumpyOwnerOptimised.java) | InfosysGrumpyOwnerOptimised |  |  |
 
 `*` = must-know. Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch.
