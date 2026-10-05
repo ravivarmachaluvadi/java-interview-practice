@@ -720,22 +720,28 @@ def run_code(code, rid, rel_path, stdin, timeout, want_main):
         out = work / "out"
         out.mkdir()
 
-        cmd = [JAVAC, "-J-Dstderr.encoding=UTF-8", "-J-Dstdout.encoding=UTF-8",
-               "-nowarn", "-encoding", "UTF-8", "-d", str(out)]
-        if src_dir:
-            cmd += ["-sourcepath", str(src_dir)]
-        cmd.append(str(src))
         t0 = time.monotonic()
-        try:
-            c = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", timeout=120, stdin=subprocess.DEVNULL,
-                               creationflags=NO_WINDOW)
-        except subprocess.TimeoutExpired:
-            return {"phase": "compile", "ok": False, "output": "javac took longer than 120 s."}
+        # 5 Oct: compile in the autocomplete helper's warm javac (~570 ms -> tens of ms); its
+        # errors read exactly like the javac command's. If it cannot answer, the command does.
+        c = ASSIST.ask("compile", "", 0, src_dir, str(src), extra=str(out))
+        if "ok" in c:
+            ok, output = c["ok"], tidy(c["output"], work)
+        else:
+            cmd = [JAVAC, "-J-Dstderr.encoding=UTF-8", "-J-Dstdout.encoding=UTF-8",
+                   "-nowarn", "-encoding", "UTF-8", "-d", str(out)]
+            if src_dir:
+                cmd += ["-sourcepath", str(src_dir)]
+            cmd.append(str(src))
+            try:
+                c = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                                   errors="replace", timeout=120, stdin=subprocess.DEVNULL,
+                                   creationflags=NO_WINDOW)
+            except subprocess.TimeoutExpired:
+                return {"phase": "compile", "ok": False, "output": "javac took longer than 120 s."}
+            ok, output = c.returncode == 0, tidy(c.stderr + c.stdout, work)
         compile_ms = int((time.monotonic() - t0) * 1000)
-        if c.returncode != 0:
-            return {"phase": "compile", "ok": False, "file": fname, "compileMs": compile_ms,
-                    "output": tidy(c.stderr + c.stdout, work)}
+        if not ok:
+            return {"phase": "compile", "ok": False, "file": fname, "compileMs": compile_ms, "output": output}
         if not mains:
             return {"phase": "compile", "ok": False, "file": fname, "compileMs": compile_ms,
                     "output": "Compiled, but no class declares main() - nothing to run."}
@@ -805,8 +811,8 @@ ASSIST_IDLE = 20 * 60
 # Measured 5 Oct on C06_DailyTemperatures (30 warm runs each): -Xmx384m alone held 305 MB;
 # stopping the JIT at its first tier holds 208 MB, with the same ~20 ms per suggestion.
 ASSIST_JVM = os.environ.get("CODEVIEW_ASSIST_JVM", "-Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1").split()
-ASSIST_OPS = {"complete", "signature", "hover", "doc", "check", "warm"}
-ASSIST_WAIT = {"check": 10, "warm": 60}      # seconds; the rest 4. A cold start adds 40.
+ASSIST_OPS = {"complete", "signature", "hover", "doc", "check", "warm", "imports", "definition", "rename"}
+ASSIST_WAIT = {"check": 10, "warm": 60, "compile": 120}   # seconds; the rest 4. A cold start adds 40.
 LATEST_ONLY = {"complete", "signature", "hover", "check"}   # a newer request makes a queued one pointless
 
 
@@ -846,8 +852,8 @@ class Assist:
 
     def start(self):
         cp = self.classes()
-        self.proc = subprocess.Popen([JAVA, *ASSIST_JVM, "-Dfile.encoding=UTF-8",
-                                      "-cp", str(cp), "CvAssist"],
+        self.proc = subprocess.Popen([JAVA, *ASSIST_JVM, "-Dfile.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
+                                      "-Dstdout.encoding=UTF-8", "-cp", str(cp), "CvAssist"],
                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, creationflags=NO_WINDOW)
         lines = self.lines = queue.Queue()
@@ -935,9 +941,16 @@ def assist_request(req):
         raise ValueError(f"unknown autocomplete request: {op}")
     if op in ("doc", "warm"):
         return ASSIST.ask(op, extra=str(req.get("key") or ""))
-    code = req.get("code") or ""
-    src_dir, fname, info = compile_target(code, req.get("root", ""), req.get("path") or None)
-    return ASSIST.ask(op, code, int(req.get("offset") or 0), src_dir, fname, "c" if info[3] else "")
+    code, rid = req.get("code") or "", req.get("root", "")
+    src_dir, fname, info = compile_target(code, rid, req.get("path") or None)
+    res = ASSIST.ask(op, code, int(req.get("offset") or 0), src_dir, fname, "c" if info[3] else "",
+                     str(req.get("key") or ""))
+    if "file" in res:                  # a definition in another file: the page opens it by its path
+        try:
+            res["path"] = pathlib.Path(res.pop("file")).resolve().relative_to(root_path(rid).resolve()).as_posix()
+        except ValueError:             # outside the open folder: nothing to open
+            res.pop("line", None)
+    return res
 
 
 def jdk_version():

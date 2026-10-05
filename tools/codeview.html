@@ -523,7 +523,9 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>Full screen: hide the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
+    <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Complete the statement, as in IntelliJ: closes open brackets and adds the <code>;</code>, or <code>{ }</code> after if / for / while / a method header; on a finished line, a new line below</td></tr>
@@ -1207,7 +1209,10 @@ function initEditor() {
   editor.addCommand(K.CtrlCmd | K.Shift | C.Enter, () => completeStatement());
   editor.addCommand(K.Alt | C.KeyZ, toggleWrap);
   editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
-  editor.addCommand(K.Alt | C.Enter, toggleFull);
+  // IntelliJ's Alt+Enter on a missing class; full screen everywhere else, as before
+  // (getAction().run(), not trigger(..., null): with a null argument the quick fix menu never opened)
+  editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? editor.getAction('editor.action.quickFix').run() : toggleFull());
+  editor.addCommand(K.Shift | C.F6, () => editor.getAction('editor.action.rename').run());
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
@@ -1716,6 +1721,10 @@ function applyAssist() {
     : { wordBasedSuggestions: 'matchingDocuments', quickSuggestions: code, suggestOnTriggerCharacters: true, parameterHints: { enabled: true } };
   editor.updateOptions(opts);
   if (diffEditor) diffEditor.getModifiedEditor().updateOptions(opts);
+  // Monaco's quick fix (Alt+Enter) looks at read-only only when the model or its list of
+  // providers changes, not when Edit flips read-only, so after Edit it stayed off (5 Oct).
+  // Adding and removing an empty provider is a change, and makes it look again.
+  monaco.languages.registerCodeActionProvider('java', { provideCodeActions: () => ({ actions: [], dispose() {} }) }).dispose();
   if (on) { assistWarm(); liveCheck(); }
 }
 let assistWarned = false, assistWarmed = false;
@@ -1840,6 +1849,17 @@ function completeStatement() {
   const done = head + (head.endsWith(';') ? '' : ';');
   put(done + after, n, done.length + 1);
 }
+const JAVA_WORDS = new Set(('abstract assert boolean break byte case catch char class const continue default do double else enum extends '
+  + 'final finally float for goto if implements import instanceof int interface long native new package private protected public '
+  + 'return short static strictfp super switch synchronized this throw throws transient try void volatile while true false null var').split(' '));
+/* Alt+Enter: a red "cannot find symbol" under the cursor, so the quick fix menu has an import */
+function importFixHere() {
+  const m = editor.getModel(), p = editor.getPosition();
+  if (!m || !p || !assistModel(m)) return false;
+  return monaco.editor.getModelMarkers({ resource: m.uri, owner: 'javac' }).some(mk => /cannot find symbol/.test(mk.message)
+    && mk.startLineNumber <= p.lineNumber && p.lineNumber <= mk.endLineNumber
+    && (mk.startLineNumber < p.lineNumber || mk.startColumn <= p.column) && (mk.endLineNumber > p.lineNumber || p.column <= mk.endColumn));
+}
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;
   const KINDS = { method: K.Method, field: K.Field, constant: K.Constant, enumConst: K.EnumMember, local: K.Variable,
@@ -1902,6 +1922,71 @@ function initAssist() {
       const r = await assistAsk('hover', model, model.getOffsetAt(pos), token);
       if (!r || r.stale || !r.md) return null;
       return { range: new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn), contents: [{ value: r.md }] };
+    },
+  });
+  // Alt+Enter on "cannot find symbol": the import of each JDK class with that name
+  L.registerCodeActionProvider('java', {
+    async provideCodeActions(model, range, context, token) {
+      const actions = [], asked = new Set();
+      if (!assistModel(model)) return { actions, dispose() {} };
+      for (const mk of context.markers) {
+        if (!/cannot find symbol/.test(mk.message)) continue;
+        const w = model.getWordAtPosition({ lineNumber: mk.startLineNumber, column: mk.startColumn });
+        if (!w || !/^[A-Z]/.test(w.word) || asked.has(w.word)) continue;
+        asked.add(w.word);
+        const r = await assistAsk('imports', model, 0, token, { key: w.word });
+        if (!r || !r.fixes || r.importAt == null) continue;
+        const at = model.getPositionAt(r.importAt), where = new monaco.Range(at.lineNumber, at.column, at.lineNumber, at.column);
+        for (const f of r.fixes) actions.push({
+          title: 'Import ' + f.fqn, kind: 'quickfix', diagnostics: [mk], isPreferred: !actions.length,
+          edit: { edits: [{ resource: model.uri, versionId: model.getVersionId(), textEdit: { range: where, text: f.import } }] },
+        });
+      }
+      return { actions, dispose() {} };
+    },
+  }, { providedCodeActionKinds: ['quickfix'] });
+  // F12 / Ctrl+click: in this file Monaco jumps itself; another file of the folder opens here
+  L.registerDefinitionProvider('java', {
+    async provideDefinition(model, pos, token) {
+      if (!assistModel(model, true)) return null;
+      const r = await assistAsk('definition', model, model.getOffsetAt(pos), token);
+      if (!r) return null;
+      if (r.start != null) return { uri: model.uri, range: offsetRange(model, r.start, r.end) };
+      if (!r.path || !r.line) return null;
+      const d = await api('/api/file?' + qs({ root: S.root, path: r.path })).catch(() => null);
+      if (!d) return null;
+      const uri = monaco.Uri.from({ scheme: 'cvfile', path: '/' + r.path });   // for the Ctrl+hover preview
+      const m = monaco.editor.getModel(uri);
+      if (m) m.setValue(d.text); else monaco.editor.createModel(d.text, 'java', uri);
+      return { uri, range: new monaco.Range(r.line, r.col, r.line, r.col + r.len) };
+    },
+  });
+  monaco.editor.registerEditorOpener({
+    openCodeEditor(source, resource, where) {
+      if (resource.scheme !== 'cvfile') return false;
+      const path = resource.path.replace(/^\//, ''), w = where || {};
+      const line = w.startLineNumber || w.lineNumber || 1, col = w.startColumn || w.column || 1;
+      S.pendingReveal = { key: keyOf(path), line, col, len: Math.max(0, (w.endColumn || col) - col) };
+      go(path);
+      return true;
+    },
+  });
+  // Shift+F6 / F2: every use in this file, renamed together
+  L.registerRenameProvider('java', {
+    async resolveRenameLocation(model, pos, token) {
+      const w = model.getWordAtPosition(pos);
+      const range = w ? new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn) : new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column);
+      if (!w || !assistModel(model)) return { range, text: w ? w.word : '', rejectReason: 'Rename works while editing a Java file (Edit, Try or the Scratch pad)' };
+      const r = await assistAsk('rename', model, model.getOffsetAt(pos), token);
+      if (!r) return { range, text: w.word, rejectReason: 'Rename is not available right now' };
+      return r.reject ? { range, text: w.word, rejectReason: r.reject } : { range, text: w.word };
+    },
+    async provideRenameEdits(model, pos, newName, token) {
+      if (!/^[A-Za-z_$][\w$]*$/.test(newName) || JAVA_WORDS.has(newName)) return { edits: [], rejectReason: `"${newName}" is not a valid Java name` };
+      const r = await assistAsk('rename', model, model.getOffsetAt(pos), token);
+      if (!r || r.reject || !r.spots) return { edits: [], rejectReason: r && r.reject || 'Rename is not available right now' };
+      const v = model.getVersionId();
+      return { edits: r.spots.map(s => ({ resource: model.uri, versionId: v, textEdit: { range: offsetRange(model, s, s + r.len), text: newName } })) };
     },
   });
   editor.onDidChangeModelContent(() => liveCheck());

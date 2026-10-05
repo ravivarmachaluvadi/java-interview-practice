@@ -164,6 +164,10 @@ public class CvAssist {
             case "doc" -> doc(r.extra);
             case "check" -> check(r);
             case "warm" -> warm();
+            case "compile" -> compile(r);
+            case "imports" -> imports(r);
+            case "definition" -> definition(r);
+            case "rename" -> rename(r);
             default -> new LinkedHashMap<>(Map.of("error", "unknown op " + r.op));
         };
         res.put("ms", (System.nanoTime() - t0) / 1_000_000);
@@ -1072,46 +1076,89 @@ public class CvAssist {
 
     /* ------------------------------------------------------------------ hover */
 
-    Map<String, Object> hover(Req r) throws IOException {
-        Map<String, Object> res = new LinkedHashMap<>();
-        String t = r.text;
-        int cur = Math.max(0, Math.min(r.offset, t.length()));
+    /** The word around the cursor: {start, end}, or null outside a name, a comment or a string. */
+    static int[] wordAt(String t, int offset) {
+        int cur = Math.max(0, Math.min(offset, t.length()));
         int s = cur, e = cur;
         while (s > 0 && Character.isJavaIdentifierPart(t.charAt(s - 1))) s--;
         while (e < t.length() && Character.isJavaIdentifierPart(t.charAt(e))) e++;
-        if (s == e || lex(t, s).quoted) return res;
+        return s == e || lex(t, s).quoted ? null : new int[]{s, e};
+    }
+
+    /** Where the name written at [s, e) starts, for a tree that names something there: an
+        identifier, a.name, Type::name, or a variable, method or class being declared. */
+    long nameStart(Unit u, Tree n, String text) {
+        switch (n.getKind()) {
+            case IDENTIFIER: return u.start(n);
+            case MEMBER_SELECT: return u.end(n) - ((MemberSelectTree) n).getIdentifier().length();
+            case MEMBER_REFERENCE: return u.end(n) - ((MemberReferenceTree) n).getName().length();
+            case VARIABLE: {
+                VariableTree v = (VariableTree) n;
+                return findName(text, v.getName().toString(), v.getType() == null ? u.start(n) : u.end(v.getType()));
+            }
+            case METHOD: {
+                MethodTree m = (MethodTree) n;
+                String name = m.getName().contentEquals("<init>") ? enclosingClassName(u, n) : m.getName().toString();
+                return name == null ? -1 : findName(text, name, m.getReturnType() == null ? u.start(n) : u.end(m.getReturnType()));
+            }
+            default:
+                if (n instanceof ClassTree c) {
+                    int at = (int) Math.max(0, u.start(n));
+                    java.util.regex.Matcher k = java.util.regex.Pattern.compile("\\b(class|interface|enum|record)\\s+").matcher(text);
+                    return k.find(at) ? findName(text, c.getSimpleName().toString(), k.end()) : -1;
+                }
+                return -1;
+        }
+    }
+
+    String enclosingClassName(Unit u, Tree method) {
+        TreePath p = u.trees.getPath(u.cu, method);
+        for (; p != null; p = p.getParentPath()) if (p.getLeaf() instanceof ClassTree c) return c.getSimpleName().toString();
+        return null;
+    }
+
+    /** First whole-word `name` at or after `from`, or -1. */
+    static long findName(String text, String name, long from) {
+        if (from < 0) return -1;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?<![\\w$])" + java.util.regex.Pattern.quote(name) + "(?![\\w$])").matcher(text);
+        return m.find((int) from) ? m.start() : -1;
+    }
+
+    /** The tree whose name is the word at [s, e). */
+    TreePath pathAt(Unit u, String t, int s, int e) {
         String word = t.substring(s, e);
-        Unit u = new Unit(t, r);
-        int ws = s, we = e;
         TreePath[] hit = {null};
         new TreePathScanner<Void, Void>() {
-            @Override public Void scan(Tree tree, Void v) { return hit[0] != null ? null : super.scan(tree, v); }
-            @Override public Void visitIdentifier(IdentifierTree n, Void v) {
-                if (u.start(n) == ws && n.getName().contentEquals(word)) hit[0] = getCurrentPath();
-                return null;
+            @Override public Void scan(Tree tree, Void v) {
+                if (hit[0] != null || tree == null) return null;
+                long a = u.start(tree), b = u.end(tree);
+                if (a >= 0 && b >= 0 && (b < s || a > e)) return null;          // not around the word
+                return super.scan(tree, v);
             }
-            @Override public Void visitMemberSelect(MemberSelectTree n, Void v) {
-                if (u.end(n) == we && n.getIdentifier().contentEquals(word)) { hit[0] = getCurrentPath(); return null; }
-                return super.visitMemberSelect(n, v);
+            void at(Tree n, CharSequence name) {
+                if (hit[0] == null && name.toString().equals(word) && nameStart(u, n, t) == s) hit[0] = getCurrentPath();
             }
-            @Override public Void visitVariable(VariableTree n, Void v) {
-                if (n.getName().contentEquals(word) && nameAt(n.getType() == null ? u.start(n) : u.end(n.getType()), ws)) { hit[0] = getCurrentPath(); return null; }
-                return super.visitVariable(n, v);
-            }
+            @Override public Void visitIdentifier(IdentifierTree n, Void v) { at(n, n.getName()); return null; }
+            @Override public Void visitMemberSelect(MemberSelectTree n, Void v) { at(n, n.getIdentifier()); return super.visitMemberSelect(n, v); }
+            @Override public Void visitMemberReference(MemberReferenceTree n, Void v) { at(n, n.getName()); return super.visitMemberReference(n, v); }
+            @Override public Void visitVariable(VariableTree n, Void v) { at(n, n.getName()); return super.visitVariable(n, v); }
             @Override public Void visitMethod(MethodTree n, Void v) {
-                if (n.getName().contentEquals(word) && nameAt(n.getReturnType() == null ? u.start(n) : u.end(n.getReturnType()), ws)) { hit[0] = getCurrentPath(); return null; }
+                at(n, n.getName().contentEquals("<init>") ? String.valueOf(enclosingClassName(u, n)) : n.getName());
                 return super.visitMethod(n, v);
             }
-            @Override public Void visitClass(ClassTree n, Void v) {
-                if (n.getSimpleName().contentEquals(word) && t.substring((int) Math.max(0, u.start(n)), ws).matches("(?s).*\\b(class|interface|enum|record)\\s+$")) { hit[0] = getCurrentPath(); return null; }
-                return super.visitClass(n, v);
-            }
-            boolean nameAt(long after, int pos) {
-                return after >= 0 && after <= pos && t.substring((int) after, pos).isBlank();
-            }
+            @Override public Void visitClass(ClassTree n, Void v) { at(n, n.getSimpleName()); return super.visitClass(n, v); }
         }.scan(u.cu, null);
-        if (hit[0] == null) return res;
-        Element el = u.trees.getElement(hit[0]);
+        return hit[0];
+    }
+
+    Map<String, Object> hover(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        int[] w = wordAt(r.text, r.offset);
+        if (w == null) return res;
+        Unit u = new Unit(r.text, r);
+        TreePath hit = pathAt(u, r.text, w[0], w[1]);
+        if (hit == null) return res;
+        Element el = u.trees.getElement(hit);
         if (el == null) return res;
         StringBuilder md = new StringBuilder("```java\n").append(declaration(u, el)).append("\n```\n");
         Element owner = el.getEnclosingElement();
@@ -1166,6 +1213,131 @@ public class CvAssist {
         }
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("diags", out);
+        return res;
+    }
+
+    /* ------------------------------------------------------------------ compile (Run) */
+
+    /** Run's compile step, in this warm JVM. It runs the javac command's own code (Tool.run)
+        with the very arguments codeview.py gives the command, so the class files and every
+        character of the error text are the same; only the start-up is gone. The javac API
+        words errors differently (java.lang.String, not String), so it is not used here.
+        Request: fileName = the source file Run wrote, extra = the folder for the classes.
+        5 Oct: javac was ~570 of a ~680 ms Run. */
+    Map<String, Object> compile(Req r) {
+        List<String> args = new ArrayList<>(List.of("-nowarn", "-encoding", "UTF-8", "-d", r.extra));
+        if (!r.sourcepath.isEmpty()) args.addAll(List.of("-sourcepath", r.sourcepath));
+        args.add(r.fileName);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int rc = jc.run(null, out, out, args.toArray(new String[0]));
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("ok", rc == 0);
+        res.put("output", out.toString(StandardCharsets.UTF_8));
+        return res;
+    }
+
+    /* ------------------------------------------------------------------ quick fix, definition, rename */
+
+    /** Alt+Enter on "cannot find symbol": the JDK classes with that name and their import. */
+    Map<String, Object> imports(Req r) throws IOException {
+        Unit u = new Unit(r.text, r);
+        List<Map<String, Object>> fixes = new ArrayList<>();
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("fixes", fixes);
+        try { buildIndex(); } catch (IOException e) { return res; }
+        for (String fqn : index) {
+            if (fqn.substring(fqn.lastIndexOf('.') + 1).equals(r.extra) && isPublic(u, fqn)) {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("fqn", fqn);
+                f.put("importFqn", fqn);
+                fixes.add(f);
+            }
+        }
+        fixes.sort(Comparator.comparing((Map<String, Object> f) -> !String.valueOf(f.get("fqn")).startsWith("java.util.")));
+        res.put("items", fixes);                      // importPlace fills in "import" on these
+        importPlace(u, r, res);
+        res.remove("items");
+        return res;
+    }
+
+    /** Ctrl+click / F12: where the name under the cursor is declared. In this file: its offsets;
+        in another file of the folder (a helper class): that file with line and column. */
+    Map<String, Object> definition(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        int[] w = wordAt(r.text, r.offset);
+        if (w == null) return res;
+        Unit u = new Unit(r.text, r);
+        TreePath hit = pathAt(u, r.text, w[0], w[1]);
+        Element el = hit == null ? null : u.trees.getElement(hit);
+        TreePath decl = el == null ? null : u.trees.getPath(el);
+        if (decl == null) return res;                 // the JDK's, or unknown
+        CompilationUnitTree cu = decl.getCompilationUnit();
+        String text = cu == u.cu ? r.text : cu.getSourceFile().getCharContent(true).toString();
+        long at;
+        if (cu == u.cu) at = nameStart(u, decl.getLeaf(), text);
+        else {                                        // positions in that file need its own tree
+            SourcePositions sp = u.trees.getSourcePositions();
+            Tree n = decl.getLeaf();
+            String name = el.getKind() == ElementKind.CONSTRUCTOR ? el.getEnclosingElement().getSimpleName().toString() : el.getSimpleName().toString();
+            long from = sp.getStartPosition(cu, n);
+            if (n instanceof VariableTree v && v.getType() != null) from = sp.getEndPosition(cu, v.getType());
+            if (n instanceof MethodTree m && m.getReturnType() != null) from = sp.getEndPosition(cu, m.getReturnType());
+            if (n instanceof ClassTree) {
+                java.util.regex.Matcher k = java.util.regex.Pattern.compile("\\b(class|interface|enum|record)\\s+").matcher(text);
+                from = k.find((int) Math.max(0, from)) ? k.end() : from;
+            }
+            at = findName(text, name, from);
+        }
+        if (at < 0) return res;
+        int len = (el.getKind() == ElementKind.CONSTRUCTOR ? el.getEnclosingElement() : el).getSimpleName().length();
+        if (cu == u.cu) {
+            res.put("start", at);
+            res.put("end", at + len);
+        } else {
+            int ls = text.lastIndexOf('\n', (int) at - 1) + 1;
+            res.put("file", new File(cu.getSourceFile().toUri()).getPath());
+            res.put("line", text.substring(0, ls).chars().filter(c -> c == '\n').count() + 1);
+            res.put("col", at - ls + 1);
+            res.put("len", len);
+        }
+        return res;
+    }
+
+    /** Shift+F6: every place in this file that names the same thing as the word under the
+        cursor. Only what this file declares can be renamed; a JDK name is refused. */
+    Map<String, Object> rename(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        int[] w = wordAt(r.text, r.offset);
+        if (w == null) { res.put("reject", "Put the cursor on a name to rename it"); return res; }
+        Unit u = new Unit(r.text, r);
+        TreePath hit = pathAt(u, r.text, w[0], w[1]);
+        Element el = hit == null ? null : u.trees.getElement(hit);
+        if (el != null && el.getKind() == ElementKind.CONSTRUCTOR) el = el.getEnclosingElement();
+        TreePath decl = el == null ? null : u.trees.getPath(el);
+        if (el == null || decl == null || decl.getCompilationUnit() != u.cu) {
+            res.put("reject", el == null ? "This name is not known here" : "Only names declared in this file can be renamed");
+            return res;
+        }
+        String name = el.getSimpleName().toString(), text = r.text;
+        Element target = el;
+        Set<Long> spots = new TreeSet<>();
+        new TreePathScanner<Void, Void>() {
+            void at(Tree n) {
+                Element e = u.trees.getElement(getCurrentPath());
+                if (e != null && e.getKind() == ElementKind.CONSTRUCTOR && target instanceof TypeElement) e = e.getEnclosingElement();
+                if (!target.equals(e)) return;
+                long s = nameStart(u, n, text);
+                if (s >= 0 && text.startsWith(name, (int) s)) spots.add(s);
+            }
+            @Override public Void visitIdentifier(IdentifierTree n, Void v) { at(n); return null; }
+            @Override public Void visitMemberSelect(MemberSelectTree n, Void v) { at(n); return super.visitMemberSelect(n, v); }
+            @Override public Void visitMemberReference(MemberReferenceTree n, Void v) { at(n); return super.visitMemberReference(n, v); }
+            @Override public Void visitVariable(VariableTree n, Void v) { at(n); return super.visitVariable(n, v); }
+            @Override public Void visitMethod(MethodTree n, Void v) { at(n); return super.visitMethod(n, v); }
+            @Override public Void visitClass(ClassTree n, Void v) { at(n); return super.visitClass(n, v); }
+        }.scan(u.cu, null);
+        res.put("spots", new ArrayList<>(spots));
+        res.put("len", name.length());
         return res;
     }
 

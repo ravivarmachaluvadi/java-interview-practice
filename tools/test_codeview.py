@@ -9,6 +9,7 @@ imported, so the real tools/codeview-state.json and codeview.log are never touch
 """
 import base64, hashlib, io, json, os, pathlib, re, shutil, subprocess, sys, tarfile, tempfile, threading, unittest
 import urllib.error, urllib.request
+from unittest import mock
 from collections import Counter
 
 TMP = pathlib.Path(tempfile.mkdtemp(prefix="codeview_test_"))
@@ -843,6 +844,101 @@ class AssistTest(unittest.TestCase):
                 wrong[p.relative_to(root).as_posix()] = diags[0]["msg"]
         self.assertEqual(wrong, {})
         self.assertGreater(clean, 600)
+
+    # --- Run compiles in the warm helper (5 Oct: javac was ~85% of a 0.7 s Run)
+    def test_run_compiles_in_the_warm_helper(self):
+        codeview.ASSIST.ask("warm")
+        code = DAILY.replace("@@", "").replace("%%", "")
+        with mock.patch.object(codeview.subprocess, "run", side_effect=AssertionError("a javac process was started")):
+            res = codeview.run_code(code, "", None, "", 10, None)
+        self.assertTrue(res["ok"], res.get("output"))
+        self.assertIn("case 1: [1, 0]", res["output"])
+
+    def test_compile_errors_read_exactly_like_javac(self):
+        """The page underlines errors by parsing javac's text (file:line: error, source line,
+        caret line), so the helper must print exactly what the javac command prints."""
+        code = DAILY.replace("@@", 'int x = "é→";\n                undefinedCall(colderDay);').replace("%%", "")
+        res = codeview.run_code(code, "", None, "", 10, None)
+        with mock.patch.object(codeview.ASSIST, "ask", return_value={"error": "off"}):
+            cli = codeview.run_code(code, "", None, "", 10, None)
+        self.assertEqual((res["phase"], res["ok"]), ("compile", False))
+        self.assertIn("2 errors", cli["output"])
+        self.assertEqual(res["output"].replace("\r\n", "\n"), cli["output"].replace("\r\n", "\n"))
+
+    def test_run_falls_back_to_the_javac_command(self):
+        code = DAILY.replace("@@", "").replace("%%", "")
+        with mock.patch.object(codeview.ASSIST, "ask", return_value={"error": "helper down"}):
+            res = codeview.run_code(code, "", None, "", 10, None)
+        self.assertTrue(res["ok"], res.get("output"))
+
+    def sibling_folder(self, name):
+        """A folder holding Helper.java and B03_UsesHelper.java, removed after the test."""
+        folder = codeview.REPO / "AAScratches" / name
+        folder.mkdir(parents=True, exist_ok=True)
+        self.addCleanup(lambda: shutil.rmtree(folder, ignore_errors=True))
+        (folder / "Helper.java").write_bytes(b"class Helper {\n    static int twice(int x) {\n        return 2 * x;\n    }\n}\n")
+        user = b"class B03_UsesHelper {\n    public static void main(String[] a) {\n        System.out.println(Helper.twice(21));\n    }\n}\n"
+        (folder / "B03_UsesHelper.java").write_bytes(user)
+        return folder, f"AAScratches/{name}/B03_UsesHelper.java", user.decode()
+
+    def test_run_finds_a_helper_class_in_the_same_folder(self):
+        folder, rel, code = self.sibling_folder("_codeview_test_run")
+        rid = codeview.STATE.roots()[0]["id"]
+        res = codeview.run_code(code, rid, rel, "", 10, None)
+        self.assertTrue(res["ok"], res.get("output"))
+        self.assertEqual(res["output"].strip(), "42")
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["B03_UsesHelper.java", "Helper.java"])
+
+    # --- Alt+Enter: add the missing import
+    def test_quick_fix_offers_the_import(self):
+        src = "class Q {\n    void f() {\n        ArrayDeque<Integer> d = new ArrayDeque<>();\n    }\n}\n"
+        res = self.ask("imports", src, fname="Q.java", extra="ArrayDeque")
+        self.assertEqual([f["fqn"] for f in res["fixes"]], ["java.util.ArrayDeque"])
+        self.assertEqual(res["fixes"][0]["import"], "import java.util.ArrayDeque;\n\n")
+        self.assertEqual(res["importAt"], 0)
+
+    # --- go to definition
+    def test_definition_of_a_local_a_method_and_nothing_for_the_jdk(self):
+        src = DAILY.replace("result[colderDay] = today", f"result[col{CUR}derDay] = today").replace("@@", "").replace("%%", "")
+        res = self.ask("definition", src)
+        decl = src.replace(CUR, "").index("int colderDay") + len("int ")
+        self.assertEqual((res["start"], res["end"]), (decl, decl + len("colderDay")))
+        src = DAILY.replace("solution.dailyTemperatures(", f"solution.daily{CUR}Temperatures(").replace("@@", "").replace("%%", "")
+        decl = src.replace(CUR, "").index("public int[] dailyTemperatures") + len("public int[] ")
+        self.assertEqual(self.ask("definition", src)["start"], decl)
+        src = DAILY.replace("waiting.peek()", f"waiting.pe{CUR}ek()").replace("@@", "").replace("%%", "")
+        res = self.ask("definition", src)
+        self.assertNotIn("start", res)
+        self.assertNotIn("file", res)
+
+    def test_definition_in_another_file_of_the_folder(self):
+        folder, rel, code = self.sibling_folder("_codeview_test_def")
+        rid = codeview.STATE.roots()[0]["id"]
+        res = codeview.assist_request({"op": "definition", "root": rid, "path": rel, "code": code,
+                                       "offset": code.index("twice") + 2})
+        self.assertEqual(res["path"], "AAScratches/_codeview_test_def/Helper.java")
+        self.assertEqual((res["line"], res["col"], res["len"]), (2, 16, 5))
+
+    # --- Shift+F6 rename
+    def test_rename_finds_every_use_in_the_file(self):
+        src = DAILY.replace("int colderDay", f"int col{CUR}derDay").replace("@@", "").replace("%%", "")
+        res = self.ask("rename", src)
+        clean = src.replace(CUR, "")
+        self.assertEqual(sorted(res["spots"]), [m.start() for m in re.finditer(r"\bcolderDay\b", clean)])
+        self.assertEqual(len(res["spots"]), 3)
+        self.assertEqual(res["len"], len("colderDay"))
+
+    def test_rename_a_class_and_a_method(self):
+        src = DAILY.replace("class DailyTemperatures {", f"class Daily{CUR}Temperatures {{").replace("@@", "").replace("%%", "")
+        clean = src.replace(CUR, "")
+        self.assertEqual(sorted(self.ask("rename", src)["spots"]),
+                         [m.start() for m in re.finditer(r"\bDailyTemperatures\b", clean)])
+        src = DAILY.replace("int[] dailyTemperatures(", f"int[] daily{CUR}Temperatures(").replace("@@", "").replace("%%", "")
+        self.assertEqual(len(self.ask("rename", src)["spots"]), 2)
+
+    def test_rename_refuses_jdk_names(self):
+        src = DAILY.replace("waiting.peek()", f"waiting.pe{CUR}ek()").replace("@@", "").replace("%%", "")
+        self.assertIn("reject", self.ask("rename", src))
 
     def test_restarts_after_the_helper_dies(self):
         self.complete(method=f"waiting.{CUR}")
