@@ -2491,6 +2491,32 @@ function fmtLog(what) {
   log.push(`${new Date().toLocaleTimeString()} ${c ? c.path.split('/').pop() + ' [' + (c.mode || 'file') + ']' : '-'} ${what}`);
   store.set('fmtlog', log.slice(-20));
 }
+/* 6 Oct, the cause, read back from that log and Ravi's Try copy: on his keyboard layout, English
+   (India), Ctrl+Alt is AltGr, and Ctrl+Alt+L also types "l̥" (l, then U+0325 COMBINING RING
+   BELOW). The browser dropped the l, but the ring went into the code at the cursor on every
+   press, so the formatter met a syntax error. What one of this page's Ctrl+Alt shortcuts types
+   is dropped: refused before it lands when the browser lets it be, else taken out at once. */
+const ALTGR_KEYS = new Set(['KeyL', 'KeyV', 'KeyJ']);   // format, introduce variable, all matches
+let altgrUntil = 0;
+const altgrTyping = () => performance.now() < altgrUntil;
+window.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.altKey && !e.metaKey && ALTGR_KEYS.has(e.code)) altgrUntil = performance.now() + 600;
+  else if (!['Control', 'Alt', 'Shift', 'AltGraph'].includes(e.key)) altgrUntil = 0;    // any other key: typing is yours again
+}, true);
+for (const type of ['keypress', 'beforeinput']) {
+  window.addEventListener(type, e => { if (altgrTyping() && e.cancelable) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+}
+function dropAltgrText(m, e) {                          // what got in anyway: a short insert, no key of yours behind it
+  if (!altgrTyping() || e.isUndoing || e.isRedoing || e.changes.length !== 1) return;
+  const ch = e.changes[0];
+  if (ch.rangeLength !== 0 || !ch.text || ch.text.length > 2 || /\s/.test(ch.text)) return;
+  const at = ch.range, end = m.getPositionAt(m.getOffsetAt({ lineNumber: at.startLineNumber, column: at.startColumn }) + ch.text.length);
+  setTimeout(() => {
+    if (m.isDisposed() || m.getValueInRange(new monaco.Range(at.startLineNumber, at.startColumn, end.lineNumber, end.column)) !== ch.text) return;
+    m.pushEditOperations([], [{ range: new monaco.Range(at.startLineNumber, at.startColumn, end.lineNumber, end.column), text: '' }], () => null);
+    fmtLog(`dropped ${JSON.stringify(ch.text)} that Ctrl+Alt typed`);
+  }, 0);
+}
 window.addEventListener('keydown', e => {               // capture: before the editor or the page acts on it
   if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === 'KeyL') {
     const a = document.activeElement;
@@ -2720,6 +2746,7 @@ function initAssist() {
     },
   });
   editor.onDidChangeModelContent(() => liveCheck());
+  editor.onDidChangeModelContent(e => dropAltgrText(editor.getModel(), e));
   // `Map<` gets its `>` (5 Oct, Ravi), as in IntelliJ. Only right after a capitalised name
   // (Map, List, HashMap - not MAX, not i), so `i < n` stays as typed. A typed `>` steps over
   // the added one, and Backspace right after the `<` removes both.

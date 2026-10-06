@@ -11,7 +11,7 @@ const pyString = name => pySrc.match(new RegExp(`^${name} = '''([\\s\\S]*?)'''`,
 const messy = pyString('MESSY'), expected = pyString('MESSY_FORMATTED');
 
 await suite(async t => {
-  const { ev, waitFor, press, check, ED } = t;
+  const { ev, waitFor, press, check, send, ED } = t;
   const format = () => press('Ctrl+Alt+l');
 
   await t.fresh(C06);
@@ -81,6 +81,23 @@ await suite(async t => {
   check('a change during formatting: it formats the new text, keeping the change', ok,
         [await ev(`document.querySelector('#toast').textContent`), (await ev(`${ED}.getModel().getValue()`)).split('\n').slice(0, 3)]);
   await ev(`window.fetch = window.__realFetch`);
+
+  // 6 Oct, found from Ravi's own browser storage: on the English (India) keyboard layout Ctrl+Alt
+  // is AltGr, and Ctrl+Alt+L also types "l̥" (l + U+0325). The U+0325 landed in the code at the
+  // cursor on every press, and the formatter then refused a syntax error. Sent here as Windows
+  // sends it: the key, then the characters - as typed characters, and as an input-method commit.
+  for (const [how, sendChars] of [
+    ['typed characters', async () => { for (const ch of ['l', '̥']) await send('Input.dispatchKeyEvent', { type: 'char', key: 'l', text: ch, modifiers: 3 }); }],
+    ['input-method commit', async () => send('Input.insertText', { text: '̥' })]]) {
+    await ev(`${ED}.getModel().setValue(${JSON.stringify(messy)}); ${ED}.setPosition({ lineNumber: 12, column: 3 }); ${ED}.focus()`);
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'l', code: 'KeyL', windowsVirtualKeyCode: 76, modifiers: 3 });
+    await sendChars();
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'l', code: 'KeyL', windowsVirtualKeyCode: 76, modifiers: 3 });
+    ok = await waitFor(`${ED}.getModel().getValue() === ${JSON.stringify(expected)}`, 8000);
+    const got = await ev(`${ED}.getModel().getValue()`);
+    check(`English (India) layout, "l̥" as ${how}: formats, and no stray character is left`, ok && !/̥/.test(got),
+          [await ev(`document.querySelector('#toast').textContent`), got.split('\n').filter(l => /̥|^\s*l\b/.test(l)).map(l => l.trim())]);
+  }
 
   // every press is logged in this browser (cv:fmtlog): from the keys arriving to how it ended
   await ev(`localStorage.removeItem('cv:fmtlog'); ${ED}.getModel().setValue(${JSON.stringify(messy)}); ${ED}.focus()`);
