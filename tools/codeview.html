@@ -492,6 +492,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 
 <main id="main">
   <div class="bar">
+    <button class="icon" id="fullSideBtn" hidden title="Hide / show the file list (Ctrl+B)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5"/><path d="M6 2.75v10.5"/></svg></button>
     <button class="icon" id="fullExitBtn" hidden title="Leave full screen (Alt+Enter, or hold Esc)"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button>
     <span class="seg"><button class="icon" id="navBackBtn" title="Back to where you were before the last jump (Ctrl+Alt+←)" disabled>←</button><button class="icon" id="navFwdBtn" title="Forward again (Ctrl+Alt+→)" disabled>→</button></span>
     <div class="crumbs" id="crumbs"></div>
@@ -776,11 +777,13 @@ applyTheme();
 function setSide(collapsed) {
   document.body.classList.toggle('side-collapsed', collapsed);
   $('#sideBtn').classList.toggle('on', !collapsed);
+  $('#fullSideBtn').classList.toggle('on', !collapsed);
   store.set('sideCollapsed', collapsed);
 }
 const toggleSide = () => setSide(!document.body.classList.contains('side-collapsed'));
 setSide(store.get('sideCollapsed', false));
 $('#sideBtn').onclick = toggleSide;
+$('#fullSideBtn').onclick = toggleSide;
 $('#vsplit').addEventListener('dblclick', () => setSide(true));
 
 /* ------------------------------------------------------------ full screen */
@@ -793,6 +796,7 @@ $('#vsplit').addEventListener('dblclick', () => setSide(true));
 function setFull(on) {
   document.body.classList.toggle('full', on);
   $('#fullExitBtn').hidden = !on;
+  $('#fullSideBtn').hidden = !on;          // the header's file-list button is hidden with it (6 Oct)
 }
 async function toggleFull() {
   const on = !document.body.classList.contains('full');
