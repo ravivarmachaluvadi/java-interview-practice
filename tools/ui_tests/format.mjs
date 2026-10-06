@@ -81,4 +81,12 @@ await suite(async t => {
   check('a change during formatting: it formats the new text, keeping the change', ok,
         [await ev(`document.querySelector('#toast').textContent`), (await ev(`${ED}.getModel().getValue()`)).split('\n').slice(0, 3)]);
   await ev(`window.fetch = window.__realFetch`);
+
+  // every press is logged in this browser (cv:fmtlog): from the keys arriving to how it ended
+  await ev(`localStorage.removeItem('cv:fmtlog'); ${ED}.getModel().setValue(${JSON.stringify(messy)}); ${ED}.focus()`);
+  await format();
+  await waitFor(`/Formatted/.test(localStorage.getItem('cv:fmtlog') || '')`, 8000);
+  const log = JSON.parse(await ev(`localStorage.getItem('cv:fmtlog') || '[]'`));
+  check('the log has the keys, who handled them, and the outcome', log.length === 3 && /keys seen, focus in the editor/.test(log[0])
+    && /format started by the editor key/.test(log[1]) && /\[try\] Formatted: /.test(log[2]), log);
 });

@@ -1540,7 +1540,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? editor.getAction('editor.action.quickFix').run() : toggleFull());
   editor.addCommand(K.Shift | C.F6, () => editor.getAction('editor.action.rename').run());
   editor.addCommand(K.CtrlCmd | K.Alt | C.KeyV, () => introduceVariable());
-  editor.addCommand(K.CtrlCmd | K.Alt | C.KeyL, () => formatFile());
+  editor.addCommand(K.CtrlCmd | K.Alt | C.KeyL, () => formatFile('the editor key'));
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
   editor.addCommand(K.Alt | C.KeyM, cycleProgress);
   editor.addCommand(K.Alt | C.KeyH, hintButton);
@@ -2483,12 +2483,28 @@ function applyCreate(version, r) {
 /* 6 Oct: Ravi saw Ctrl+Alt+L do nothing. Every way it could give up quietly now says why: not a
    Java file, the helper's error, and code changed during a slow first format (after 20 idle
    minutes the helper starts again, which takes a few seconds; the result used to be dropped). */
-async function formatFile() {
+/* Still "does nothing" on Ravi's PC (Edge) while every test here formats: the last 20 tries are
+   kept in this browser (localStorage cv:fmtlog), from the key arriving to how each one ended, so
+   the next one can be traced from the browser's own storage. */
+function fmtLog(what) {
+  const c = S.cur, log = store.get('fmtlog', []);
+  log.push(`${new Date().toLocaleTimeString()} ${c ? c.path.split('/').pop() + ' [' + (c.mode || 'file') + ']' : '-'} ${what}`);
+  store.set('fmtlog', log.slice(-20));
+}
+window.addEventListener('keydown', e => {               // capture: before the editor or the page acts on it
+  if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === 'KeyL') {
+    const a = document.activeElement;
+    fmtLog(`keys seen, focus in ${a && a.closest && a.closest('.monaco-editor') ? 'the editor' : a ? a.tagName + (a.id ? '#' + a.id : '') : 'nothing'}${e.repeat ? ' (held down)' : ''}`);
+  }
+}, true);
+async function formatFile(how = '') {
   const m = editor.getModel(), c = S.cur;
-  if (!c) return;
-  if (c.kind !== 'java') return toast('Ctrl+Alt+L formats Java files.');
-  if (!m) return;
-  if (!isEditable()) return toast('Formatting changes the code: press Edit (or Try) first.');
+  const say = msg => { fmtLog(msg); toast(msg); };
+  fmtLog('format started' + (how ? ' by ' + how : ''));
+  if (!c) return fmtLog('no file open');
+  if (c.kind !== 'java') return say('Ctrl+Alt+L formats Java files.');
+  if (!m) return fmtLog('no editor text');
+  if (!isEditable()) return say('Formatting changes the code: press Edit (or Try) first.');
   // Ravi's screenshot (6 Oct): the code changed while the formatter answered and the answer was
   // dropped. It now formats the new text, up to 3 times; the last message names what changed.
   let r, seen = '';
@@ -2501,17 +2517,18 @@ async function formatFile() {
     for (let tries = 0; ; tries++) {
       const v = m.getVersionId();
       r = await assistAsk('format', m, 0, null, null, true);
-      if (!r || m.isDisposed() || editor.getModel() !== m) return;
+      if (!r || m.isDisposed() || editor.getModel() !== m) return fmtLog(!r ? 'no answer (its error was shown)' : 'another file opened meanwhile');
       if (m.getVersionId() === v) break;
-      if (tries === 2) return toast('The code kept changing while it was being formatted' + seen + ': press Ctrl+Alt+L again.');
+      fmtLog('code changed while formatting' + seen + ', asking again');
+      if (tries === 2) return say('The code kept changing while it was being formatted' + seen + ': press Ctrl+Alt+L again.');
     }
   } finally { clearTimeout(slow); watch.dispose(); }
-  if (r.reject) return toast(r.reject);
+  if (r.reject) return say(r.reject);
   const eol = m.getEOL(), old = m.getLinesContent(), now = r.text.split(/\r?\n/);
   let a = 0, b = 0;
   while (a < old.length && a < now.length && old[a] === now[a]) a++;            // same lines at the top
   while (b < old.length - a && b < now.length - a && old[old.length - 1 - b] === now[now.length - 1 - b]) b++;   // and the bottom
-  if (a === old.length && a === now.length) return toast('Already formatted');
+  if (a === old.length && a === now.length) return say('Already formatted');
   const edits = [];
   if (old.length === now.length) {                                             // line for line
     for (let i = a; i < old.length - b; i++) {
@@ -2525,7 +2542,7 @@ async function formatFile() {
   }
   const pos = editor.getPosition();
   editor.pushUndoStop();
-  editor.executeEdits('format', edits);
+  if (!editor.executeEdits('format', edits)) return say('The editor refused the formatting (is it read-only?)');
   editor.pushUndoStop();
   // back onto its own line of code: only whitespace and blank lines moved, so the n-th
   // non-blank line before is the n-th non-blank line after
@@ -2537,7 +2554,7 @@ async function formatFile() {
     editor.setPosition({ lineNumber: to + 1, column: Math.max(is.length - is.trimStart().length + 1, pos.column + shift) });
   }
   const changed = now.filter((l, i) => l !== old[i]).length;
-  toast(`Formatted: ${edits.length === 1 && old.length !== now.length ? 'blank lines and ' : ''}${changed} line${changed === 1 ? '' : 's'} changed`);
+  say(`Formatted: ${edits.length === 1 && old.length !== now.length ? 'blank lines and ' : ''}${changed} line${changed === 1 ? '' : 's'} changed`);
 }
 /* The indent blank line n calls for, read from the code above it: the same as the line above,
    one more after a `{` or a `case x:`, and after the end of a comment the comment's own. null
@@ -3808,7 +3825,7 @@ $('#menu').addEventListener('click', async e => {
   switch (b.dataset.act) {
     case 'wrap': toggleWrap(); break;
     case 'minimap': toggleMinimap(); break;
-    case 'format': editor.focus(); formatFile(); break;
+    case 'format': editor.focus(); formatFile('the menu'); break;
     case 'bigger': setFont(1); break;
     case 'smaller': setFont(-1); break;
     case 'reveal':
@@ -3893,7 +3910,7 @@ document.addEventListener('keydown', e => {
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
   else if (mod && k === 's') { e.preventDefault(); save(); }
   // 6 Oct: after a click on Try or Edit the focus is on that button, and Ctrl+Alt+L did nothing
-  else if (mod && e.altKey && e.code === 'KeyL') { e.preventDefault(); editor.focus(); formatFile(); }
+  else if (mod && e.altKey && e.code === 'KeyL') { e.preventDefault(); editor.focus(); formatFile('the page key'); }
   else if (mod && e.altKey && k === 'arrowleft') { e.preventDefault(); navGo(-1); }
   else if (mod && e.altKey && k === 'arrowright') { e.preventDefault(); navGo(1); }
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac
