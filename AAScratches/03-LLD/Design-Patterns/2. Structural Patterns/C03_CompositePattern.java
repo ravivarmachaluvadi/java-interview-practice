@@ -1,60 +1,35 @@
 /*
  * =====================================================================
- *  Composite Pattern                                Design Pattern | Medium
+ *  Composite - product bundles inside an order          Structural | Medium
  * =====================================================================
  *
- * PATTERN
- *   Composite - Structural family. Part-whole tree.
- *
- * INTENT
- *   Let a client treat a single object (leaf) and a group of objects
- *   (composite) through the same interface, so code that totals an order
- *   does not care whether it was handed one product or a bundle of bundles.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    - the data really is a part-whole tree: files/folders, menu items,
- *            org charts, UI components, order bundles, nested discounts.
- *   Use    - clients should recurse without writing "if (isGroup)" anywhere.
- *   Not    - the structure is flat, or leaves and groups need genuinely
- *            different APIs - forcing one interface then makes it lie.
- *   Not    - you only ever wrap ONE object at a time -> Decorator.
- *   Watch  - cycles. A tree assumes no child is also its own ancestor.
- *
- * ROLES IN THIS CODE
- *   OrderItem       Component  - getPrice() + showDetails(), the shared view.
- *   Product         Leaf       - a single item; getPrice() returns its price.
- *   ProductBundle   Composite  - holds List<OrderItem> children; getPrice()
- *                                sums the children, so it recurses.
- *   CompositePattern Client    - builds the tree and calls only OrderItem.
+ * PROBLEM
+ *   An order holds single products and bundles ("Work Combo" = laptop +
+ *   headset + mouse), and a bundle can contain another bundle. Totals,
+ *   invoices and display must work at any depth without "if (isBundle)".
  *
  * KEY INSIGHT
- *   A composite is the decorator chain generalised from a line to a tree: the
- *   node holds MANY children instead of one wrappee, and because a composite
- *   is itself a Component, bundles nest to any depth. The recursion ends at
- *   the leaves, which is why getPrice() needs no depth parameter and no cast.
- *   Fixed: getPrice() used reduce(Double::sum).get(), which threw
- *   NoSuchElementException on an empty bundle. It now sums with identity 0.0.
+ *   Product (leaf) and ProductBundle (composite) implement the same
+ *   OrderItem, so a bundle can hold bundles. getPrice() on a bundle sums its
+ *   children and the recursion stops at the leaves - no depth parameter, no
+ *   casts. Summing with identity 0.0 keeps an empty bundle from crashing.
  *
- * COMPLEXITY
- *   Time  O(n) per getPrice() over the whole subtree, n = nodes. showDetails()
- *         is O(n*h) for depth h, because every bundle recomputes getPrice()
- *         over its own subtree while printing its total.
- *   Space O(h) call-stack for depth h (plus O(n) for the tree itself).
+ * ROLES IN THIS CODE
+ *   OrderItem         Component - getPrice() + showDetails()
+ *   Product           Leaf
+ *   ProductBundle     Composite - holds List<OrderItem>
+ *   CompositePattern  Client - calls only OrderItem
  *
  * INTERVIEW FOLLOW-UPS
- *   - Transparency vs safety: should add()/remove() live on the Component
- *     (uniform, but a Leaf must throw) or only on the Composite (type-safe,
- *     but the client must downcast)? This file uses the SAFE variant.
- *   - How would you cache a bundle total and invalidate it on add/remove?
- *   - Composite + Visitor: how do you add "apply a discount" without editing
- *     every node class?
- *   - Where does the JDK/Java world use it? (Swing Container, java.io.File,
- *     Spring Security's filter chain, nested Maven modules.)
+ *   - Safe vs transparent: add()/remove() only on the composite (this file)
+ *     or on OrderItem so leaves must throw?
+ *   - Add a bundle discount: one field on ProductBundle, nothing else moves.
+ *   - Seen in: category trees, file systems, UI component trees, Swing
+ *     Container.
  *
  * RUN
- *   main() runs 4 cases: a nested order total, a leaf on its own, an empty
- *   bundle (the old crash), and a bundle after removeItem(). Prints actual vs
- *   expected, then dumps the tree with showDetails().
+ *   4 cases: nested order total, single leaf, empty bundle, total after a
+ *   remove; then prints the whole tree.
  */
 
 import java.util.ArrayList;

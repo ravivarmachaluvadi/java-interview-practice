@@ -1,55 +1,33 @@
 /*
  * =====================================================================
- *  Facade Pattern                                  Design Pattern | Easy
+ *  Facade - one placeOrder() over four services        Structural | Easy
  * =====================================================================
  *
- * PATTERN
- *   Facade - Structural family.
- *
- * INTENT
- *   Put one simple entry point in front of a messy subsystem. The client
- *   makes a single call ("process this order") instead of knowing the four
- *   services involved, their order, and how to handle each failure.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    - a subsystem has many classes and callers only need one workflow.
- *   Use    - you want to decouple callers from a library you may later swap.
- *   Use    - you are writing a service layer over repositories/clients: that
- *            is a Facade, whether or not anyone calls it one.
- *   Not    - callers genuinely need the fine-grained API; a facade then just
- *            hides power without removing complexity.
- *   Not    - you need to make an incompatible interface fit -> Adapter.
- *   Not    - you need to control access to ONE object -> Proxy.
- *   Note   - a facade does not forbid direct subsystem use; it is convenience,
- *            not encapsulation. If you must forbid it, use module boundaries.
- *
- * ROLES IN THIS CODE
- *   PaymentServiceFacade   Facade     - single processOrder() entry point.
- *   UserService            Subsystem  - validates the user.
- *   InventoryService       Subsystem  - checks stock.
- *   PaymentGateway         Subsystem  - takes the money.
- *   NotificationService    Subsystem  - tells the user.
- *   FacadePatternExample   Client     - knows only the facade.
+ * PROBLEM
+ *   Placing an order touches four services in a fixed order: validate the
+ *   user, check stock, take payment, notify. Every caller (web, mobile app,
+ *   admin tool) repeating that sequence and its early exits is a bug factory.
  *
  * KEY INSIGHT
- *   Facade is the degenerate case of delegation: it aggregates several
- *   collaborators, and it does NOT share an interface with any of them.
- *   That is exactly what tells it apart from Adapter, Decorator and Proxy,
- *   which all implement the same interface as the thing they wrap.
- *   One facade call in, many subsystem calls out.
+ *   The facade owns the workflow: one call in, many subsystem calls out. It
+ *   does NOT share an interface with what it wraps - that is what separates
+ *   it from Adapter, Decorator and Proxy. The services do not know it exists.
+ *
+ * ROLES IN THIS CODE
+ *   PaymentServiceFacade            Facade - processOrder() entry point
+ *   UserService, InventoryService,
+ *   PaymentGateway, Notification..  Subsystem
+ *   FacadePatternExample            Client - knows only the facade
  *
  * INTERVIEW FOLLOW-UPS
- *   - Facade vs Adapter: both delegate. What is the real difference? (Intent:
- *     simplify many vs convert one. Facade defines a NEW interface.)
- *   - Facade vs Mediator: who knows whom? (Subsystem is unaware of a facade;
- *     Mediator's colleagues know their mediator.)
- *   - How would you make this testable? (Inject the four services rather than
- *     newing them in the constructor - shown as the second constructor here.)
- *   - Is a Spring @Service over repositories a facade? Why or why not?
+ *   - Facade vs Adapter: simplify many vs convert one interface.
+ *   - What if payment fails after stock was reserved? The facade is where
+ *     the compensating step (release stock) belongs.
+ *   - A Spring @Service over several clients/repositories is a facade; the
+ *     second constructor here is how you inject fakes in a test.
  *
  * RUN
- *   main() runs 4 cases: a successful order, an out-of-stock order, an
- *   unknown user (early exit) and a zero amount, printing actual vs expected.
+ *   4 cases: success, out of stock, unknown user, gateway rejects Rs 0.
  */
 
 class UserService {

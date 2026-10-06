@@ -1,148 +1,135 @@
 /*
  * =====================================================================
- *  Adapter Pattern (Wrapper)                  Design Pattern | Easy  MUST-KNOW
+ *  Adapter - courier partner APIs                    Structural | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Adapter - Structural family. Also called Wrapper.
- *
- * INTENT
- *   Let two classes with incompatible interfaces work together. The adapter
- *   implements the interface the CLIENT expects and translates every call
- *   into the interface the existing (adaptee) class actually offers.
- *   Here: a legacy CSV source is made to look like a JSON source.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    - you must reuse a class you cannot (or must not) modify:
- *            third-party SDK, legacy service, a different data format.
- *   Use    - you want the translation isolated in one place, not smeared
- *            across every caller.
- *   Not    - you control both sides and can just change the interface.
- *   Not    - you want to ADD behaviour to the same interface -> Decorator.
- *   Not    - you want to hide a whole subsystem behind one call -> Facade.
- *
- * ROLES IN THIS CODE
- *   JsonDataProvider       Target    - the interface the client codes against.
- *   CsvDataProvider        Adaptee   - the existing, incompatible class.
- *   CsvToJsonDataProvider  Adapter   - implements Target, holds an Adaptee,
- *                                      translates CSV text into JSON text.
- *   AdapterPatternDemo     Client    - talks only to JsonDataProvider.
+ * PROBLEM
+ *   Checkout asks every courier partner for a shipping quote and shows the
+ *   cheapest. Our code speaks ShippingProvider: kg in, whole rupees out.
+ *   FedEx's SDK wants pounds and returns "USD 10.61"; Delhivery's wants grams
+ *   and an int pincode, returns paise, and throws for places it cannot
+ *   reach. We cannot change either SDK.
  *
  * KEY INSIGHT
- *   Object Adapter = "implement what the caller wants, hold what you have,
- *   translate in between". The client never learns that CSV exists. This one
- *   move (wrap + delegate) is the atom of Decorator, Proxy, Facade and Bridge;
- *   what separates those four is INTENT, not structure.
- *   Fixed: the original adapter called getDataInCsv() and then returned the
- *   hardcoded string "Json data", so it never actually adapted anything.
+ *   An adapter implements the interface we want, holds the SDK we have, and
+ *   translates in between: units, currency, parameter types, error style.
+ *   Every vendor quirk lives in one class per vendor; checkout stays clean
+ *   and a new courier is one new adapter.
+ *
+ * ROLES IN THIS CODE
+ *   ShippingProvider                  Target (our interface)
+ *   FedExSdk, DelhiveryClient         Adaptee (third-party, cannot change)
+ *   FedExAdapter, DelhiveryAdapter    Adapter
+ *   cheapest()                        Client
  *
  * INTERVIEW FOLLOW-UPS
- *   - Object Adapter (composition, shown here) vs Class Adapter (inheritance)?
- *   - Adapter vs Facade: same interface count, different intent - explain.
- *   - Two-way adapter: can one class adapt A->B and B->A? When is that a smell?
- *   - Real examples: InputStreamReader, Arrays.asList, Spring HandlerAdapter.
+ *   - Adapter vs Facade: convert ONE interface vs simplify MANY.
+ *   - Object adapter (holds the SDK, as here) vs class adapter (extends it):
+ *     holding it also works when the SDK class is final.
+ *   - Seen in: InputStreamReader (bytes -> chars), Arrays.asList, Spring
+ *     MVC's HandlerAdapter.
  *
  * RUN
- *   main() runs 4 cases (typical, header-only, empty input, short row) and
- *   prints actual vs expected on the same line.
+ *   4 cases: Delhivery quote, FedEx quote, cheapest courier, a pincode
+ *   Delhivery cannot serve.
  */
 
-/** Adaptee: an existing source that only speaks CSV, whose interface we cannot change. */
-class CsvDataProvider {
+import java.util.List;
+import java.util.Locale;
 
-    private final String csv;
+record Parcel(double weightKg, String pincode) {
+}
 
-    public CsvDataProvider() {
-        this("name,age\nRavi,30\nVarma,28");
-    }
+/** Target: what checkout wants from every courier. */
+interface ShippingProvider {
+    String name();
 
-    public CsvDataProvider(String csv) {
-        this.csv = csv;
-    }
+    /** Quote in whole rupees, or -1 when this courier cannot deliver there. */
+    int quoteRs(Parcel parcel);
+}
 
-    public String getDataInCsv() {
-        return csv;
+/** Adaptee from a vendor jar: pounds in, a USD string out. */
+class FedExSdk {
+    String getRate(double weightLbs, String destinationZip) {
+        return String.format(Locale.US, "USD %.2f", 4.0 + 1.5 * weightLbs);
     }
 }
 
-/** Target: the only interface the client knows about. */
-interface JsonDataProvider {
-    String getDataInJson();
+/** Adaptee from another vendor: grams and an int pincode in, paise out. */
+class DelhiveryClient {
+    long priceInPaise(int grams, int pincode) {
+        if (pincode >= 900_000) {
+            throw new IllegalArgumentException("pincode " + pincode + " not serviceable");
+        }
+        return 4_000 + 6L * grams; // Rs 40 base + Rs 6 per 100 g
+    }
 }
 
-/** Adapter: looks like a JsonDataProvider, is really a CsvDataProvider underneath. */
-class CsvToJsonDataProvider implements JsonDataProvider {
+class FedExAdapter implements ShippingProvider {
+    private static final double LBS_PER_KG = 2.20462;
+    private static final double RS_PER_USD = 83.0;
+    private final FedExSdk sdk = new FedExSdk();
 
-    private final CsvDataProvider csvDataProvider;
-
-    public CsvToJsonDataProvider(CsvDataProvider csvDataProvider) {
-        this.csvDataProvider = csvDataProvider;
+    public String name() {
+        return "FedEx";
     }
 
-    @Override
-    public String getDataInJson() {
-        String dataInCsv = csvDataProvider.getDataInCsv(); // speak the adaptee's language
-        return toJson(dataInCsv);                          // translate to the client's language
+    public int quoteRs(Parcel parcel) {
+        String usd = sdk.getRate(parcel.weightKg() * LBS_PER_KG, parcel.pincode()); // kg -> lbs
+        double dollars = Double.parseDouble(usd.substring("USD ".length()));    // "USD 10.61"
+        return (int) Math.round(dollars * RS_PER_USD);                          // USD -> Rs
+    }
+}
+
+class DelhiveryAdapter implements ShippingProvider {
+    private final DelhiveryClient client = new DelhiveryClient();
+
+    public String name() {
+        return "Delhivery";
     }
 
-    /** Minimal CSV -> JSON array translation. Row 0 is the header row. */
-    private static String toJson(String csv) {
-        if (csv == null || csv.trim().isEmpty()) {
-            return "[]";
+    public int quoteRs(Parcel parcel) {
+        try {
+            int grams = (int) Math.round(parcel.weightKg() * 1000);
+            return (int) (client.priceInPaise(grams, Integer.parseInt(parcel.pincode())) / 100);
+        } catch (IllegalArgumentException e) {
+            return -1; // vendor's exception -> our "cannot deliver" contract
         }
-        String[] lines = csv.split("\n");
-        String[] headers = lines[0].split(",");
-
-        StringBuilder json = new StringBuilder("[");
-        boolean firstRow = true;
-        for (int row = 1; row < lines.length; row++) {
-            if (lines[row].trim().isEmpty()) {
-                continue; // tolerate blank lines rather than emitting an empty object
-            }
-            if (!firstRow) {
-                json.append(",");
-            }
-            firstRow = false;
-
-            String[] cells = lines[row].split(",");
-            json.append("{");
-            for (int col = 0; col < headers.length; col++) {
-                if (col > 0) {
-                    json.append(",");
-                }
-                String value = col < cells.length ? cells[col].trim() : ""; // short row -> empty
-                json.append("\"").append(headers[col].trim())
-                    .append("\":\"").append(value).append("\"");
-            }
-            json.append("}");
-        }
-        return json.append("]").toString();
     }
 }
 
 class AdapterPatternDemo {
 
+    /** Client: only ever sees ShippingProvider. */
+    static String cheapest(List<ShippingProvider> couriers, Parcel parcel) {
+        ShippingProvider best = null;
+        int bestQuote = Integer.MAX_VALUE;
+        for (ShippingProvider courier : couriers) {
+            int quote = courier.quoteRs(parcel);
+            if (quote >= 0 && quote < bestQuote) {
+                best = courier;
+                bestQuote = quote;
+            }
+        }
+        return best == null ? "no courier" : best.name() + " Rs " + bestQuote;
+    }
+
     public static void main(String[] args) {
-        // Case 1: typical - two data rows.
-        JsonDataProvider typical = new CsvToJsonDataProvider(new CsvDataProvider());
-        print("case 1 typical      ", typical.getDataInJson(),
-                "[{\"name\":\"Ravi\",\"age\":\"30\"},{\"name\":\"Varma\",\"age\":\"28\"}]");
+        List<ShippingProvider> couriers = List.of(new FedExAdapter(), new DelhiveryAdapter());
+        Parcel shoes = new Parcel(2.0, "560001");
 
-        // Case 2: edge - header row only, no data rows.
-        JsonDataProvider headerOnly = new CsvToJsonDataProvider(new CsvDataProvider("name,age"));
-        print("case 2 header only  ", headerOnly.getDataInJson(), "[]");
+        // Case 1-2: each adapter turns its vendor's units into whole rupees.
+        print("case 1 Delhivery", new DelhiveryAdapter().quoteRs(shoes), 160);
+        print("case 2 FedEx    ", new FedExAdapter().quoteRs(shoes), 881);
 
-        // Case 3: tricky - empty source, and a short row that is missing a cell.
-        JsonDataProvider empty = new CsvToJsonDataProvider(new CsvDataProvider(""));
-        print("case 3 empty source ", empty.getDataInJson(), "[]");
+        // Case 3: typical. Checkout compares couriers without knowing either SDK.
+        print("case 3 cheapest ", cheapest(couriers, shoes), "Delhivery Rs 160");
 
-        JsonDataProvider shortRow =
-                new CsvToJsonDataProvider(new CsvDataProvider("name,age\nRavi"));
-        print("case 4 missing cell ", shortRow.getDataInJson(),
-                "[{\"name\":\"Ravi\",\"age\":\"\"}]");
+        // Case 4: edge. Delhivery's exception became -1, so FedEx wins here.
+        print("case 4 remote   ", cheapest(couriers, new Parcel(2.0, "999001")), "FedEx Rs 881");
     }
 
     private static void print(String label, Object actual, Object expected) {
-        System.out.println(label + " : " + actual + "   expected " + expected);
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

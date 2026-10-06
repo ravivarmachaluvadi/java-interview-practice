@@ -1,162 +1,165 @@
 /*
  * =====================================================================
- *  Decorator Pattern                       Design Pattern | Medium  MUST-KNOW
+ *  Decorator - retry, fallback, logging on an API call  Structural | Medium   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Decorator - Structural family. Also called Wrapper (like Adapter, but the
- *   wrapper here keeps the SAME interface instead of changing it).
- *
- * INTENT
- *   Add behaviour to one object at runtime by wrapping it, without touching
- *   its class and without creating a subclass per combination. A coffee gets
- *   milk, sugar, or milk+sugar+extra sugar by stacking wrappers.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    - the combinations of optional features would explode into
- *            subclasses (MilkCoffee, MilkSugarCoffee, MilkDoubleSugar...).
- *   Use    - features must be added and removed per object, at runtime.
- *   Not    - the feature set is fixed and small: plain fields are simpler.
- *   Not    - you must change the interface -> Adapter.
- *   Not    - you want to control access rather than add behaviour -> Proxy.
- *   Cost   - many small objects, and debugging shows a deep wrapper chain.
- *
- * ROLES IN THIS CODE
- *   Coffee                 Component          - the shared interface.
- *   SimpleCoffee           ConcreteComponent  - the thing actually decorated.
- *   CoffeeDecorator        Decorator (base)   - implements Coffee AND holds a
- *                                               Coffee; the double identity.
- *   MilkDecorator          ConcreteDecorator  - adds ", Milk" and +1.5.
- *   SugarDecorator         ConcreteDecorator  - adds ", Sugar" and +0.5.
- *   DecoratorDesignPattern Client             - builds and reads the chain.
+ * PROBLEM
+ *   The product page calls inventory-service for stock. During a deploy it
+ *   returns 503 for a few calls. We want retries, a safe fallback (show
+ *   "out of stock" instead of an error page) and a log of each attempt -
+ *   switchable per call site, without touching the HTTP client class and
+ *   without a RetryingLoggingFallbackClient subclass for every combination.
  *
  * KEY INSIGHT
- *   The wrapper implements the same interface as the wrappee. That single
- *   constraint is what lets wrappers stack: a decorator's constructor accepts
- *   Coffee, and a decorator IS a Coffee, so it can be fed into the next one.
- *   Each call recurses down the chain and each level adds its bit on the way
- *   back up. Proxy and Composite both assume this same recursion.
+ *   Each wrapper implements the SAME interface it wraps, so wrappers stack:
+ *   new Fallback(new Retry(new Logging(remote))). Each adds one behaviour
+ *   and delegates the rest. ORDER MATTERS: a fallback inside a retry
+ *   swallows the error, so the retry never fires (case 4 vs case 3).
  *
- * COMPLEXITY
- *   Time  O(n) per getDescription()/getCost() call - one walk of n wrappers.
- *   Space O(n) for the n wrapper objects in the chain.
+ * ROLES IN THIS CODE
+ *   InventoryClient           Component
+ *   RemoteInventory           ConcreteComponent (the real, flaky call)
+ *   InventoryDecorator        Decorator base: IS-A and HAS-A InventoryClient
+ *   Retry, Fallback, Logging  ConcreteDecorator
  *
  * INTERVIEW FOLLOW-UPS
- *   - Decorator vs Proxy: identical structure, so what differs? (Intent, and
- *     who creates the wrappee: a proxy usually owns/creates it, a decorator
- *     is handed it.)
- *   - Decorator vs inheritance: why is "MilkSugarCoffee" the wrong answer?
- *   - Does order matter? Build milk-then-sugar and sugar-then-milk and say why
- *     the cost is equal here but the description string is not.
- *   - Where does the JDK use it? (java.io: BufferedReader(new FileReader(..)),
- *     Collections.unmodifiableList, HttpServletRequestWrapper in servlets.)
+ *   - Decorator vs Proxy: same shape; a decorator ADDS behaviour and is
+ *     handed its wrappee, a proxy CONTROLS access and usually owns it.
+ *   - Seen in: Resilience4j Decorators.ofSupplier(..).withRetry(..),
+ *     java.io (new BufferedReader(new FileReader(..))),
+ *     Collections.unmodifiableList.
  *
  * RUN
- *   main() runs 5 cases: bare component, one decorator, two decorators, the
- *   same decorator applied twice, and a reversed order. Prints actual vs
- *   expected on the same line.
+ *   5 cases: bare call fails, retry recovers, fallback after retries run
+ *   out, the wrong wrap order, logging every attempt.
  */
 
-interface Coffee {
-    String getDescription();
+import java.util.ArrayList;
+import java.util.List;
 
-    double getCost();
+interface InventoryClient {
+    int stock(String sku);
 }
 
-/** ConcreteComponent: the object at the bottom of every chain. */
-class SimpleCoffee implements Coffee {
+/** The real remote call. Fails the first N calls, like a service mid-deploy. */
+class RemoteInventory implements InventoryClient {
+    private int failuresLeft;
+    int calls;
 
-    @Override
-    public String getDescription() {
-        return "Simple Coffee";
+    RemoteInventory(int failures) {
+        this.failuresLeft = failures;
     }
 
-    @Override
-    public double getCost() {
-        return 5.0;
-    }
-}
-
-/**
- * Base Decorator: IS a Coffee and HAS a Coffee. That double identity is the
- * whole pattern - it is what makes the wrappers stackable.
- */
-abstract class CoffeeDecorator implements Coffee {
-
-    protected final Coffee coffee; // the wrapper, one level down the chain
-
-    public CoffeeDecorator(Coffee coffee) {
-        this.coffee = coffee;
+    public int stock(String sku) {
+        calls++;
+        if (failuresLeft-- > 0) {
+            throw new IllegalStateException("503 from inventory-service");
+        }
+        return 42;
     }
 }
 
-class MilkDecorator extends CoffeeDecorator {
+/** IS an InventoryClient and HAS one - that double identity is the pattern. */
+abstract class InventoryDecorator implements InventoryClient {
+    protected final InventoryClient inner;
 
-    public MilkDecorator(Coffee coffee) {
-        super(coffee);
-    }
-
-    @Override
-    public String getDescription() {
-        return coffee.getDescription() + ", Milk"; // delegate first, then add our part
-    }
-
-    @Override
-    public double getCost() {
-        return coffee.getCost() + 1.5;
+    InventoryDecorator(InventoryClient inner) {
+        this.inner = inner;
     }
 }
 
-class SugarDecorator extends CoffeeDecorator {
+class Retry extends InventoryDecorator {
+    private final int maxAttempts;
 
-    public SugarDecorator(Coffee coffee) {
-        super(coffee);
+    Retry(int maxAttempts, InventoryClient inner) {
+        super(inner);
+        this.maxAttempts = maxAttempts;
     }
 
-    @Override
-    public String getDescription() {
-        return coffee.getDescription() + ", Sugar";
+    public int stock(String sku) {
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return inner.stock(sku);
+            } catch (RuntimeException e) {
+                last = e;
+            }
+        }
+        throw last;
+    }
+}
+
+class Fallback extends InventoryDecorator {
+    private final int fallbackStock;
+
+    Fallback(int fallbackStock, InventoryClient inner) {
+        super(inner);
+        this.fallbackStock = fallbackStock;
     }
 
-    @Override
-    public double getCost() {
-        return coffee.getCost() + 0.5;
+    public int stock(String sku) {
+        try {
+            return inner.stock(sku);
+        } catch (RuntimeException e) {
+            return fallbackStock; // degrade, do not fail the page
+        }
+    }
+}
+
+class Logging extends InventoryDecorator {
+    final List<String> log = new ArrayList<>();
+
+    Logging(InventoryClient inner) {
+        super(inner);
+    }
+
+    public int stock(String sku) {
+        try {
+            int stock = inner.stock(sku);
+            log.add("ok " + stock);
+            return stock;
+        } catch (RuntimeException e) {
+            log.add("fail");
+            throw e;
+        }
     }
 }
 
 class DecoratorDesignPattern {
 
     public static void main(String[] args) {
-        // Case 1: edge - no decorators at all. The chain is one link long.
-        Coffee plain = new SimpleCoffee();
-        print("case 1 bare        ", describe(plain), "Simple Coffee $5.0");
+        // Case 1: no decorators. The 503 reaches the product page.
+        String outcome;
+        try {
+            outcome = "stock " + new RemoteInventory(2).stock("SKU-1");
+        } catch (IllegalStateException e) {
+            outcome = e.getMessage();
+        }
+        print("case 1 bare      ", outcome, "503 from inventory-service");
 
-        // Case 2: typical - one wrapper.
-        Coffee withMilk = new MilkDecorator(plain);
-        print("case 2 milk        ", describe(withMilk), "Simple Coffee, Milk $6.5");
+        // Case 2: typical. Two failures, then success on the 3rd attempt.
+        RemoteInventory flaky = new RemoteInventory(2);
+        print("case 2a retry    ", new Retry(3, flaky).stock("SKU-1"), 42);
+        print("case 2b calls    ", flaky.calls, 3);
 
-        // Case 3: typical - stack a second wrapper on top of the first.
-        Coffee withMilkSugar = new SugarDecorator(withMilk);
-        print("case 3 milk+sugar  ", describe(withMilkSugar), "Simple Coffee, Milk, Sugar $7.0");
+        // Case 3: still down after 3 attempts -> the fallback answers 0.
+        RemoteInventory down = new RemoteInventory(5);
+        print("case 3a fallback ", new Fallback(0, new Retry(3, down)).stock("SKU-1"), 0);
+        print("case 3b calls    ", down.calls, 3);
 
-        // Case 4: tricky - the SAME decorator twice. Inheritance cannot do this;
-        // wrapping can, because a decorator is just another Coffee.
-        Coffee doubleSugar = new SugarDecorator(
-                new SugarDecorator(new MilkDecorator(new SimpleCoffee())));
-        print("case 4 milk+2 sugar", describe(doubleSugar),
-                "Simple Coffee, Milk, Sugar, Sugar $7.5");
+        // Case 4: tricky. Same two wrappers, other order: the fallback swallows the
+        // first error, so Retry sees a success and never tries again.
+        RemoteInventory blip = new RemoteInventory(2);
+        print("case 4a wrong way", new Retry(3, new Fallback(0, blip)).stock("SKU-1"), 0);
+        print("case 4b calls    ", blip.calls, 1);
 
-        // Case 5: tricky - reversed order. Same cost, different description,
-        // because addition commutes but string concatenation does not.
-        Coffee sugarThenMilk = new MilkDecorator(new SugarDecorator(new SimpleCoffee()));
-        print("case 5 sugar+milk  ", describe(sugarThenMilk), "Simple Coffee, Sugar, Milk $7.0");
-    }
-
-    private static String describe(Coffee coffee) {
-        return coffee.getDescription() + " $" + coffee.getCost();
+        // Case 5: logging INSIDE retry sees every attempt.
+        Logging logged = new Logging(new RemoteInventory(2));
+        new Retry(3, logged).stock("SKU-1");
+        print("case 5 log       ", logged.log, "[fail, fail, ok 42]");
     }
 
     private static void print(String label, Object actual, Object expected) {
-        System.out.println(label + " : " + actual + "   expected " + expected);
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

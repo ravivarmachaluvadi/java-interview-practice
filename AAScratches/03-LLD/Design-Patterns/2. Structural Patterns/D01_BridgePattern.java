@@ -1,153 +1,145 @@
 /*
  * =====================================================================
- *  Bridge Pattern - payment channel x payment method       Structural | Hard
+ *  Bridge - notification type x delivery channel           Structural | Hard
  * =====================================================================
  *
- * PATTERN
- *   Bridge (Structural, object pattern). Two class hierarchies joined by a
- *   reference ("the bridge") instead of by inheritance.
- *
- * INTENT
- *   Split an abstraction from its implementation so the two can be extended
- *   independently, without the subclass explosion of a cartesian product.
- *
- * WHEN TO USE, WHEN NOT
- *   USE when a thing varies along two independent dimensions. Here: WHERE the
- *     payment happens (online / in-store) and HOW it is settled (card / UPI).
- *     Inheritance alone needs 2 x 2 = 4 classes, and 3 x 5 would need 15.
- *   USE when you want to swap the implementation at runtime, or ship the two
- *     hierarchies from different modules / teams.
- *   NOT when there is really only one dimension of change - a plain interface
- *     is enough and the extra layer is ceremony.
- *
- * ROLES IN THIS CODE
- *   PaymentMethod        Implementor. The "how" side of the bridge.
- *   CreditCardPayment, UpiPayment           ConcreteImplementor. One settlement channel each.
- *   Payment              Abstraction. Holds the PaymentMethod reference - that
- *                        field IS the bridge - and defines makePayment.
- *   OnlinePayment, InstorePayment       RefinedAbstraction. The "where" side; each adds its
- *                        own step, then delegates settlement across the bridge.
- *   BridgePatternExample Client. Picks one from each hierarchy and pairs them.
+ * PROBLEM
+ *   The store sends OTPs, "order shipped" updates and promo offers, over
+ *   SMS (160 chars, no subject), email and app push (short body). With one
+ *   class per pair that is OtpSms, OtpEmail, ShippedPush... 9 classes, and
+ *   adding WhatsApp means 3 more.
  *
  * KEY INSIGHT
- *   The moment you feel yourself naming a class OnlineUpiPayment, you have two
- *   dimensions and you want Bridge: make one of them a field, not a supertype.
- *   The counter-question ("isn't this just Strategy?") is about intent, not
- *   shape - Strategy swaps one algorithm inside one class; Bridge separates
- *   two whole hierarchies that each keep growing.
+ *   Two independent dimensions -> two hierarchies joined by a field.
+ *   Notification decides WHAT is said; Channel decides HOW it travels. The
+ *   `channel` field is the bridge: 3 + 3 classes cover all 9 pairs, and a
+ *   new channel is written once (case 4). If you catch yourself naming a
+ *   class OtpSmsNotification, you have two dimensions.
  *
- *   Fixed: main() used to read amounts from System.in, so the demo blocked
- *   (and crashed with NoSuchElementException on empty input). It now scans a
- *   fixed SAMPLE_INPUT string, and the pattern classes return a receipt so
- *   each case can print actual vs expected.
+ * ROLES IN THIS CODE
+ *   Notification                     Abstraction (holds a Channel)
+ *   OtpNotification, Shipped.., Promo..  RefinedAbstraction
+ *   Channel                          Implementor
+ *   SmsChannel, EmailChannel, Push.. ConcreteImplementor
  *
  * INTERVIEW FOLLOW-UPS
- *   - Bridge vs Strategy: same UML, different intent and lifetime (structure
- *     chosen up front vs algorithm swapped per call).
- *   - Bridge vs Adapter: Bridge is designed in before either side exists;
- *     Adapter is retrofitted to make an existing incompatible class fit.
- *   - Bridge vs Abstract Factory: they compose - a factory can hand the
- *     abstraction the right implementor.
- *   - Add a third dimension (currency). What does the design cost now?
+ *   - Bridge vs Strategy: same shape. Bridge is designed up front to let two
+ *     hierarchies grow apart; Strategy swaps one algorithm in one class.
+ *   - Seen in: JDBC (DriverManager API vs vendor Driver), SLF4J API vs
+ *     Logback/Log4j binding.
  *
  * RUN
- *   main() runs 4 cases: online+UPI, in-store+card, the tricky one that proves
- *   the point (same abstraction, swapped implementor), and an edge case that
- *   adds a brand new implementor without touching either hierarchy.
+ *   4 cases: OTP by SMS, shipped by email, promo by push (cut short), a
+ *   WhatsApp channel added as a lambda with no other changes.
  */
 
-import java.util.Scanner;
-
-/** Implementor: the "how" hierarchy. */
-interface PaymentMethod {
-    /** Settles the amount and returns a receipt line the caller can assert on. */
-    String pay(int amount);
+/** Implementor: HOW a message travels, with that channel's limits. */
+interface Channel {
+    String send(String to, String subject, String body);
 }
 
-class CreditCardPayment implements PaymentMethod {
-    @Override
-    public String pay(int amount) {
-        return "paid " + amount + " by CreditCard";
+class SmsChannel implements Channel {
+    public String send(String to, String subject, String body) {
+        return "SMS to " + to + ": " + cut(body, 160); // SMS has no subject line
     }
-}
 
-class UpiPayment implements PaymentMethod {
-    @Override
-    public String pay(int amount) {
-        return "paid " + amount + " by UPI";
+    static String cut(String text, int max) {
+        return text.length() <= max ? text : text.substring(0, max - 3) + "...";
     }
 }
 
-/** Abstraction: the "where" hierarchy. The field below is the bridge. */
-abstract class Payment {
-    protected final PaymentMethod paymentMethod;
-
-    protected Payment(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-
-    /** Does the channel-specific work, then delegates across the bridge. */
-    public abstract String makePayment(int amount);
-}
-
-class OnlinePayment extends Payment {
-    OnlinePayment(PaymentMethod paymentMethod) {
-        super(paymentMethod);
-    }
-
-    @Override
-    public String makePayment(int amount) {
-        return "online: " + paymentMethod.pay(amount);
+class EmailChannel implements Channel {
+    public String send(String to, String subject, String body) {
+        return "EMAIL to " + to + " [" + subject + "] " + body;
     }
 }
 
-class InstorePayment extends Payment {
-    InstorePayment(PaymentMethod paymentMethod) {
-        super(paymentMethod);
+class PushChannel implements Channel {
+    public String send(String to, String subject, String body) {
+        return "PUSH to " + to + " [" + subject + "] " + SmsChannel.cut(body, 40);
+    }
+}
+
+/** Abstraction: WHAT is said. The channel field is the bridge. */
+abstract class Notification {
+    protected final Channel channel;
+
+    Notification(Channel channel) {
+        this.channel = channel;
     }
 
-    @Override
-    public String makePayment(int amount) {
-        return "instore: " + paymentMethod.pay(amount);
+    abstract String sendTo(String recipient);
+}
+
+class OtpNotification extends Notification {
+    private final String otp;
+
+    OtpNotification(Channel channel, String otp) {
+        super(channel);
+        this.otp = otp;
+    }
+
+    String sendTo(String recipient) {
+        return channel.send(recipient, "Your OTP", otp + " is your login OTP, valid 5 minutes.");
+    }
+}
+
+class ShippedNotification extends Notification {
+    private final String orderId;
+    private final String courier;
+
+    ShippedNotification(Channel channel, String orderId, String courier) {
+        super(channel);
+        this.orderId = orderId;
+        this.courier = courier;
+    }
+
+    String sendTo(String recipient) {
+        return channel.send(recipient, "Order shipped",
+                "Order " + orderId + " shipped via " + courier + ".");
+    }
+}
+
+class PromoNotification extends Notification {
+    private final String offer;
+
+    PromoNotification(Channel channel, String offer) {
+        super(channel);
+        this.offer = offer;
+    }
+
+    String sendTo(String recipient) {
+        return channel.send(recipient, "Sale is live", offer);
     }
 }
 
 class BridgePatternExample {
 
-    /** Amounts for the demo. Swap for System.in to drive it by hand. */
-    private static final String SAMPLE_INPUT = "500 1200";
+    public static void main(String[] args) {
+        // Case 1-3: three message types over three channels, no OtpSms-style class.
+        print("case 1 OTP sms     ",
+                new OtpNotification(new SmsChannel(), "482913").sendTo("+910000000001"),
+                "SMS to +910000000001: 482913 is your login OTP, valid 5 minutes.");
+        print("case 2 shipped mail",
+                new ShippedNotification(new EmailChannel(), "OD-1001", "Delhivery")
+                        .sendTo("a@example.com"),
+                "EMAIL to a@example.com [Order shipped] Order OD-1001 shipped via Delhivery.");
+
+        // Case 3: edge. The push channel's length limit applies to ANY message type.
+        print("case 3 promo push  ",
+                new PromoNotification(new PushChannel(),
+                        "Flat 50% off on sneakers. Ends Sunday midnight.").sendTo("device-7"),
+                "PUSH to device-7 [Sale is live] Flat 50% off on sneakers. Ends Sunday...");
+
+        // Case 4: a new channel, written once, works with every notification type.
+        Channel whatsApp = (to, subject, body) -> "WHATSAPP to " + to + ": *" + subject + "* "
+                + body;
+        print("case 4 shipped wa  ",
+                new ShippedNotification(whatsApp, "OD-1001", "BlueDart").sendTo("+910000000001"),
+                "WHATSAPP to +910000000001: *Order shipped* Order OD-1001 shipped via BlueDart.");
+    }
 
     private static void print(String label, Object actual, Object expected) {
         System.out.println(label + ": " + actual + "   expected " + expected);
-    }
-
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(SAMPLE_INPUT);
-        // Scanner sc = new Scanner(System.in); // interactive version
-
-        // ---- case 1: typical - online channel settled over UPI --------------
-        Payment onlinePayment = new OnlinePayment(new UpiPayment());
-        int amount1 = sc.nextInt();
-        print("case 1", onlinePayment.makePayment(amount1),
-                "online: paid 500 by UPI");
-
-        // ---- case 2: typical - in-store channel settled by card -------------
-        Payment instorePayment = new InstorePayment(new CreditCardPayment());
-        int amount2 = sc.nextInt();
-        print("case 2", instorePayment.makePayment(amount2),
-                "instore: paid 1200 by CreditCard");
-        sc.close();
-
-        // ---- case 3: the point of Bridge - same abstraction, other side -----
-        // Nothing in OnlinePayment changed; only the implementor was swapped,
-        // and no OnlineCardPayment class had to be written.
-        Payment onlineByCard = new OnlinePayment(new CreditCardPayment());
-        print("case 3", onlineByCard.makePayment(0),
-                "online: paid 0 by CreditCard");
-
-        // ---- case 4: edge - a new implementor added with zero changes above --
-        PaymentMethod wallet = amount -> "paid " + amount + " by Wallet";
-        print("case 4", new InstorePayment(wallet).makePayment(-50),
-                "instore: paid -50 by Wallet");
     }
 }

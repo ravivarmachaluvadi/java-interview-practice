@@ -1,53 +1,35 @@
 /*
  * =====================================================================
- *  Flyweight Pattern - forest of trees                    Structural | Medium
+ *  Flyweight - forest of trees in a game map               Structural | Medium
  * =====================================================================
  *
- * PATTERN
- *   Flyweight (Structural, object pattern). Also called "interning" or
- *   "object caching" when people meet it outside the GoF book.
- *
- * INTENT
- *   Support very large numbers of fine-grained objects cheaply by sharing the
- *   part of their state that is identical, instead of copying it per object.
- *
- * WHEN TO USE, WHEN NOT
- *   USE when you create millions of near-identical objects, most of their
- *     fields repeat across instances, and the rest can be passed in per call.
- *   USE when the shared part is immutable (glyphs, tile sprites, tree species,
- *     currency codes, Integer.valueOf's cache, String literal pool).
- *   NOT when the shared part is mutable - one writer corrupts every holder.
- *   NOT when object count is small; the factory and the lookup cost more than
- *     the memory you save, and the indirection hides the real design.
- *
- * ROLES IN THIS CODE
- *   TreeType        Flyweight. Holds only INTRINSIC state (name, color,
- *                   texture) - identical for every Oak, so stored once.
- *   TreeFactory     FlyweightFactory. Interns TreeType by a composite key so
- *                   equal descriptions return the same instance.
- *   Tree            Context. Holds the EXTRINSIC state (x, y) that differs per
- *                   tree, plus a reference to its shared TreeType.
- *   FlyweightExample Client. Plants trees and never constructs a TreeType
- *                   directly - it always goes through the factory.
+ * PROBLEM
+ *   A game map draws a million trees. Each Oak repeats the same name,
+ *   colour and texture (the heavy part); only its x, y differ. One full
+ *   object per tree runs out of memory.
  *
  * KEY INSIGHT
- *   Split the object's state in two: what repeats (intrinsic -> share it) and
- *   what varies (extrinsic -> pass it in). The factory is what enforces the
- *   sharing; without it every caller would just call new again. 1,000,000
- *   trees then cost 1,000,000 small Context objects plus 2 TreeType objects.
+ *   Split the state. What repeats (intrinsic: species, colour, texture) is
+ *   stored once in a shared, immutable TreeType; what varies (extrinsic:
+ *   x, y) stays in a tiny Tree or is passed in per call. The factory
+ *   enforces the sharing: a million trees cost a million small Trees plus
+ *   one TreeType per species.
+ *
+ * ROLES IN THIS CODE
+ *   TreeType          Flyweight - intrinsic state only, immutable
+ *   TreeFactory       FlyweightFactory - one instance per distinct key
+ *   Tree              Context - x, y plus a pointer to its TreeType
+ *   FlyweightExample  Client - never calls new TreeType
  *
  * INTERVIEW FOLLOW-UPS
- *   - Flyweight vs Singleton: Singleton is one instance total; Flyweight is
- *     one instance per distinct intrinsic value (a small pool, not one).
- *   - Why must the flyweight be immutable, and what breaks if it is not?
- *   - Where does the JDK do this? Integer.valueOf (-128..127), String pool,
- *     Boolean.valueOf, Character cache.
- *   - How do you make the factory thread-safe without a global lock?
+ *   - Flyweight vs Singleton: one instance per distinct value, not one total.
+ *   - Why immutable? One writer would change every tree sharing it.
+ *   - Seen in: Integer.valueOf cache (-128..127), the String pool, text
+ *     editor glyphs, map markers in delivery apps.
  *
  * RUN
- *   main() runs 3 cases: a typical plant-and-draw, an edge case where the same
- *   species is planted again, and a tricky identity check. Each prints
- *   actual vs expected.
+ *   3 cases: plant and draw, re-plant the same species 100 times, identity
+ *   checks on the factory.
  */
 
 import java.util.ArrayList;
