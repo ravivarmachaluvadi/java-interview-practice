@@ -9,10 +9,10 @@
  *   cassette should not mean rewriting one big if/else.
  *
  * KEY INSIGHT
- *   Handlers are linked 2000 -> 500 -> 200 -> 100. Each takes as many of
- *   its notes as fit and forwards the remainder - partial handling, not
- *   all-or-nothing. Because the chain is ordered high to low, that greedy
- *   step gives the fewest notes: the ordering IS the algorithm.
+ *   Each handler pays as many of its own notes as fit and forwards the
+ *   remainder to the next (2000 -> 500 -> 200 -> 100) - partial handling,
+ *   not all-or-nothing. Ordered high to low, that greedy step gives the
+ *   fewest notes: the ordering IS the algorithm.
  *
  * ROLES IN THIS CODE
  *   DispenseChain                Handler - holds nextChain, shared forward()

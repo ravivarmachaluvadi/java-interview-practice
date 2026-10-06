@@ -4573,21 +4573,9 @@
   "gaps": [
    {
     "priority": "high",
-    "problem": "Factory Method proper (Creator hierarchy) and an OCP-safe registry factory",
-    "technique": "Abstract Creator with an abstract factoryMethod() that subclasses override, where the Creator also holds the business logic that consumes the product; then refactor the if/else selector into a Map<String, Supplier<Product>> registry so new types register themselves instead of editing a switch.",
-    "why": "What he has is Simple Factory, not Factory Method. ShapeFactory is one concrete class with an if/else chain that returns null for unknown input. The two questions that always follow are 'add a Hexagon without modifying ShapeFactory' and 'what is the difference between Factory Method and Abstract Factory' \u2014 the first needs the registry refactor and the second needs the Creator-subclass structure, and neither exists in the folder. The null return is also a standalone red flag an interviewer will pick at."
-   },
-   {
-    "priority": "high",
-    "problem": "Deep copy versus shallow copy on an object with mutable nested state",
-    "technique": "An object holding a mutable field (a nested Address object and a List<String>), showing that super.clone() shares those references and mutating the copy corrupts the original; then three fixes \u2014 manual deep clone of each field, a copy constructor, and a serialization round-trip \u2014 with the trade-offs of each.",
-    "why": "This is the most reliably asked question in the entire creational block, and both of his copy files dodge it: CloneExample and PrototypeExample contain only final String fields, so super.clone() happens to be correct and the bug never appears. He can currently state that shallow and deep copy differ but cannot demonstrate the failure or write the fix. The standard probe is 'you cloned it, now mutate the list on the copy and print the original' \u2014 his code cannot answer it because there is no list."
-   },
-   {
-    "priority": "high",
-    "problem": "Builder with enforced required fields, invariant validation, and immutable collections",
-    "technique": "Required fields taken in the Builder constructor rather than as with-setters; all cross-field invariants checked inside build() before the object is constructed so an invalid object can never exist; defensive copy of collection fields into List.copyOf on build; and a toBuilder() for copy-and-modify.",
-    "why": "His BuilderExample has zero validation and a leftover comment admitting mandatory-field handling was skipped. The first follow-up to any builder answer is 'what if the caller never sets firstName' and the second is 'where do you validate, and why there and not in the setters' \u2014 the answer is build(), because that is the single choke point where the object is complete. He also has no collection field anywhere, so the defensive-copy point that makes the immutability claim actually true is untested. He currently claims immutability that his code would not deliver with a List field."
+    "problem": "Factory Method proper (Creator hierarchy)",
+    "technique": "Abstract Creator with an abstract factoryMethod() that subclasses override, where the Creator also holds the business logic that consumes the product.",
+    "why": "A01_FactoryDesignPattern is a registry-based simple factory; the GoF Factory Method, where a subclass decides the product, is still not shown."
    },
    {
     "priority": "high",
@@ -4600,12 +4588,6 @@
     "problem": "Static factory methods and instance caching (Effective Java Item 1)",
     "technique": "Named creators such as of(), valueOf(), getInstance() replacing public constructors; returning a cached or interned instance instead of a new one; returning a subtype or interface the caller does not name; and the explicit comparison against the Factory pattern.",
     "why": "There is a specific Java interview question \u2014 'what is the difference between a static factory method and the Factory design pattern' \u2014 that catches people who only learned GoF, and nothing in this folder addresses it. The answer is that a static factory is a language-level replacement for a constructor on the same class, while Factory Method is a structural delegation to a subclass. The caching angle also unlocks the Integer.valueOf and Boolean.valueOf questions, which are standard Java-fundamentals follow-ups, and it connects cleanly to the Flyweight file he already has next door."
-   },
-   {
-    "priority": "medium",
-    "problem": "Prototype Registry \u2014 a manager holding pre-configured prototypes",
-    "technique": "A Map<String, Prototype> of expensively-built, fully-configured template objects, where the client fetches by key and clones rather than constructing; used for document templates, game entities, or pre-loaded config objects.",
-    "why": "His PrototypeExample clones one ad-hoc object, which shows the mechanism but not the motivation \u2014 it never explains why anyone would choose Prototype over just calling a constructor. The registry is the answer: when the configured state is expensive to assemble and you need many near-identical copies. Without it, the honest answer to 'when would you actually use Prototype in production' is thin, and that is the question that separates pattern recall from pattern judgement."
    },
    {
     "priority": "medium",
@@ -4671,7 +4653,7 @@
     "priority": "high",
     "problem": "Annotation-driven dynamic proxy: implement @Transactional / @Retry / @Audit using java.lang.reflect.Proxy + InvocationHandler, then explain the CGLIB subclass variant",
     "technique": "JDK dynamic proxy vs CGLIB subclass proxy; InvocationHandler.invoke dispatch; proxy-creation factory; the self-invocation problem (an internal this.method() call bypasses the proxy); why final and private methods can't be advised; interface-based vs class-based proxying trade-offs",
-    "why": "ProxyDesignPattern.java is a hand-written static proxy \u2014 one class, one interface, compile-time. Every Java backend interview at senior level asks some form of 'how does Spring AOP / @Transactional actually work under the hood', and the expected answer is dynamic proxying, plus the self-invocation gotcha that causes real production bugs. He currently has no code and no vocabulary for reflection-based proxying, so he would give the static-proxy answer and get marked down as textbook-only. This is the single highest-return gap in the folder."
+    "why": "C02_ProxyDesignPattern now builds a plain java.lang.reflect.Proxy; reading annotations inside the InvocationHandler and the CGLIB subclass variant are still missing."
    },
    {
     "priority": "high",
@@ -4787,21 +4769,21 @@
   "gaps": [
    {
     "priority": "high",
-    "problem": "Undo/Redo in a text editor \u2014 Command objects that carry their own undo(), an undo stack plus a redo stack, and a MacroCommand that groups several edits into one undoable unit",
-    "technique": "Command with reversible operations + Composite Command, contrasted against Memento snapshots",
-    "why": "CommandDesignPattern.java stops at execute() on a TV remote \u2014 there is no undo(), no history, no invoker-side stack, and MementoDesignPattern.java only pops a single undo stack with no redo. 'Design undo/redo' is the single most-asked Command question, and the whole interview lives in the follow-up: inverse-operation commands are cheap but hard to write correctly, full-state mementos are trivial but blow up memory on a large document, and the senior answer is the hybrid (commands for small edits, periodic snapshots for checkpoints) plus what happens to the redo stack when a new edit arrives. He currently has the two halves as separate toy files and has never had to reconcile them."
+    "problem": "MacroCommand: group several commands into one undoable unit",
+    "technique": "A composite command whose execute() runs its children in order and whose undo() reverses them in reverse order; contrast with Memento snapshots.",
+    "why": "B02_CommandDesignPattern has undo and redo stacks for the cart, but each action is still its own undo step."
    },
    {
     "priority": "high",
     "problem": "An event bus / notification hub that survives production \u2014 10k subscribers, subscribe and unsubscribe while a notify is in flight, one slow or throwing listener, and listeners that outlive their owners",
-    "technique": "Observer hardened: CopyOnWriteArrayList or snapshot-then-iterate, per-listener try/catch, executor-backed async delivery, WeakReference registration, push vs pull payloads",
+    "technique": "Executor-backed async delivery, WeakReference registration, push vs pull payloads (A03_ObserverDesignPattern already covers CopyOnWriteArrayList and per-listener try/catch).",
     "why": "ObserverDesignPattern.java iterates a plain ArrayList and calls update() inline, so an unsubscribe inside a callback throws ConcurrentModificationException, one listener throwing kills the rest of the fan-out, and one slow listener blocks the publisher. Every interviewer who sees a correct Observer immediately asks those three questions, and the memory-leak one (a registered listener is a strong reference, which is why Swing and Spring listener leaks exist) is the staff-level probe. He has the shape but none of the hardening, and this same machinery is what a 'design a notification service' or 'design a stock ticker' round is actually grading."
    },
    {
     "priority": "high",
-    "problem": "A real custom iterator \u2014 a lazy nested/flattening iterator over a list-of-lists or an in-order BST iterator, implementing java.util.Iterator<T> and java.lang.Iterable<T> so it works in a for-each, with fail-fast modCount and a working remove()",
-    "technique": "Iterator implementing the JDK contract, external vs internal iteration, lazy advancement with O(h) space",
-    "why": "IteratorPatternExample.java declares its own Iterator interface over an ArrayList index \u2014 it never implements java.util.Iterator, so the class cannot be used in an enhanced for loop, and it has no remove(), no modCount, and nothing lazy. The asked versions of this problem are all lazy: flatten a nested list without materialising it, iterate a BST in order using O(height) space, merge or zip two iterators. The follow-ups are the JDK contract itself \u2014 what hasNext() must guarantee about side effects, why ArrayList throws ConcurrentModificationException and how modCount produces that, and why Iterator.remove() is the only safe mutation during traversal. This is also the closest behavioural pattern to a coding round, so it gets asked in both LLD and DSA interviews."
+    "problem": "Fail-fast iterator with a working remove() over your own collection",
+    "technique": "modCount checked on every next(), ConcurrentModificationException on outside changes, remove() allowed once per next(); an in-order BST iterator in O(h) space.",
+    "why": "B01_IteratorPattern now implements java.util.Iterator lazily over a paged API, but it is read-only and has no fail-fast check."
    },
    {
     "priority": "high",

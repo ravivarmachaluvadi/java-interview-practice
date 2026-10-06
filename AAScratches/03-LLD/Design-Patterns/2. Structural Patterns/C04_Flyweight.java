@@ -9,11 +9,10 @@
  *   object per tree runs out of memory.
  *
  * KEY INSIGHT
- *   Split the state. What repeats (intrinsic: species, colour, texture) is
- *   stored once in a shared, immutable TreeType; what varies (extrinsic:
- *   x, y) stays in a tiny Tree or is passed in per call. The factory
- *   enforces the sharing: a million trees cost a million small Trees plus
- *   one TreeType per species.
+ *   What repeats (species, colour, texture) is stored once in a shared,
+ *   immutable TreeType; what varies (x, y) stays in a tiny Tree. The
+ *   factory enforces the sharing: a million trees cost a million small
+ *   Trees plus one TreeType per species.
  *
  * ROLES IN THIS CODE
  *   TreeType          Flyweight - intrinsic state only, immutable
