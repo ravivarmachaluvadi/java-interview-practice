@@ -170,6 +170,7 @@ public class CvAssist {
             case "rename" -> rename(r);
             case "extract" -> extract(r);
             case "format" -> format(r);
+            case "create" -> create(r);
             default -> new LinkedHashMap<>(Map.of("error", "unknown op " + r.op));
         };
         res.put("ms", (System.nanoTime() - t0) / 1_000_000);
@@ -1277,6 +1278,243 @@ public class CvAssist {
         importPlace(u, r, res);
         res.remove("items");
         return res;
+    }
+
+    /** Alt+Enter on a red call to a method not written yet: IntelliJ's Create method (6 Oct).
+        Parameters take the arguments' types and names (a variable keeps its name, a literal is
+        named by its type); the return type comes from where the call stands: `int n = f(..)` int,
+        `return f(..)` the method's type, `if (f(..))` boolean, a plain `f(..);` void, else Object.
+        Static in static code. It goes after the member that holds the call, or, for `a.f(..)` on
+        a class of this file, at the end of that class. Result: insertAt + text (whole lines,
+        starting with a newline), selLine/selCol/selLen of the body to type over, and imports. */
+    Map<String, Object> create(Req r) throws IOException {
+        Map<String, Object> res = new LinkedHashMap<>();
+        int[] w = wordAt(r.text, r.offset);
+        if (w == null) return res;
+        Unit u = new Unit(r.text, r);
+        TreePath hit = pathAt(u, r.text, w[0], w[1]);
+        if (hit == null || !(hit.getParentPath().getLeaf() instanceof MethodInvocationTree call)
+                || call.getMethodSelect() != hit.getLeaf()) return res;
+        TreePath callPath = hit.getParentPath();
+        Element known = u.trees.getElement(hit);
+        if (known != null && known.getKind() == ElementKind.METHOD) return res;   // it exists: a different error
+        // where it goes: after the member holding the call, in that member's class...
+        TreePath member = null;
+        for (TreePath p = hit; p.getParentPath() != null; p = p.getParentPath()) {
+            if (p.getParentPath().getLeaf() instanceof ClassTree) { member = p; break; }
+        }
+        if (member == null) return res;
+        ClassTree target = (ClassTree) member.getParentPath().getLeaf();
+        Tree after = member.getLeaf();
+        String mods = isStatic(hit) ? "private static " : "private ";
+        // ...or, for a.f(..) / Type.f(..) on a class declared in this file, at the end of that class
+        if (hit.getLeaf() instanceof MemberSelectTree ms
+                && !(ms.getExpression() instanceof IdentifierTree q && q.getName().contentEquals("this"))) {
+            TreePath qp = new TreePath(hit, ms.getExpression());
+            Element qe = u.trees.getElement(qp);
+            TypeMirror qt = u.trees.getTypeMirror(qp);
+            boolean typeName = qe != null && (qe.getKind().isClass() || qe.getKind().isInterface());
+            TypeElement te = typeName ? (TypeElement) qe
+                    : qt != null && qt.getKind() == TypeKind.DECLARED ? (TypeElement) ((DeclaredType) qt).asElement() : null;
+            TreePath tp = te == null ? null : u.trees.getPath(te);
+            if (tp == null || tp.getCompilationUnit() != u.cu || !(tp.getLeaf() instanceof ClassTree ct)
+                    || te.getKind() != ElementKind.CLASS) {
+                res.put("reject", "Create method works on classes written in this file");
+                return res;
+            }
+            target = ct;
+            List<? extends Tree> ms2 = ct.getMembers();
+            after = ms2.isEmpty() ? null : ms2.get(ms2.size() - 1);
+            mods = typeName ? "static " : "";
+        }
+        String text = r.text;
+        long at;
+        String indent;
+        if (after != null) {
+            at = u.end(after);
+            int ls = text.lastIndexOf('\n', (int) u.start(after) - 1) + 1;
+            indent = text.substring(ls, (int) u.start(after)).replaceAll("\\S.*", "");
+        } else {                                      // an empty class: just inside its closing brace
+            at = text.lastIndexOf('}', (int) u.end(target) - 1);
+            int ls = text.lastIndexOf('\n', (int) u.start(target) - 1) + 1;
+            indent = text.substring(ls, (int) u.start(target)).replaceAll("\\S.*", "") + "    ";
+        }
+        int eol = text.indexOf('\n', (int) at);
+        at = after == null ? at : (eol < 0 ? text.length() : eol);
+        // the parameters
+        List<String> params = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+        List<TypeMirror> types = new ArrayList<>();
+        for (ExpressionTree a : call.getArguments()) {
+            TypeMirror t = u.trees.getTypeMirror(new TreePath(callPath, a));
+            String type = typeText(t);
+            if (type.equals("Object")) t = null;
+            types.add(t);
+            String n = argName(a, t), base = n;
+            for (int k = 1; !used.add(n); k++) n = base + k;
+            params.add(type + " " + n);
+        }
+        TypeMirror rt = resultType(u, callPath);
+        String ret = rt == null ? "Object" : rt.getKind() == TypeKind.VOID ? "void" : typeText(rt);
+        if (rt != null && rt.getKind() != TypeKind.VOID) types.add(rt);
+        String body = ret.equals("void") ? "" : "return " + emptyValue(rt, ret) + ";";
+        String name = w[0] < w[1] ? text.substring(w[0], w[1]) : "";
+        String in = indent + "    ";
+        String made = "\n\n" + indent + mods + ret + " " + name + "(" + String.join(", ", params) + ") {\n"
+                + in + body + "\n" + indent + "}";
+        if (after == null) made = made.substring(1) + "\n" + indent.substring(Math.min(4, indent.length()));
+        res.put("name", name);
+        res.put("insertAt", at);
+        res.put("text", made);
+        res.put("selLine", Arrays.asList(made.split("\n", -1)).indexOf(in + body));
+        res.put("selCol", in.length() + 1);
+        res.put("selLen", body.length());
+        // imports for the types it names that this file does not see yet
+        Set<String> imported = new HashSet<>(), star = new HashSet<>(List.of("java.lang"));
+        for (ImportTree it : u.cu.getImports()) {
+            String q = it.getQualifiedIdentifier().toString();
+            if (it.isStatic()) continue;
+            if (q.endsWith(".*")) star.add(q.substring(0, q.length() - 2)); else imported.add(q);
+        }
+        if (u.cu.getPackageName() != null) star.add(u.cu.getPackageName().toString());
+        Set<String> need = new TreeSet<>();
+        for (TypeMirror t : types) needImports(u, t, imported, star, need);
+        if (!need.isEmpty()) {
+            List<Map<String, Object>> items = new ArrayList<>();
+            for (String fqn : need) items.add(new LinkedHashMap<>(Map.of("importFqn", fqn)));
+            Map<String, Object> ir = new LinkedHashMap<>();
+            ir.put("items", items);
+            importPlace(u, r, ir);
+            List<String> imps = new ArrayList<>();
+            for (Map<String, Object> it : items) imps.add((String) it.get("import"));
+            res.put("imports", imps);
+            res.put("importAt", ir.get("importAt"));
+        }
+        return res;
+    }
+
+    /** A type as the new method's code writes it; Object for what javac could not work out. */
+    static String typeText(TypeMirror t) {
+        if (t == null) return "Object";
+        switch (t.getKind()) {
+            case ERROR, NULL, NONE, VOID, OTHER, EXECUTABLE, PACKAGE, MODULE: return "Object";
+            default: {
+                String s = simple(t);
+                return s.isEmpty() || s.contains("?") || s.contains("capture#") ? "Object" : s;
+            }
+        }
+    }
+
+    /** IntelliJ's names for a new parameter: a variable keeps its name, a.b is b, getX() is x,
+        anything else is named by its type (i, l, c, d, b, s, or the class name). */
+    static String argName(ExpressionTree a, TypeMirror t) {
+        if (a instanceof IdentifierTree id) return id.getName().toString();
+        if (a instanceof MemberSelectTree ms && !ms.getIdentifier().contentEquals("class")) return safe(ms.getIdentifier().toString());
+        if (a instanceof MethodInvocationTree && t != null) return nameFor(t, a).get(0);
+        if (t == null) return "o";
+        switch (t.getKind()) {
+            case INT, SHORT, BYTE: return "i";
+            case LONG: return "l";
+            case CHAR: return "c";
+            case BOOLEAN: return "b";
+            case DOUBLE: return "d";
+            case FLOAT: return "f";
+            default:
+                if (t.getKind() == TypeKind.DECLARED
+                        && ((DeclaredType) t).asElement().getSimpleName().contentEquals("String")) return "s";
+                return nameFor(t, null).get(0);
+        }
+    }
+
+    /** What the new method returns until it is written. An array is empty rather than null, so
+        `for (int x : f(..))` runs. */
+    static String emptyValue(TypeMirror t, String text) {
+        if (t == null) return "null";
+        return switch (t.getKind()) {
+            case BOOLEAN -> "false";
+            case INT, LONG, SHORT, BYTE, CHAR, DOUBLE, FLOAT -> "0";
+            case ARRAY -> {
+                int b = text.indexOf('[');
+                yield "new " + text.substring(0, b) + "[0]" + text.substring(b + 2);
+            }
+            default -> "null";
+        };
+    }
+
+    /** The type the call's value must have, from the code around it; void for a plain statement,
+        null when nothing says (the caller writes Object). */
+    TypeMirror resultType(Unit u, TreePath expr) {
+        TreePath p = expr.getParentPath();
+        Tree child = expr.getLeaf();
+        while (p.getLeaf() instanceof ParenthesizedTree) { child = p.getLeaf(); p = p.getParentPath(); }
+        Tree t = p.getLeaf();
+        TypeMirror bool = u.ty.getPrimitiveType(TypeKind.BOOLEAN);
+        if (t instanceof ExpressionStatementTree) return u.ty.getNoType(TypeKind.VOID);
+        if (t instanceof VariableTree v && v.getInitializer() == child) {
+            return v.getType() == null ? null : known(u.trees.getTypeMirror(new TreePath(p, v.getType())));
+        }
+        if (t instanceof AssignmentTree a && a.getExpression() == child) return known(u.trees.getTypeMirror(new TreePath(p, a.getVariable())));
+        if (t instanceof CompoundAssignmentTree a && a.getExpression() == child) return known(u.trees.getTypeMirror(new TreePath(p, a.getVariable())));
+        if (t instanceof ReturnTree) {
+            for (TreePath q = p; q != null; q = q.getParentPath()) {
+                if (q.getLeaf() instanceof LambdaExpressionTree) return null;
+                if (q.getLeaf() instanceof MethodTree m) {
+                    return m.getReturnType() == null ? null : known(u.trees.getTypeMirror(new TreePath(q, m.getReturnType())));
+                }
+            }
+            return null;
+        }
+        if (t instanceof IfTree || t instanceof WhileLoopTree || t instanceof DoWhileLoopTree
+                || (t instanceof ForLoopTree f && f.getCondition() == child)
+                || (t instanceof ConditionalExpressionTree c && c.getCondition() == child)
+                || (t instanceof UnaryTree un && un.getKind() == Tree.Kind.LOGICAL_COMPLEMENT)
+                || t instanceof AssertTree) return bool;
+        if (t instanceof BinaryTree b) {
+            Tree.Kind k = b.getKind();
+            if (k == Tree.Kind.CONDITIONAL_AND || k == Tree.Kind.CONDITIONAL_OR) return bool;
+            ExpressionTree other = b.getLeftOperand() == child ? b.getRightOperand() : b.getLeftOperand();
+            TypeMirror ot = known(u.trees.getTypeMirror(new TreePath(p, other)));
+            boolean compare = k == Tree.Kind.LESS_THAN || k == Tree.Kind.GREATER_THAN || k == Tree.Kind.LESS_THAN_EQUAL
+                    || k == Tree.Kind.GREATER_THAN_EQUAL || k == Tree.Kind.EQUAL_TO || k == Tree.Kind.NOT_EQUAL_TO;
+            if (compare) return ot;
+            if (ot != null && ot.getKind() == TypeKind.DECLARED && k == Tree.Kind.PLUS) return ot;   // "..." + f(..)
+            TypeMirror whole = resultType(u, p);                 // 1 + f(..) where a double is wanted: double
+            if (whole != null && whole.getKind().isPrimitive()) return whole;
+            return ot;
+        }
+        if (t instanceof EnhancedForLoopTree ef && ef.getExpression() == child) {
+            TypeMirror v = known(u.trees.getTypeMirror(new TreePath(new TreePath(p, ef.getVariable()), ef.getVariable().getType())));
+            return v == null ? null : u.ty.getArrayType(v);
+        }
+        if (t instanceof ArrayAccessTree aa && aa.getIndex() == child) return u.ty.getPrimitiveType(TypeKind.INT);
+        if (t instanceof MethodInvocationTree outer) {                   // an argument: only an unambiguous method says
+            Element e = u.trees.getElement(p);
+            int i = outer.getArguments().indexOf(child);
+            if (e instanceof ExecutableElement ex && i >= 0 && i < ex.getParameters().size() && !ex.isVarArgs()
+                    && ElementFilter.methodsIn(ex.getEnclosingElement().getEnclosedElements()).stream()
+                           .filter(m -> m.getSimpleName().equals(ex.getSimpleName())).count() == 1) {
+                return known(ex.getParameters().get(i).asType());
+            }
+        }
+        return null;
+    }
+
+    static TypeMirror known(TypeMirror t) {
+        return t == null || typeText(t).equals("Object") && !(t.getKind() == TypeKind.DECLARED) ? null : t;
+    }
+
+    /** The imports a type needs (its type arguments too) that this file does not have. */
+    static void needImports(Unit u, TypeMirror t, Set<String> imported, Set<String> star, Set<String> need) {
+        if (t == null) return;
+        if (t.getKind() == TypeKind.ARRAY) { needImports(u, ((ArrayType) t).getComponentType(), imported, star, need); return; }
+        if (t.getKind() != TypeKind.DECLARED) return;
+        DeclaredType d = (DeclaredType) t;
+        TypeElement te = (TypeElement) d.asElement();
+        for (TypeMirror a : d.getTypeArguments()) needImports(u, a, imported, star, need);
+        if (te.getNestingKind() != NestingKind.TOP_LEVEL) return;
+        String fqn = te.getQualifiedName().toString(), pkg = u.el.getPackageOf(te).getQualifiedName().toString();
+        if (pkg.isEmpty() || star.contains(pkg) || imported.contains(fqn)) return;
+        need.add(fqn);
     }
 
     /** Ctrl+click / F12: where the name under the cursor is declared. In this file: its offsets;

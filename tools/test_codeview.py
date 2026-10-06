@@ -351,6 +351,127 @@ class MethodStubTest(unittest.TestCase):
         self.assertIn("    static int solve(int[] nums) {\n        return 0;\n    }", text)
 
 
+CREATE_SRC = """import java.util.*;
+
+class Main {
+    int field = 1;
+
+    static long sumUp(long a) {
+        $$
+    }
+
+    int count(int[] xs) {
+        %%
+    }
+
+    public static void main(String[] args) {
+        int[] nums = {2, 7, 11, 15};
+        @@
+    }
+}
+
+class Helper {
+    int base = 1;
+}
+"""
+
+
+class CreateMethodTest(unittest.TestCase):
+    """6 Oct: Ravi asked for IntelliJ's Create method: write a call to a method that does not
+    exist yet, Alt+Enter on its red name, and the method appears below with parameters from the
+    arguments and a return type from where the call stands. Each result must compile and run."""
+
+    def create(self, line, at="@@", src=CREATE_SRC, word=None):
+        src = src.replace(at, line)
+        for k in ("@@", "$$", "%%"):
+            src = src.replace(k, "return 0;" if k != "@@" else "")
+        name = word or re.search(r"(\w+)\(", line.split("=")[-1] if "=" in line else line).group(1)
+        off = src.index(name, src.index(line))
+        res = codeview.ASSIST.ask("create", src, off, None, "Main.java", "", "")
+        self.assertNotIn("error", res, res)
+        return src, res
+
+    def apply(self, src, res):
+        out = src[:res["insertAt"]] + res["text"] + src[res["insertAt"]:]
+        if res.get("imports"):
+            out = out[:res["importAt"]] + "".join(res["imports"]) + out[res["importAt"]:]
+        return out
+
+    def made(self, line, at="@@", src=CREATE_SRC, word=None):
+        """-> (the new method's first line, its selected text, the whole new source)"""
+        src, res = self.create(line, at, src, word)
+        self.assertIn("text", res, res)
+        new = self.apply(src, res)
+        rid = codeview.STATE.roots()[0]["id"]
+        run = codeview.run_code(new, rid, None, "", 30, None)
+        self.assertTrue(run["ok"], (run.get("output", "")[:800], new))
+        lines = res["text"].split("\n")
+        head = next(x for x in lines if x.strip())
+        sel = lines[res["selLine"]][res["selCol"] - 1:res["selCol"] - 1 + res["selLen"]]
+        return head.strip(), sel, new
+
+    def test_javac_names_the_missing_method_and_its_argument_types(self):
+        src = CREATE_SRC.replace("@@", "int r = twoSum(nums, 9);").replace("$$", "return 0;").replace("%%", "return 0;")
+        msgs = [d["msg"] for d in codeview.ASSIST.ask("check", src, 0, None, "Main.java", "", "")["diags"]]
+        self.assertTrue(any("cannot find symbol" in m and "symbol:   method twoSum(int[],int)" in m for m in msgs), msgs)
+
+    def test_return_type_from_where_the_call_stands(self):
+        cases = [("int r = twoSum(nums, 9);", "private static int twoSum(int[] nums, int i) {", "return 0;"),
+                 ('if (isValid("ab")) { }', "private static boolean isValid(String s) {", "return false;"),
+                 ("process(nums);", "private static void process(int[] nums) {", ""),
+                 ("String s = label(nums.length);", "private static String label(int length) {", "return null;"),
+                 ("double avg = 1 + mean(nums);", "private static double mean(int[] nums) {", "return 0;"),
+                 ("boolean ok = !done(3) && nums.length > 0;", "private static boolean done(int i) {", "return false;"),
+                 ("for (int x : evens(nums)) { }", "private static int[] evens(int[] nums) {", "return new int[0];"),
+                 ("System.out.println(total(nums, 2L, 'c', 1.5)); // total",
+                  "private static Object total(int[] nums, long l, char c, double d) {", "return null;"),
+                 ("List<Integer> got = collect(nums, new ArrayList<>(List.of(1)));",
+                  "private static List<Integer> collect(int[] nums, ArrayList<Integer> arrayList) {", "return null;"),
+                 ("int same = pair(nums, nums);", "private static int pair(int[] nums, int[] nums1) {", "return 0;")]
+        for line, head, sel in cases:
+            with self.subTest(line=line):
+                word = line.split("// ")[1] if "// " in line else None
+                self.assertEqual(self.made(line, word=word)[:2], (head, sel))
+
+    def test_a_return_takes_the_methods_type(self):
+        self.assertEqual(self.made("return helper(a);", at="$$")[:2], ("private static long helper(long a) {", "return 0;"))
+
+    def test_instance_code_makes_an_instance_method(self):
+        self.assertEqual(self.made("return size(xs) + field;", at="%%")[:2], ("private int size(int[] xs) {", "return 0;"))
+
+    def test_it_goes_after_the_method_that_calls_it(self):
+        head, _, new = self.made("int r = twoSum(nums, 9);")
+        self.assertLess(new.index("public static void main"), new.index(head))
+        self.assertLess(new.index(head), new.index("class Helper"))
+        self.assertIn("    }\n\n    private static int twoSum(int[] nums, int i) {\n        return 0;\n    }\n}", new)
+
+    def test_a_call_on_another_class_of_this_file_creates_it_there(self):
+        head, _, new = self.made("int v = new Helper().twice(3);", word="twice")
+        self.assertEqual(head, "int twice(int i) {")
+        self.assertLess(new.index("class Helper"), new.index(head))
+        head, _, new = self.made("int k = Helper.make(2);", word="make")
+        self.assertEqual(head, "static int make(int i) {")
+        self.assertLess(new.index("class Helper"), new.index(head))
+
+    def test_a_type_not_imported_yet_gets_its_import(self):
+        src = "import java.util.Map;\n\nclass Main {\n    public static void main(String[] args) {\n        @@\n    }\n}\n"
+        _, res = self.create('int n = size(Map.of("a", 1).keySet());', src=src, word="size")
+        self.assertEqual(res["imports"], ["\nimport java.util.Set;"])
+        self.assertIn("private static int size(Set<String> keySet) {", self.made('int n = size(Map.of("a", 1).keySet());', src=src, word="size")[2])
+
+    def test_the_page_can_ask_for_it(self):
+        """The first browser run found the server refusing 'create': only listed ops pass."""
+        src = CREATE_SRC.replace("@@", "int r = twoSum(nums, 9);").replace("$$", "return 0;").replace("%%", "return 0;")
+        res = codeview.assist_request({"op": "create", "root": codeview.STATE.roots()[0]["id"], "path": None,
+                                       "offset": src.index("twoSum("), "code": src})
+        self.assertIn("private static int twoSum(int[] nums, int i) {", res.get("text", ""), res)
+
+    def test_nothing_to_create(self):
+        for line, word in (("int r = nums.length;", "length"), ("long z = sumUp(2);", "sumUp")):
+            with self.subTest(line=line):
+                self.assertNotIn("text", self.create(line, word=word)[1])
+
+
 def git(cwd, *args):
     return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=True,
                           encoding="utf-8").stdout.strip()

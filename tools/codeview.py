@@ -1317,7 +1317,7 @@ ASSIST_IDLE = 20 * 60
 # stopping the JIT at its first tier holds 208 MB, with the same ~20 ms per suggestion.
 ASSIST_JVM = os.environ.get("CODEVIEW_ASSIST_JVM", "-Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1").split()
 ASSIST_OPS = {"complete", "signature", "hover", "doc", "check", "warm", "imports", "definition", "rename", "extract",
-              "format"}
+              "format", "create"}
 ASSIST_WAIT = {"check": 10, "warm": 60, "compile": 120}   # seconds; the rest 4. A cold start adds 40.
 LATEST_ONLY = {"complete", "signature", "hover", "check"}   # a newer request makes a queued one pointless
 ASSIST_BUILDS = lambda: offline.cache_dir().parent / "assist"   # noqa: E731  one folder per helper build

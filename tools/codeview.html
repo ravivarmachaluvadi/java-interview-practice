@@ -521,6 +521,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <div class="menu" id="menu" hidden>
         <button data-act="wrap">Wrap long lines <kbd>Alt+Z</kbd></button>
         <button data-act="minimap"><span id="minimapLabel">Hide minimap</span> <kbd>Alt+N</kbd></button>
+        <button data-act="format">Format the file <kbd>Ctrl+Alt+L</kbd></button>
         <button data-act="bigger">Bigger text</button>
         <button data-act="smaller">Smaller text</button>
         <hr>
@@ -609,7 +610,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy or unsaved edit next to the file</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>T</kbd></td><td>Try: a throwaway copy of this file to change and run; never saved. Again to Discard it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>V</kbd></td><td>Visual: play the solution step by step on a picture, on the file's examples or your own input (some problems; not in practice). Arrows, Space, Home/End and Esc work while it is open</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart)</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>J</kbd></td><td>Next file (the ▾ beside Next chooses which files: in order, not done, ★ must-know, review, smart). With text selected in the code: adds the next match as another cursor, as in IntelliJ</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>K</kbd></td><td>Previous file, in the same list</td></tr>
     <tr><td>Browser Back</td><td>Back to the file you were on before</td></tr>
     <tr><td>← in the Scratch pad</td><td>Back to the file you came from, in the mode you left it; Next and Prev also carry on from that file</td></tr>
@@ -620,7 +621,9 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
-    <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, adds the missing import (as in IntelliJ). Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate the line, or the selection, as in IntelliJ</td></tr>
+    <tr><td>Several cursors</td><td>Select a word, then <kbd>Alt</kbd>+<kbd>J</kbd> for each next match (<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> takes the last one back), or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> for every match. <kbd>Alt</kbd>+click adds a cursor where you click, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> one above or below, <kbd>Shift</kbd>+<kbd>Alt</kbd>+drag a column. Esc goes back to one cursor</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>Enter</kbd></td><td>On a red "cannot find symbol": quick fix, as in IntelliJ. On a class name: adds the missing import. On a call to a method you have not written yet (<code>int r = twoSum(nums, 9);</code>): Create method, which adds it below with its parameters and return type worked out from the call. Anywhere else: full screen, hiding the browser's tabs, address and bookmarks bars and this header. Esc stays with the page; hold Esc to leave</td></tr>
     <tr><td><kbd>F12</kbd> or <kbd>Ctrl</kbd>+click</td><td>Go to where a variable, method or class is declared, also in a helper class in another file of the folder (Ctrl+B stays Hide / show the file list)</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd>, or ← → before the path</td><td>Back to where you were before a jump, and forward again, as in IntelliJ: F12, Ctrl+click, another file, or a jump of 10+ lines (arrow keys and Page Down are not jumps)</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>↓</kbd> / <kbd>↑</kbd></td><td>Next / previous method in a Java file, as in IntelliJ. <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd> / <kbd>↑</kbd> moves the line</td></tr>
@@ -713,7 +716,7 @@ const S = {
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
-let editor = null;
+let editor = null, createCmd = null;
 
 async function api(url, body) {
   const opt = body === undefined ? {} : {
@@ -1518,6 +1521,7 @@ function initEditor() {
     suggest: { showWords: false, showStatusBar: true }, snippetSuggestions: 'inline', hover: { delay: 500 },
   });
   const K = monaco.KeyMod, C = monaco.KeyCode;
+  createCmd = editor.addCommand(0, (_, version, r) => applyCreate(version, r));    // the Create method quick fix runs this
   editor.addCommand(K.CtrlCmd | C.Enter, run);
   editor.addCommand(K.CtrlCmd | C.KeyE, toggleEdit);
   editor.addCommand(K.CtrlCmd | C.KeyS, save);
@@ -1539,7 +1543,14 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
   editor.addCommand(K.Alt | C.KeyT, toggleTry);
   editor.addCommand(K.Alt | C.KeyV, toggleVisual);
-  editor.addCommand(K.Alt | C.KeyJ, () => step(1));
+  // 6 Oct, as in IntelliJ (Ravi's choice): Ctrl+D duplicates the line or the selection; with text
+  // selected Alt+J adds the next match as another cursor (no selection: Next file, as before),
+  // Alt+Shift+J takes the last one back and Ctrl+Alt+Shift+J selects every match
+  const selected = () => editor.getSelections().some(s => !s.isEmpty());
+  editor.addCommand(K.CtrlCmd | C.KeyD, () => editor.trigger('keyboard', 'editor.action.duplicateSelection', null));
+  editor.addCommand(K.Alt | C.KeyJ, () => selected() ? editor.trigger('keyboard', 'editor.action.addSelectionToNextFindMatch', null) : step(1));
+  editor.addCommand(K.Alt | K.Shift | C.KeyJ, () => editor.getSelections().length > 1 && editor.trigger('keyboard', 'cursorUndo', null));
+  editor.addCommand(K.CtrlCmd | K.Alt | K.Shift | C.KeyJ, () => editor.trigger('keyboard', 'editor.action.selectHighlights', null));
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   // IntelliJ's navigation (6 Oct, Ravi): Back / Forward, next / previous method. Moving a line
   // goes to Alt+Shift+↑/↓, where IntelliJ has it (Alt+↑/↓ was the editor's own key for it).
@@ -2186,15 +2197,15 @@ function applyAssist() {
 }
 let assistWarned = false, assistWarmed = false;
 /* null when it failed or was cancelled; {stale: true} when a newer request replaced it */
-async function assistAsk(op, model, offset, token, extra) {
+async function assistAsk(op, model, offset, token, extra, loud) {      // loud: every failure is a toast
   const c = S.cur;
   const body = { op, root: S.root, path: c && c.path !== SCRATCH ? c.path : null, offset: offset || 0, ...(extra || {}) };
   if (model) body.code = model.getValue();
   let r;
-  try { r = await api('/api/assist', body); } catch { return null; }
+  try { r = await api('/api/assist', body); } catch (e) { if (loud) toast(e.message); return null; }
   if (token && token.isCancellationRequested) return null;
   if (r.error) {
-    if (!assistWarned) { assistWarned = true; toast(r.error); }     // once: it would repeat on every key
+    if (loud || !assistWarned) { assistWarned = true; toast(r.error); }     // once: it would repeat on every key
     return null;
   }
   return r;
@@ -2442,13 +2453,43 @@ async function introduceVariable() {
 /* Ctrl+Alt+L (5 Oct): IntelliJ's default Java formatting from the helper, with Ravi's "keep my
    style" (comments, one-line blocks and his aligned test-case columns stay). Only changed lines
    are replaced, so the cursor and Ctrl+Z work as usual. Any editable Java file, practice too. */
+/* Alt+Enter → Create method (6 Oct, as in IntelliJ): the helper's `create` answer goes in as one
+   undo step - its imports, then the method after the one holding the call - and the new body's
+   `return 0;` is selected to type over (a void body: the cursor waits on its empty line). */
+function applyCreate(version, r) {
+  const m = editor.getModel();
+  if (!m || m.getVersionId() !== version) return toast('The code changed meanwhile: press Alt+Enter again.');
+  const at = m.getPositionAt(r.insertAt), edits = [];
+  let shift = 0;
+  if (r.imports && r.imports.length) {
+    const ip = m.getPositionAt(r.importAt), txt = r.imports.join('');
+    edits.push({ range: new monaco.Range(ip.lineNumber, ip.column, ip.lineNumber, ip.column), text: txt });
+    shift = txt.split('\n').length - 1;
+  }
+  edits.push({ range: new monaco.Range(at.lineNumber, at.column, at.lineNumber, at.column), text: r.text });
+  m.pushStackElement();
+  editor.executeEdits('create-method', edits);
+  m.pushStackElement();
+  const line = at.lineNumber + shift + r.selLine, sel = new monaco.Range(line, r.selCol, line, r.selCol + r.selLen);
+  editor.setSelection(sel);
+  editor.revealRangeInCenter(sel);
+  editor.focus();
+}
+
+/* 6 Oct: Ravi saw Ctrl+Alt+L do nothing. Every way it could give up quietly now says why: not a
+   Java file, the helper's error, and code changed during a slow first format (after 20 idle
+   minutes the helper starts again, which takes a few seconds; the result used to be dropped). */
 async function formatFile() {
   const m = editor.getModel(), c = S.cur;
-  if (!m || !c || c.kind !== 'java') return;
+  if (!c) return;
+  if (c.kind !== 'java') return toast('Ctrl+Alt+L formats Java files.');
+  if (!m) return;
   if (!isEditable()) return toast('Formatting changes the code: press Edit (or Try) first.');
   const v = m.getVersionId();
-  const r = await assistAsk('format', m, 0);
-  if (!r || m.getVersionId() !== v) return;
+  const slow = setTimeout(() => toast('Formatting… the Java helper is starting, a few seconds the first time.'), 400);
+  const r = await assistAsk('format', m, 0, null, null, true).finally(() => clearTimeout(slow));
+  if (!r) return;
+  if (m.getVersionId() !== v) return toast('The code changed while it was being formatted: press Ctrl+Alt+L again.');
   if (r.reject) return toast(r.reject);
   const eol = m.getEOL(), old = m.getLinesContent(), now = r.text.split(/\r?\n/);
   let a = 0, b = 0;
@@ -2573,6 +2614,20 @@ function initAssist() {
       if (!assistModel(model)) return { actions, dispose() {} };
       for (const mk of context.markers) {
         if (!/cannot find symbol/.test(mk.message)) continue;
+        // a call to a method not written yet (javac: "symbol: method twoSum(int[],int)"): Create method
+        const call = mk.message.match(/symbol:\s+method ([\w$]+)\(/);
+        if (call) {
+          if (asked.has('m:' + call[1])) continue;
+          asked.add('m:' + call[1]);
+          const range = new monaco.Range(mk.startLineNumber, mk.startColumn, mk.endLineNumber, mk.endColumn);
+          const i = model.getValueInRange(range).lastIndexOf(call[1]);
+          if (i < 0) continue;
+          const r = await assistAsk('create', model, model.getOffsetAt(range.getStartPosition()) + i, token);
+          if (r && r.text) actions.push({ title: `Create method '${call[1]}'`, kind: 'quickfix', diagnostics: [mk], isPreferred: !actions.length,
+            command: { id: createCmd, title: 'Create method', arguments: [model.getVersionId(), r] } });
+          else if (r && r.reject) actions.push({ title: r.reject, kind: 'quickfix', diagnostics: [mk], disabled: r.reject });
+          continue;
+        }
         const w = model.getWordAtPosition({ lineNumber: mk.startLineNumber, column: mk.startColumn });
         if (!w || !/^[A-Z]/.test(w.word) || asked.has(w.word)) continue;
         asked.add(w.word);
@@ -3737,6 +3792,7 @@ $('#menu').addEventListener('click', async e => {
   switch (b.dataset.act) {
     case 'wrap': toggleWrap(); break;
     case 'minimap': toggleMinimap(); break;
+    case 'format': editor.focus(); formatFile(); break;
     case 'bigger': setFont(1); break;
     case 'smaller': setFont(-1); break;
     case 'reveal':
