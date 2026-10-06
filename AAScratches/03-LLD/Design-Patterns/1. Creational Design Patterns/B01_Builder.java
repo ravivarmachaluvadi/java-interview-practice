@@ -1,182 +1,175 @@
 /*
  * =====================================================================
- *  Builder Pattern (static nested builder)   Creational | Easy   MUST-KNOW
+ *  Builder - product search request                Creational | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Builder - Creational family. Java's idiomatic form: a private
- *   constructor on the product plus a public static nested Builder class
- *   whose setters return `this` so calls chain.
- *
- * INTENT
- *   Build an object that has many optional fields, one named step at a
- *   time, and hand back an immutable instance at the end. Replaces
- *   telescoping constructors - User(a), User(a,b), User(a,b,c), ... - which
- *   are unreadable at the call site and impossible to extend safely.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when a type has roughly 4+ fields, several of them optional, or
- *     several same-typed fields that are easy to swap by accident
- *     (new User("Jane", "Doe") vs new User("Doe", "Jane")).
- *   Use when you want the finished object immutable but built in stages.
- *   Do NOT use for 2-3 mandatory fields - a constructor or a record is
- *     shorter and needs no extra class.
- *   Do NOT share one Builder across threads; the builder itself is mutable.
- *
- * ROLES IN THIS CODE
- *   User            Product - all fields final, no public constructor
- *   User.Builder    Builder - mutable scratch space, one wither per field
- *   Builder.build() the factory step that freezes the scratch space
- *   BuilderExample  Client/Director - decides which fields to set
+ * PROBLEM
+ *   The search page sends a keyword ("running shoes") plus any of: category,
+ *   price range, brands, sort order, page number. A 7-argument constructor
+ *   is unreadable, and nothing stops a caller passing minPrice and maxPrice
+ *   the wrong way round.
  *
  * KEY INSIGHT
- *   The builder is the *only* mutable thing in the design, and it is
- *   short-lived. `private User(Builder b)` is what enforces that: the
- *   product can never be constructed half-filled, and it can never be
- *   changed afterwards. Remember the exact combination - private
- *   constructor + static nested class + `return this` + build() - because
- *   Singleton (D01_Singleton) reuses the same static-nested-class trick for a
- *   completely different reason.
+ *   Required values go in the builder's constructor, optional ones are named
+ *   methods, and build() is the single gate that validates. An invalid
+ *   SearchRequest can never exist, and once built it is immutable.
+ *
+ * ROLES IN THIS CODE
+ *   SearchRequest           Product (immutable, private constructor)
+ *   SearchRequest.Builder   Builder (static nested, fluent)
+ *   toBuilder()             copy-and-modify, e.g. "same search, next page"
  *
  * INTERVIEW FOLLOW-UPS
- *   - How do you enforce required fields? Take them in the Builder's
- *     constructor (new Builder(firstName, lastName)) or validate in
- *     build(). This file does neither - case 2 builds an empty User.
- *   - Why must the nested class be static? A non-static inner class needs
- *     an existing User instance, and the whole point is that none exists.
- *   - Builder vs Factory? Factory picks *which* class; Builder configures
- *     *one* class step by step. They compose: a factory can return a builder.
- *   - Lombok @Builder, or records with wither methods - when is hand-rolling
- *     still worth it? When build() must validate or normalise.
- *   - Is the built object thread-safe? Yes, final fields are safely
- *     published; the Builder is not.
+ *   - Why not setters? The object would be mutable and could be half-built.
+ *   - Why Set.copyOf in the constructor? Case 5: the builder's own set keeps
+ *     changing after build().
+ *   - Seen in: HttpRequest.newBuilder(), StringBuilder, Lombok @Builder.
  *
  * RUN
- *   main() runs 3 cases: a fully populated build, an empty build (edge -
- *   defaults show through), and builder reuse (tricky - proves the first
- *   product is unaffected by later builder mutation).
+ *   6 cases: full build, defaults, bad price range, missing keyword, next
+ *   page via toBuilder, builder reused after build.
  */
-class User {
 
-    // Conceptually required. NOTE: nothing in this file enforces that -
-    // see INTERVIEW FOLLOW-UPS and case 2.
-    private final String firstName;
-    private final String lastName;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Supplier;
 
-    // Optional parameters.
-    private final String mail;
-    private final int age;
-    private final String phone;
-    private final String address;
+class SearchRequest {
+    enum Sort { RELEVANCE, PRICE_LOW_TO_HIGH, NEWEST }
 
-    // Private: the only way in is through Builder.build().
-    private User(Builder builder) {
-        this.mail = builder.mail;
-        this.firstName = builder.firstName;
-        this.lastName = builder.lastName;
-        this.age = builder.age;
-        this.phone = builder.phone;
-        this.address = builder.address;
+    private final String keyword;
+    private final String category; // null = all categories
+    private final int minPrice;
+    private final int maxPrice;
+    private final Set<String> brands;
+    private final Sort sort;
+    private final int page;
+
+    private SearchRequest(Builder b) {
+        keyword = b.keyword;
+        category = b.category;
+        minPrice = b.minPrice;
+        maxPrice = b.maxPrice;
+        brands = Set.copyOf(b.brands); // snapshot: later builder changes cannot leak in
+        sort = b.sort;
+        page = b.page;
     }
 
-    /** Static nested Builder: usable before any User exists. */
-    public static class Builder {
-        private String mail;
-        private String firstName;
-        private String lastName;
-        private int age;
-        private String phone;
-        private String address;
+    static Builder builder(String keyword) {
+        return new Builder(keyword);
+    }
 
-        // Each wither returns `this`, which is what makes the calls chain.
-        public Builder withMail(String mail) {
-            this.mail = mail;
-            return this;
-        }
-
-        public Builder withFirstName(String firstName) {
-            this.firstName = firstName;
-            return this;
-        }
-
-        public Builder withLastName(String lastName) {
-            this.lastName = lastName;
-            return this;
-        }
-
-        public Builder withAge(int age) {
-            this.age = age;
-            return this;
-        }
-
-        public Builder withPhone(String phone) {
-            this.phone = phone;
-            return this;
-        }
-
-        public Builder withAddress(String address) {
-            this.address = address;
-            return this;
-        }
-
-        /** Snapshots the builder's current state into an immutable User. */
-        public User build() {
-            return new User(this);
-        }
+    /** Copy-and-modify. The original request is untouched. */
+    Builder toBuilder() {
+        Builder b = new Builder(keyword).category(category).price(minPrice, maxPrice)
+                .sortBy(sort).page(page);
+        b.brands.addAll(brands);
+        return b;
     }
 
     @Override
     public String toString() {
-        return "User{" +
-                "mail='" + mail + '\'' +
-                ", firstName='" + firstName + '\'' +
-                ", lastName='" + lastName + '\'' +
-                ", age=" + age +
-                ", phone='" + phone + '\'' +
-                ", address='" + address + '\'' +
-                '}';
+        return "q=" + keyword + (category == null ? "" : " cat=" + category)
+                + " price=" + minPrice + "-" + (maxPrice == Integer.MAX_VALUE ? "any" : maxPrice)
+                + " brands=" + new TreeSet<>(brands) + " sort=" + sort + " page=" + page;
+    }
+
+    static class Builder {
+        private final String keyword;
+        private String category;
+        private int minPrice = 0;
+        private int maxPrice = Integer.MAX_VALUE;
+        private final Set<String> brands = new HashSet<>();
+        private Sort sort = Sort.RELEVANCE;
+        private int page = 1;
+
+        private Builder(String keyword) {
+            this.keyword = keyword;
+        }
+
+        Builder category(String category) {
+            this.category = category;
+            return this;
+        }
+
+        Builder price(int min, int max) {
+            this.minPrice = min;
+            this.maxPrice = max;
+            return this;
+        }
+
+        Builder brand(String brand) {
+            brands.add(brand);
+            return this;
+        }
+
+        Builder sortBy(Sort sort) {
+            this.sort = sort;
+            return this;
+        }
+
+        Builder page(int page) {
+            this.page = page;
+            return this;
+        }
+
+        /** The one gate: every invariant is checked before the object exists. */
+        SearchRequest build() {
+            if (keyword == null || keyword.isBlank()) {
+                throw new IllegalStateException("keyword is required");
+            }
+            if (minPrice > maxPrice) {
+                throw new IllegalStateException("minPrice " + minPrice + " > maxPrice " + maxPrice);
+            }
+            return new SearchRequest(this);
+        }
     }
 }
 
 class BuilderExample {
 
     public static void main(String[] args) {
-        // Case 1: typical. Field order at the call site does not matter,
-        // and every value is labelled by its method name.
-        User full = new User.Builder()
-                .withAddress("Bangalore")
-                .withAge(34)
-                .withLastName("Doe")
-                .withFirstName("Jane")
-                .withMail("jane.doe@example.com")
-                .withPhone("5550100200")
+        // Case 1: typical. Every value is labelled by its method name.
+        SearchRequest shoes = SearchRequest.builder("running shoes")
+                .category("footwear")
+                .price(2000, 5000)
+                .brand("Nike").brand("Asics")
+                .sortBy(SearchRequest.Sort.PRICE_LOW_TO_HIGH)
                 .build();
-        String expectedFull = "User{mail='jane.doe@example.com', firstName='Jane', lastName='Doe'"
-                + ", age=34, phone='5550100200', address='Bangalore'}";
-        print("case 1 full build ", full, expectedFull);
+        print("case 1 full    ", shoes, "q=running shoes cat=footwear price=2000-5000"
+                + " brands=[Asics, Nike] sort=PRICE_LOW_TO_HIGH page=1");
 
-        // Case 2: edge. Nothing is set, so the object defaults through -
-        // proof that this builder does NOT enforce the "required" fields.
-        User empty = new User.Builder().build();
-        String expectedEmpty = "User{mail='null', firstName='null', lastName='null'"
-                + ", age=0, phone='null', address='null'}";
-        print("case 2 empty build", empty, expectedEmpty);
+        // Case 2: edge. Only the required keyword; defaults fill the rest.
+        print("case 2 defaults", SearchRequest.builder("tv").build(),
+                "q=tv price=0-any brands=[] sort=RELEVANCE page=1");
 
-        // Case 3: tricky. Reusing a builder is legal; each build() takes a
-        // fresh snapshot, so the earlier product is untouched.
-        User.Builder reused = new User.Builder().withFirstName("Ann").withAge(30);
-        User first = reused.build();
-        User second = reused.withAge(31).build();
-        print("case 3a first age ", ageOf(first), 30);
-        print("case 3b second age", ageOf(second), 31);
-        print("case 3c distinct  ", first != second, true);
+        // Case 3-4: build() refuses an invalid request, so none ever exists.
+        print("case 3 bad range",
+                attempt(() -> SearchRequest.builder("tv").price(5000, 2000).build()),
+                "IllegalStateException minPrice 5000 > maxPrice 2000");
+        print("case 4 no keyword", attempt(() -> SearchRequest.builder(" ").build()),
+                "IllegalStateException keyword is required");
+
+        // Case 5: "load more" - same search, next page. Page 1 is not touched.
+        SearchRequest page2 = shoes.toBuilder().page(2).build();
+        print("case 5a page 2  ", page2.toString().endsWith("page=2"), true);
+        print("case 5b page 1  ", shoes.toString().endsWith("page=1"), true);
+
+        // Case 6: tricky. Reuse a builder after build(); the first request keeps
+        // its own brand set because the constructor copied it.
+        SearchRequest.Builder reused = SearchRequest.builder("phone").brand("Sony");
+        SearchRequest first = reused.build();
+        reused.brand("LG").build();
+        print("case 6 reuse    ", first, "q=phone price=0-any brands=[Sony] sort=RELEVANCE page=1");
     }
 
-    /** Pulls the age back out of toString() so the test needs no getters. */
-    private static int ageOf(User user) {
-        String text = user.toString();
-        int start = text.indexOf("age=") + "age=".length();
-        return Integer.parseInt(text.substring(start, text.indexOf(',', start)));
+    private static String attempt(Supplier<Object> call) {
+        try {
+            return String.valueOf(call.get());
+        } catch (RuntimeException e) {
+            return e.getClass().getSimpleName() + " " + e.getMessage();
+        }
     }
 
     private static void print(String label, Object actual, Object expected) {

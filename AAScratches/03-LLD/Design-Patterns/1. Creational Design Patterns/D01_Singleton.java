@@ -3,69 +3,35 @@
  *  Singleton - sealing every back door       Creational | Hard   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Singleton - Creational family. Three implementations side by side:
- *   double-checked locking (Singleton), the initialization-on-demand
- *   holder idiom (RobustSingleton), and an enum (EnumSingleton).
- *
- * INTENT
- *   Guarantee that a class has exactly one instance for the lifetime of
- *   the classloader, and give everyone one way to reach it.
- *
- * WHEN TO USE, WHEN NOT
- *   Use for genuinely process-wide, stateless-or-carefully-shared things:
- *     a connection pool, a metrics registry, a config holder.
- *   Do NOT use as a global variable - it hides dependencies, makes tests
- *     order-dependent, and cannot be swapped for a fake.
- *   Do NOT assume "one instance ever": one per classloader, and in a
- *     cluster one PER JVM, which is not the same as one per system.
- *   In Spring, the container already gives you singleton scope - hand
- *     rolling this inside a Spring app is almost always a mistake.
- *
- * ROLES IN THIS CODE
- *   Singleton        Singleton via double-checked locking; the field is
- *                    volatile and the constructor/clone/readResolve are the
- *                    three guards
- *   RobustSingleton  Singleton via the holder idiom - lazy and thread-safe
- *                    with zero synchronization, because class init is
- *                    already serialized by the JVM
- *   EnumSingleton    Singleton via enum - the JVM itself blocks reflection
- *                    and deserialization, so no guards are needed
- *   Main             Client, and the attacker: it tries each back door
+ * PROBLEM
+ *   Some objects must exist once per JVM: the connection pool, the metrics
+ *   registry, the app config. Two pools double the DB connections; two
+ *   configs drift apart. Build it three ways (double-checked locking, holder
+ *   idiom, enum) and attack each through its back doors.
  *
  * KEY INSIGHT
- *   `instance = new Singleton()` is three steps: allocate, run the
- *   constructor, assign the reference. Without `volatile` the JVM may
- *   publish the reference before the constructor finishes, so a second
- *   thread sees a non-null but half-built object. volatile forbids that
- *   reordering and makes the write visible to other threads.
- *   Then remember the three ways a "singleton" still gets a second
- *   instance: reflection on the private constructor, deserialization, and
- *   clone(). Every guard below exists for exactly one of those. Enum
- *   closes all three for free - which is why it is the recommended form.
+ *   `instance = new Singleton()` is allocate, construct, assign. Without
+ *   `volatile` another thread may see the reference before the constructor
+ *   finishes. Then three back doors still make a second instance:
+ *   reflection, clone() and deserialization (readResolve must return
+ *   Object). An enum closes all three for free - the recommended form.
  *
- *   Fixed: readResolve() declared `protected Singleton readResolve()`.
- *   Java serialization looks for a method returning Object, so a covariant
- *   return type means the hook is NEVER called and deserialization quietly
- *   produced a second instance. Return type is now Object (case 4 proves
- *   it). serialVersionUID was also missing.
+ * ROLES IN THIS CODE
+ *   Singleton         double-checked locking + the three hand-written guards
+ *   RobustSingleton   holder idiom: lazy and lock-free, JVM class init is once
+ *   EnumSingleton     enum: the JVM blocks reflection and deserialization
+ *   Main              client, and the attacker
  *
  * INTERVIEW FOLLOW-UPS
- *   - Why volatile in double-checked locking, and why was DCL broken
- *     before Java 5? The pre-2004 memory model allowed the reordering.
- *   - Why is the holder idiom preferred over DCL? Same laziness, no
- *     synchronized, no volatile, far less code to get wrong.
- *   - Why is enum the cleanest? Effective Java Item 3: reflection- and
- *     serialization-safe by construction. Drawback: cannot extend a class,
- *     and instantiation happens on first class use.
- *   - Eager static final field - when is it fine? When construction is
- *     cheap and always needed; laziness is the only thing you lose.
- *   - How do you test code that calls MySingleton.getInstance()? You
- *     usually cannot - which is the argument for dependency injection.
+ *   - Holder vs DCL: same laziness, no lock, no volatile, less to get wrong.
+ *   - Spring beans are already singleton-scoped; hand-rolling one there is
+ *     usually a mistake, and getInstance() calls cannot be faked in tests.
+ *   - "One instance" means one per classloader, so one per JVM, not per
+ *     cluster.
  *
  * RUN
- *   main() runs 8 cases: identity for all three variants, then the
- *   reflection, clone and serialization attacks against each guard.
+ *   8 cases: identity for each variant, then reflection, clone and
+ *   serialization attacks against each guard.
  */
 
 import java.io.ByteArrayInputStream;

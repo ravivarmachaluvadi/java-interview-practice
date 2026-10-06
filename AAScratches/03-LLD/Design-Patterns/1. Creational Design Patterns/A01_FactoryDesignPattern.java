@@ -1,136 +1,125 @@
 /*
  * =====================================================================
- *  Factory (Simple Factory / Factory Method)   Creational | Easy   MUST-KNOW
+ *  Factory - payment processor per checkout request   Creational | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Factory - Creational family. Shown here in its "simple factory" form:
- *   one factory class with a switch over a key that returns a product.
- *
- * INTENT
- *   Move the "which concrete class do I instantiate?" decision out of the
- *   client and into one place. The client asks for a Shape by name and gets
- *   back something that implements Shape; it never writes `new Circle()`.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when the concrete type depends on a runtime value (config, request
- *     payload, DB column) and new types get added over time.
- *   Use when construction is more than a constructor call (pooling, caching,
- *     validation) and you do not want that logic duplicated at call sites.
- *   Do NOT use when there is exactly one implementation - a constructor is
- *     clearer than a factory that can only ever return one thing.
- *   Do NOT use it as a dumping ground; a factory with 30 branches is a sign
- *     the key should map to a registry (see follow-ups).
- *
- * ROLES IN THIS CODE
- *   Shape                      Product - the interface the client depends on
- *   Circle / Square / Triangle ConcreteProduct - the classes the client
- *                              must NOT name
- *   ShapeFactory               Factory (Creator) - owns the new() calls
- *   main()                     Client - holds only Shape references
+ * PROBLEM
+ *   Checkout receives {"method": "UPI", "amount": 1200}. The method code
+ *   decides which processor runs: UPI, card (adds a 2% fee) or cash on
+ *   delivery (refused above Rs 50,000). Checkout must not `new` any of them,
+ *   and launching BNPL next quarter must not mean editing a switch.
  *
  * KEY INSIGHT
- *   The win is not "fewer new keywords", it is the direction of the
- *   dependency: the client compiles against Shape only, so adding a
- *   Rectangle touches the factory and nothing else. If your "factory" hands
- *   back a concrete type, you have gained nothing - the return type must be
- *   the abstraction.
+ *   The factory owns the "code -> class" decision, and a registry of
+ *   Suppliers replaces the if/else chain: a new method is one register()
+ *   call. The return type is the interface, so checkout never names a
+ *   concrete processor.
+ *
+ * ROLES IN THIS CODE
+ *   PaymentProcessor                  Product
+ *   UpiProcessor, Card.., Cod..       ConcreteProduct
+ *   PaymentProcessorFactory           Factory (registry of Suppliers)
+ *   main()                            Client (the checkout)
  *
  * INTERVIEW FOLLOW-UPS
- *   - Simple Factory vs Factory Method vs Abstract Factory? Simple Factory
- *     is one class with a switch; Factory Method puts the choice in a
- *     subclass override; Abstract Factory returns a matched family (see
- *     C01_AbstractFactoryDatabase).
- *   - Unknown key: return null, throw, or Optional? Returning null (as here)
- *     pushes an NPE onto the caller; throwing IllegalArgumentException fails
- *     at the real fault line.
- *   - How do you kill the if/else chain? Register suppliers in a
- *     Map<String, Supplier<Shape>>, or discover them with ServiceLoader.
- *   - Where does Spring do this? BeanFactory / FactoryBean are this pattern.
+ *   - Unknown code: throw in the factory; returning null moves the crash.
+ *   - Spring does this for you: inject Map<String, PaymentProcessor> and
+ *     the bean names become the keys.
+ *   - Factory vs Abstract Factory: one product here, a matched family of
+ *     products in C01_AbstractFactoryPattern.
  *
  * RUN
- *   main() runs 4 cases (three known keys, one unknown key) and prints
- *   actual vs expected, then draws each shape through the Shape interface.
+ *   5 cases: UPI, card fee, COD over limit, unknown code, BNPL registered.
  */
 
-interface Shape {
-    void draw();
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
+
+/** Product: the only type checkout knows. */
+interface PaymentProcessor {
+    /** Returns a receipt line, or throws if this method cannot take the amount. */
+    String pay(int amountRs);
 }
 
-class Circle implements Shape {
-
-    @Override
-    public void draw() {
-        System.out.println("drawing circle");
+class UpiProcessor implements PaymentProcessor {
+    public String pay(int amountRs) {
+        return "UPI collect request for Rs " + amountRs;
     }
 }
 
-class Triangle implements Shape {
-
-    @Override
-    public void draw() {
-        System.out.println("drawing triangle");
+class CardProcessor implements PaymentProcessor {
+    public String pay(int amountRs) {
+        int fee = amountRs * 2 / 100; // gateway fee passed on to the customer
+        return "Card charged Rs " + (amountRs + fee) + " (fee Rs " + fee + ")";
     }
 }
 
-class Square implements Shape {
+class CodProcessor implements PaymentProcessor {
+    static final int LIMIT_RS = 50_000;
 
-    @Override
-    public void draw() {
-        System.out.println("drawing square");
-    }
-}
-
-/**
- * The Creator. Every `new` for a Shape lives here and nowhere else, so the
- * client never mentions Circle, Square or Triangle by name.
- */
-class ShapeFactory {
-
-    /**
-     * @param shape the product key, e.g. "Circle"
-     * @return a Shape, or null when the key is unknown (see INTERVIEW
-     * FOLLOW-UPS - throwing is usually the better contract)
-     */
-    public Shape getShape(String shape) {
-        if ("Circle".equals(shape)) {
-            return new Circle();
-        } else if ("Square".equals(shape)) {
-            return new Square();
-        } else if ("Triangle".equals(shape)) {
-            return new Triangle();
+    public String pay(int amountRs) {
+        if (amountRs > LIMIT_RS) {
+            throw new IllegalStateException("COD not allowed above Rs " + LIMIT_RS);
         }
-        return null;
+        return "COD booked, collect Rs " + amountRs + " at the door";
+    }
+}
+
+/** Factory: the only place a method code turns into a class. */
+class PaymentProcessorFactory {
+    private final Map<String, Supplier<PaymentProcessor>> registry = new HashMap<>();
+
+    PaymentProcessorFactory() {
+        register("UPI", UpiProcessor::new);
+        register("CARD", CardProcessor::new);
+        register("COD", CodProcessor::new);
+    }
+
+    /** Open for extension: a new method is a register() call, not an edited switch. */
+    void register(String code, Supplier<PaymentProcessor> supplier) {
+        registry.put(code, supplier);
+    }
+
+    PaymentProcessor forMethod(String code) {
+        Supplier<PaymentProcessor> supplier = registry.get(code);
+        if (supplier == null) {
+            throw new IllegalArgumentException("Unsupported payment method " + code);
+        }
+        return supplier.get();
     }
 }
 
 class FactoryDesignPattern {
 
     public static void main(String[] args) {
-        ShapeFactory shapeFactory = new ShapeFactory();
+        PaymentProcessorFactory factory = new PaymentProcessorFactory();
 
-        // Case 1-3: typical. The declared type is Shape, never the concrete class.
-        Shape circle = shapeFactory.getShape("Circle");
-        Shape square = shapeFactory.getShape("Square");
-        Shape triangle = shapeFactory.getShape("Triangle");
+        // Case 1-2: typical. The client holds a PaymentProcessor, never a UpiProcessor.
+        print("case 1 UPI      ", factory.forMethod("UPI").pay(1200),
+                "UPI collect request for Rs 1200");
+        print("case 2 card fee ", factory.forMethod("CARD").pay(1000),
+                "Card charged Rs 1020 (fee Rs 20)");
 
-        print("case 1 key=Circle  ", typeOf(circle), "Circle");
-        print("case 2 key=Square  ", typeOf(square), "Square");
-        print("case 3 key=Triangle", typeOf(triangle), "Triangle");
+        // Case 3: the product enforces its own business rule.
+        print("case 3 COD limit", attempt(() -> factory.forMethod("COD").pay(60_000)),
+                "IllegalStateException COD not allowed above Rs 50000");
 
-        // Case 4: edge. Unknown key - this factory returns null, so the caller
-        // gets an NPE at the *next* line instead of an error here.
-        print("case 4 key=Hexagon ", typeOf(shapeFactory.getShape("Hexagon")), "null");
+        // Case 4: edge. An unknown code fails here, at the real fault line.
+        print("case 4 unknown  ", attempt(() -> factory.forMethod("BNPL").pay(500)),
+                "IllegalArgumentException Unsupported payment method BNPL");
 
-        // The payoff: identical client code for every concrete product.
-        for (Shape shape : new Shape[]{circle, square, triangle}) {
-            shape.draw();
-        }
+        // Case 5: BNPL launches. One register() call; factory and checkout untouched.
+        factory.register("BNPL", () -> amount -> "BNPL 3 EMIs of Rs " + amount / 3);
+        print("case 5 BNPL     ", factory.forMethod("BNPL").pay(3000), "BNPL 3 EMIs of Rs 1000");
     }
 
-    /** Names the runtime class without the client ever importing it. */
-    private static String typeOf(Shape shape) {
-        return shape == null ? "null" : shape.getClass().getSimpleName();
+    private static String attempt(Supplier<String> call) {
+        try {
+            return call.get();
+        } catch (RuntimeException e) {
+            return e.getClass().getSimpleName() + " " + e.getMessage();
+        }
     }
 
     private static void print(String label, Object actual, Object expected) {
