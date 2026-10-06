@@ -1,179 +1,208 @@
 /*
  * =====================================================================
- *  Command Design Pattern                   LLD | Easy  MUST-KNOW
+ *  Command - shopping cart undo / redo               Behavioral | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Command - Behavioral family (GoF). Also called Action or Transaction.
- *
- * INTENT
- *   Wrap a request as an object that holds everything needed to perform it: the
- *   receiver, the method to call, and any arguments. The invoker then triggers work
- *   through one uniform execute() call without knowing what the work is.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when: requests must be stored, queued, logged, retried, scheduled or undone -
- *     remote controls, job queues, editor undo stacks, transactional outbox, CQRS
- *     command handlers, GUI menu items that share an action with a toolbar button.
- *   Do not use when: the caller can just call the method. One command class per method
- *     is real ceremony; pay it only for the queue/undo/log capability it unlocks.
- *
- * ROLES IN THIS CODE
- *   Command              -> Command interface (execute)
- *   TurnOnCommand, TurnOffCommand,
- *   VolumeUpCommand      -> ConcreteCommands: each binds one Television method
- *   Television           -> Receiver: the object that actually does the work
- *   Remote               -> Invoker: holds a Command, presses it, knows nothing else
- *   CommandDesignPattern.main -> Client: builds commands and loads them into the invoker
+ * PROBLEM
+ *   The cart page has "Undo" after every action: add item, remove item,
+ *   apply coupon. Users undo several steps and redo them; a fresh action
+ *   after an undo must wipe the redo list. The undo button cannot contain
+ *   a switch over every possible action.
  *
  * KEY INSIGHT
- *   Command is Strategy with the receiver already bound in. Because the "what to do"
- *   and the "who to do it to" are captured inside one object, that object can be put
- *   in a list, sent over a wire, replayed, or paired with an undo() - which is exactly
- *   what a plain method call can never be. Recognise it whenever a requirement says
- *   undo, redo, macro, retry or audit log.
+ *   Each action becomes an object that knows how to execute() AND undo()
+ *   itself, remembering whatever it needs to reverse (the removed price,
+ *   the old coupon). The history only pushes and pops commands; it never
+ *   knows what they do. A new action is a new class, not a new branch.
+ *
+ * ROLES IN THIS CODE
+ *   CartCommand                       Command
+ *   AddItem, RemoveItem, ApplyCoupon  ConcreteCommand
+ *   Cart                              Receiver
+ *   CartHistory                       Invoker - undo and redo stacks
  *
  * INTERVIEW FOLLOW-UPS
- *   - Add undo: give Command an undo() and have the invoker push executed commands on
- *     a stack (this is where Command meets Memento for non-invertible state).
- *   - Macro command: a ConcreteCommand holding a List<Command> - that is Composite.
- *   - Command vs Strategy: both inject behaviour; Command binds a receiver and is
- *     designed to be stored and replayed, Strategy is chosen and run immediately.
- *   - Where in the JDK/Spring? Runnable handed to an ExecutorService is Command;
- *     so is every @Transactional service method behind a CQRS command handler.
+ *   - Command vs Memento for undo: Command stores HOW to reverse a change,
+ *     Memento stores a snapshot (B03_MementoDesignPattern).
+ *   - Group several commands into one undo step with a MacroCommand.
+ *   - Seen in: Runnable/Callable queued on an executor, job queues, Redux
+ *     actions, database redo logs.
  *
  * RUN
- *   main() runs 3 cases: a single button press, the same remote re-loaded with two more
- *   commands, and the edge case of pressing a button with no command bound.
+ *   6 cases: three actions, undo twice, redo, new action clears redo,
+ *   undo a remove, undo past the start.
  */
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-interface Command {
+/** Receiver: the cart itself knows nothing about undo. */
+class Cart {
+    private final Map<String, Integer> lines = new LinkedHashMap<>(); // product -> price
+    private int couponOff;
+
+    void add(String product, int priceRs) {
+        lines.put(product, priceRs);
+    }
+
+    Integer remove(String product) {
+        return lines.remove(product);
+    }
+
+    int couponOff() {
+        return couponOff;
+    }
+
+    void setCouponOff(int rs) {
+        couponOff = rs;
+    }
+
+    @Override
+    public String toString() {
+        int total = lines.values().stream().mapToInt(Integer::intValue).sum() - couponOff;
+        return lines.keySet() + " Rs " + total;
+    }
+}
+
+interface CartCommand {
     void execute();
+
+    void undo();
 }
 
-/** Receiver: knows how to do the real work, knows nothing about commands. */
-class Television {
+class AddItem implements CartCommand {
+    private final Cart cart;
+    private final String product;
+    private final int priceRs;
 
-    private final List<String> actionLog = new ArrayList<>();
-
-    public void turnOn() {
-        actionLog.add("TV turned on");
+    AddItem(Cart cart, String product, int priceRs) {
+        this.cart = cart;
+        this.product = product;
+        this.priceRs = priceRs;
     }
 
-    public void turnOff() {
-        actionLog.add("TV turned off");
-    }
-
-    public void increaseVolume() {
-        actionLog.add("TV volume increased");
-    }
-
-    public void decreaseVolume() {
-        actionLog.add("TV volume decreased");
-    }
-
-    /** Exposed so main() can assert on what actually reached the receiver. */
-    List<String> getActionLog() {
-        return actionLog;
-    }
-}
-
-class TurnOnCommand implements Command {
-
-    private final Television tv;   // the receiver is bound into the command itself
-
-    public TurnOnCommand(Television tv) {
-        this.tv = tv;
-    }
-
-    @Override
     public void execute() {
-        tv.turnOn();
+        cart.add(product, priceRs);
+    }
+
+    public void undo() {
+        cart.remove(product);
     }
 }
 
-class TurnOffCommand implements Command {
+class RemoveItem implements CartCommand {
+    private final Cart cart;
+    private final String product;
+    private Integer removedPrice; // remembered so undo can put it back
 
-    private final Television tv;
-
-    public TurnOffCommand(Television tv) {
-        this.tv = tv;
+    RemoveItem(Cart cart, String product) {
+        this.cart = cart;
+        this.product = product;
     }
 
-    @Override
     public void execute() {
-        tv.turnOff();
-    }
-}
-
-class VolumeUpCommand implements Command {
-
-    private final Television tv;
-
-    public VolumeUpCommand(Television tv) {
-        this.tv = tv;
+        removedPrice = cart.remove(product);
     }
 
-    @Override
-    public void execute() {
-        tv.increaseVolume();
-    }
-}
-
-/** Invoker: triggers the request but never learns which receiver or method it hits. */
-class Remote {
-
-    private Command command;
-
-    public void setCommand(Command command) {
-        this.command = command;
-    }
-
-    public void pressButton() {
-        if (command == null) {
-            throw new IllegalStateException("No command bound to this button");
+    public void undo() {
+        if (removedPrice != null) {
+            cart.add(product, removedPrice);
         }
+    }
+}
+
+class ApplyCoupon implements CartCommand {
+    private final Cart cart;
+    private final int offRs;
+    private int previousOff;
+
+    ApplyCoupon(Cart cart, int offRs) {
+        this.cart = cart;
+        this.offRs = offRs;
+    }
+
+    public void execute() {
+        previousOff = cart.couponOff();
+        cart.setCouponOff(offRs);
+    }
+
+    public void undo() {
+        cart.setCouponOff(previousOff);
+    }
+}
+
+/** Invoker: pushes and pops commands, never looks inside them. */
+class CartHistory {
+    private final Deque<CartCommand> undoStack = new ArrayDeque<>();
+    private final Deque<CartCommand> redoStack = new ArrayDeque<>();
+
+    void run(CartCommand command) {
         command.execute();
+        undoStack.push(command);
+        redoStack.clear(); // a new action invalidates the redo path
+    }
+
+    boolean undo() {
+        if (undoStack.isEmpty()) {
+            return false;
+        }
+        CartCommand command = undoStack.pop();
+        command.undo();
+        redoStack.push(command);
+        return true;
+    }
+
+    boolean redo() {
+        if (redoStack.isEmpty()) {
+            return false;
+        }
+        CartCommand command = redoStack.pop();
+        command.execute();
+        undoStack.push(command);
+        return true;
     }
 }
 
 class CommandDesignPattern {
 
     public static void main(String[] args) {
-        Television tv = new Television();
-        Remote remote = new Remote();
+        Cart cart = new Cart();
+        CartHistory history = new CartHistory();
 
-        // Case 1: one command loaded into the invoker and fired.
-        remote.setCommand(new TurnOnCommand(tv));
-        remote.pressButton();
-        print("case 1 after turn on", tv.getActionLog(), "[TV turned on]");
+        // Case 1: typical. Three actions.
+        history.run(new AddItem(cart, "Shoes", 3000));
+        history.run(new AddItem(cart, "Socks", 300));
+        history.run(new ApplyCoupon(cart, 500));
+        print("case 1 three actions", cart, "[Shoes, Socks] Rs 2800");
 
-        // Case 2: the same invoker driving different requests - only the command changes.
-        remote.setCommand(new VolumeUpCommand(tv));
-        remote.pressButton();
-        remote.setCommand(new TurnOffCommand(tv));
-        remote.pressButton();
-        print("case 2 after volume+off", tv.getActionLog(),
-                "[TV turned on, TV volume increased, TV turned off]");
+        // Case 2: undo twice - the coupon goes, then the socks.
+        history.undo();
+        history.undo();
+        print("case 2 undo twice   ", cart, "[Shoes] Rs 3000");
 
-        // Case 3 (edge): an unbound button must fail loudly instead of NPE-ing.
-        String result;
-        try {
-            new Remote().pressButton();
-            result = "no exception";
-        } catch (IllegalStateException e) {
-            result = "IllegalStateException: " + e.getMessage();
-        }
-        print("case 3 unbound button", result,
-                "IllegalStateException: No command bound to this button");
+        // Case 3: redo brings the socks back.
+        history.redo();
+        print("case 3 redo         ", cart, "[Shoes, Socks] Rs 3300");
+
+        // Case 4: tricky. A new action after an undo clears the redo stack,
+        // so the undone coupon can no longer be redone.
+        history.run(new RemoveItem(cart, "Shoes"));
+        print("case 4a remove shoes", cart, "[Socks] Rs 300");
+        print("case 4b redo coupon ", history.redo(), false);
+
+        // Case 5: undoing a remove restores the item with its price.
+        history.undo();
+        print("case 5 undo remove  ", cart, "[Socks, Shoes] Rs 3300");
+
+        // Case 6: edge. Undo back to an empty cart, then one undo too many.
+        print("case 6a undo x3     ", history.undo() + " " + history.undo() + " "
+                + history.undo(), "true true false");
+        print("case 6b empty cart  ", cart, "[] Rs 0");
     }
 
     private static void print(String label, Object actual, Object expected) {
-        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
-        System.out.println(label + ": " + actual + "   expected " + expected
-                + "   " + (ok ? "[OK]" : "[FAIL]"));
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

@@ -1,181 +1,140 @@
 /*
  * =====================================================================
- *  Iterator Design Pattern                              LLD | Easy
+ *  Iterator - paged orders API export                Behavioral | Easy
  * =====================================================================
  *
- * PATTERN
- *   Iterator - Behavioral family (GoF). Also called Cursor.
- *
- * INTENT
- *   Give clients a uniform way to walk the elements of a collection one at a time
- *   without exposing how the collection stores them. The traversal position lives in
- *   the iterator, not in the collection and not in the client.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when: callers should loop over your aggregate (playlist, paged API result,
- *     tree, result set) while you stay free to change the backing store from an
- *     ArrayList to a tree or a stream of pages.
- *   Do not use when: a plain List getter is honest and enough - a hand-rolled iterator
- *     over an ArrayList that you already expose buys nothing. In real Java you almost
- *     always implement java.lang.Iterable instead of inventing the interface.
- *
- * ROLES IN THIS CODE
- *   Iterator<T>        -> Iterator interface (hasNext / next)
- *   PlayListIterator   -> ConcreteIterator: owns the position index
- *   SongCollection     -> Aggregate interface (createIterator)
- *   PlayList           -> ConcreteAggregate: holds List<Song>, hands out iterators
- *   Song               -> the element being traversed
- *   IteratorPatternExample.main -> Client: uses only hasNext/next
+ * PROBLEM
+ *   A nightly job exports every order to the data warehouse. The orders
+ *   service only returns pages (GET /orders?cursor=0&limit=3), and loading
+ *   all 2 million orders into one list would exhaust memory. The export
+ *   code should still read like a plain for-each loop.
  *
  * KEY INSIGHT
- *   Externalising the cursor is what lets several traversals run over the same
- *   collection at once - each createIterator() call returns a fresh, independent
- *   position. If the index lived in PlayList, two loops would fight over one counter.
- *   This is the first step of "pull behaviour out of the collection"; Visitor is the
- *   same idea pushed all the way to the operation itself.
+ *   The iterator hides HOW elements are fetched. hasNext() calls the API
+ *   only when the current page is used up, so memory holds one page and a
+ *   caller that stops early never pays for the pages it did not read.
+ *   Implementing java.util.Iterator and returning it from an Iterable is
+ *   what makes for-each work.
  *
- * COMPLEXITY
- *   Time  O(1) per next(), O(n) for a full pass over n songs.
- *   Space O(1) per iterator - a reference plus one int index.
+ * ROLES IN THIS CODE
+ *   Iterator<T> (java.util)    Iterator interface
+ *   PagedIterator              ConcreteIterator - cursor + current page
+ *   PageSource / OrdersApi     the aggregate, reachable only page by page
+ *   allOrders()                Iterable, so for-each works
  *
  * INTERVIEW FOLLOW-UPS
- *   - Why implement Iterable<Song> rather than a custom interface? (for-each support)
- *   - Fail-fast vs fail-safe: ArrayList's iterator throws ConcurrentModificationException
- *     via a modCount check; CopyOnWriteArrayList iterates a snapshot instead. This
- *     hand-rolled iterator is neither - mutating the playlist mid-loop silently skips.
- *   - Internal vs external iteration: forEach/Stream (collection drives) vs hasNext/next
- *     (client drives). Which allows early exit, laziness, parallelism?
- *   - How would you iterate something infinite or paged lazily?
+ *   - Why `while`, not `if`, in hasNext()? An API may return an empty page
+ *     that still has a next cursor.
+ *   - Seen in: AWS SDK paginators, Spring Data Slice, JDBC ResultSet,
+ *     Kafka consumer poll loops.
  *
  * RUN
- *   main() runs 4 cases: a full traversal, two independent cursors over one playlist,
- *   an empty playlist, and calling next() past the end. Each prints actual vs expected.
+ *   5 cases: 7 orders in 3 calls, stop early after 1 call, exactly 2 full
+ *   pages, empty API, next() past the end.
  */
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-interface Iterator<T> {
-    boolean hasNext();
-
-    T next();
+/** One page of results; nextCursor is null on the last page. */
+record Page<T>(List<T> items, Integer nextCursor) {
 }
 
-interface SongCollection {
-    Iterator<Song> createIterator();
+interface PageSource<T> {
+    Page<T> fetch(int cursor, int limit);
 }
 
-class Song {
+/** Stand-in for the remote orders service; counts how often it is called. */
+class OrdersApi implements PageSource<String> {
+    private final List<String> rows = new ArrayList<>();
+    int calls;
 
-    private final String title;
-    private final String artist;
-
-    public Song(String title, String artist) {
-        this.title = title;
-        this.artist = artist;
+    OrdersApi(int orderCount) {
+        for (int i = 1; i <= orderCount; i++) {
+            rows.add("OD-" + i);
+        }
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public String getArtist() {
-        return artist;
-    }
-
-    @Override
-    public String toString() {
-        return title + " by " + artist;
+    public Page<String> fetch(int cursor, int limit) {
+        calls++;
+        int end = Math.min(cursor + limit, rows.size());
+        return new Page<>(rows.subList(cursor, end), end < rows.size() ? end : null);
     }
 }
 
-class PlayList implements SongCollection {
+class PagedIterator<T> implements Iterator<T> {
+    private final PageSource<T> source;
+    private final int pageSize;
+    private Iterator<T> current = Collections.emptyIterator();
+    private Integer nextCursor = 0; // null = no more pages
 
-    private final List<Song> songs = new ArrayList<>();
-
-    public void addSong(Song song) {
-        songs.add(song);
-    }
-
-    /** Every call hands back a brand new cursor starting at position 0. */
-    @Override
-    public Iterator<Song> createIterator() {
-        return new PlayListIterator(songs);
-    }
-}
-
-class PlayListIterator implements Iterator<Song> {
-
-    private final List<Song> songs;
-    private int position = 0;   // the traversal state that the aggregate no longer carries
-
-    public PlayListIterator(List<Song> songs) {
-        this.songs = songs;
+    PagedIterator(PageSource<T> source, int pageSize) {
+        this.source = source;
+        this.pageSize = pageSize;
     }
 
     @Override
     public boolean hasNext() {
-        return position < songs.size();
+        while (!current.hasNext() && nextCursor != null) { // fetch lazily, one page at a time
+            Page<T> page = source.fetch(nextCursor, pageSize);
+            current = page.items().iterator();
+            nextCursor = page.nextCursor();
+        }
+        return current.hasNext();
     }
 
     @Override
-    public Song next() {
-        // Contract of java.util.Iterator: next() past the end throws, it does not return null.
+    public T next() {
         if (!hasNext()) {
-            throw new NoSuchElementException("no more songs in the playlist");
+            throw new NoSuchElementException("no more orders");
         }
-        return songs.get(position++);
+        return current.next();
     }
 }
 
 class IteratorPatternExample {
 
-    public static void main(String[] args) {
-        PlayList playList = new PlayList();
-        playList.addSong(new Song("Blinding Lights", "The Weeknd"));
-        playList.addSong(new Song("Viva La Vida", "Coldplay"));
-        playList.addSong(new Song("Shape of You", "Ed Sheeran"));
-
-        // Case 1: a full pass through the client-facing interface only.
-        print("case 1 full traversal", drain(playList.createIterator()),
-                "[Blinding Lights by The Weeknd, Viva La Vida by Coldplay, "
-                        + "Shape of You by Ed Sheeran]");
-
-        // Case 2 (tricky): two cursors over the same playlist do not share a position.
-        Iterator<Song> first = playList.createIterator();
-        Iterator<Song> second = playList.createIterator();
-        first.next();                       // advance only the first cursor
-        print("case 2 independent cursors", first.next() + " | " + second.next(),
-                "Viva La Vida by Coldplay | Blinding Lights by The Weeknd");
-
-        // Case 3 (edge): an empty aggregate - hasNext() is false straight away.
-        print("case 3 empty playlist", drain(new PlayList().createIterator()), "[]");
-
-        // Case 4 (edge): next() past the end must throw, not return null.
-        String result;
-        try {
-            Iterator<Song> exhausted = new PlayList().createIterator();
-            result = String.valueOf(exhausted.next());
-        } catch (NoSuchElementException e) {
-            result = "NoSuchElementException: " + e.getMessage();
-        }
-        print("case 4 next past end", result,
-                "NoSuchElementException: no more songs in the playlist");
+    static Iterable<String> allOrders(PageSource<String> api, int pageSize) {
+        return () -> new PagedIterator<>(api, pageSize);
     }
 
-    /** Walks an iterator to exhaustion, collecting what it yields. */
-    private static List<String> drain(Iterator<Song> iterator) {
-        List<String> collected = new ArrayList<>();
-        while (iterator.hasNext()) {
-            collected.add(iterator.next().toString());
+    public static void main(String[] args) {
+        // Case 1: typical. 7 orders, pages of 3 -> 3 API calls, plain for-each.
+        OrdersApi api = new OrdersApi(7);
+        List<String> exported = new ArrayList<>();
+        for (String order : allOrders(api, 3)) {
+            exported.add(order);
         }
-        return collected;
+        print("case 1a exported", exported, "[OD-1, OD-2, OD-3, OD-4, OD-5, OD-6, OD-7]");
+        print("case 1b calls   ", api.calls, 3);
+
+        // Case 2: lazy. Stop after 2 orders -> only the first page was fetched.
+        OrdersApi preview = new OrdersApi(7);
+        Iterator<String> it = allOrders(preview, 3).iterator();
+        print("case 2a first 2 ", it.next() + " " + it.next(), "OD-1 OD-2");
+        print("case 2b calls   ", preview.calls, 1);
+
+        // Case 3: edge. 6 orders = 2 full pages; the null cursor avoids a 3rd call.
+        OrdersApi six = new OrdersApi(6);
+        allOrders(six, 3).forEach(order -> { });
+        print("case 3 calls    ", six.calls, 2);
+
+        // Case 4-5: edge. No orders at all, then reading past the end.
+        Iterator<String> none = allOrders(new OrdersApi(0), 3).iterator();
+        print("case 4 empty    ", none.hasNext(), false);
+        String outcome;
+        try {
+            outcome = none.next();
+        } catch (NoSuchElementException e) {
+            outcome = e.getMessage();
+        }
+        print("case 5 past end ", outcome, "no more orders");
     }
 
     private static void print(String label, Object actual, Object expected) {
-        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
-        System.out.println(label + ": " + actual + "   expected " + expected
-                + "   " + (ok ? "[OK]" : "[FAIL]"));
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

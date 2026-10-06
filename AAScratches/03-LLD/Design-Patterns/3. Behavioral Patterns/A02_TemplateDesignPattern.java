@@ -1,162 +1,121 @@
 /*
  * =====================================================================
- *  Template Method Design Pattern           LLD | Easy  MUST-KNOW
+ *  Template Method - order fulfilment                Behavioral | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Template Method - Behavioral family (GoF), inheritance based.
- *
- * INTENT
- *   Put the fixed skeleton of an algorithm in a final method on a base class, and
- *   leave the steps that differ as abstract methods subclasses must fill, or as hooks
- *   they may optionally override. The order of the steps can never be changed by a
- *   subclass; only the content of individual steps can.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when: several flows share the same step sequence and differ in one or two
- *     steps - ETL readers, request lifecycles, test setUp/run/tearDown, framework
- *     callbacks. It removes copy-pasted orchestration code.
- *   Do not use when: the variation must be chosen at runtime or combined freely -
- *     that is Strategy. Deep template hierarchies get brittle fast; one level is plenty.
- *
- * ROLES IN THIS CODE
- *   DataProcessor         -> AbstractClass. processData() is the template method and is
- *                            final so no subclass can reorder or skip steps.
- *   readData, parseData   -> primitive operations (abstract, subclass MUST supply)
- *   validateData          -> hook (concrete default, subclass MAY override)
- *   needsValidation       -> boolean hook that lets a subclass switch a step off
- *   saveData              -> invariant step, private, not overridable at all
- *   CSVDataProcessor, XMLDataProcessor,
- *   JSONDataProcessor     -> ConcreteClass
+ * PROBLEM
+ *   Every order goes validate -> reserve stock -> charge -> deliver ->
+ *   notify. But a physical order ships by courier, an e-book has no stock
+ *   and is emailed, and a pre-order only authorises the card until release.
+ *   Copying the whole flow per order type lets the copies drift apart.
  *
  * KEY INSIGHT
- *   Inverted control: the base class calls down into the subclass ("don't call us,
- *   we'll call you"), which is why every framework you use is built this way. Mark the
- *   template method final and keep the invariant steps private - that is what makes the
- *   guarantee real rather than a convention.
+ *   The base class owns the order of steps in one final method; subclasses
+ *   fill in only the steps that differ. A boolean hook (needsStock) lets a
+ *   subclass skip a step without touching the skeleton. Control is
+ *   inverted: the base class calls the subclass, not the other way round.
+ *
+ * ROLES IN THIS CODE
+ *   Fulfilment                 AbstractClass - fulfil() is the template method
+ *   deliver()                  primitive operation (every subclass must write)
+ *   charge(), needsStock()     default step and hook (override if needed)
+ *   Physical.., Digital.., PreOrder..  ConcreteClass
  *
  * INTERVIEW FOLLOW-UPS
- *   - Template Method vs Strategy: one algorithm with fixed holes, chosen at compile
- *     time by subclassing, vs a whole algorithm object swapped at runtime.
- *   - What is a "hook" and how does it differ from an abstract step?
- *   - Why does the template method have to be final?
- *   - How would you get the same effect with composition and no inheritance?
- *     (pass the varying steps in as functions - effectively Strategy per step)
+ *   - Template vs Strategy: inheritance fixes the skeleton at compile time;
+ *     Strategy swaps a whole algorithm by composition at runtime.
+ *   - Why final? So no subclass can reorder or skip the mandatory steps.
+ *   - Seen in: Spring's JdbcTemplate and AbstractController, JUnit's
+ *     setUp/test/tearDown, java.io.InputStream.read(byte[]).
  *
  * RUN
- *   main() runs 3 cases: two standard processors, plus a JSON processor whose hook
- *   turns validation off. Each prints the executed step list vs the expected list.
+ *   4 cases: physical, digital (no stock step), pre-order (authorise only),
+ *   quantity 0 rejected at validation.
  */
 
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class DataProcessor {
+record Order(String id, int qty) {
+}
 
-    /**
-     * The template method: the step order is fixed here and cannot be changed,
-     * because the method is final. Returns the trace of executed steps so that
-     * main() can assert on it.
-     */
-    public final List<String> processData() {
+abstract class Fulfilment {
+
+    /** The template method. final: the step order is not negotiable. */
+    final List<String> fulfil(Order order) {
         List<String> steps = new ArrayList<>();
-        steps.add(readData());
-        steps.add(parseData());
-        if (needsValidation()) {           // boolean hook - a subclass can skip this step
-            steps.add(validateData());
+        if (order.qty() <= 0) {
+            steps.add("rejected qty " + order.qty());
+            return steps;
         }
-        steps.add(saveData());
+        steps.add("validated " + order.id());
+        if (needsStock()) {
+            steps.add("reserved stock x" + order.qty());
+        }
+        steps.add(charge());
+        steps.add(deliver(order));
+        steps.add("notified customer"); // invariant: every type ends here
         return steps;
     }
 
-    /** Invariant step: private, so no subclass can change how saving works. */
-    private String saveData() {
-        return "save to database";
-    }
-
-    /** Hook with a sensible default; subclasses may override it. */
-    protected String validateData() {
-        return "validate";
-    }
-
-    /** Hook that switches an optional step on or off. */
-    protected boolean needsValidation() {
+    /** Hook: subclasses may switch the stock step off. */
+    protected boolean needsStock() {
         return true;
     }
 
-    /** Primitive operations: every subclass must supply these. */
-    abstract String readData();
-
-    abstract String parseData();
-}
-
-class CSVDataProcessor extends DataProcessor {
-
-    @Override
-    String readData() {
-        return "read CSV file";
+    /** Default step: subclasses may override. */
+    protected String charge() {
+        return "charged card";
     }
 
-    @Override
-    String parseData() {
-        return "parse CSV";
+    /** Primitive operation: every subclass must say how it delivers. */
+    protected abstract String deliver(Order order);
+}
+
+class PhysicalFulfilment extends Fulfilment {
+    protected String deliver(Order order) {
+        return "shipped by courier";
     }
 }
 
-class XMLDataProcessor extends DataProcessor {
-
-    @Override
-    String readData() {
-        return "read XML file";
+class DigitalFulfilment extends Fulfilment {
+    protected boolean needsStock() {
+        return false; // an e-book never runs out
     }
 
-    @Override
-    String parseData() {
-        return "parse XML";
-    }
-
-    /** Overriding the hook changes one step without touching the skeleton. */
-    @Override
-    protected String validateData() {
-        return "validate against XSD";
+    protected String deliver(Order order) {
+        return "emailed download link";
     }
 }
 
-/** Edge case: a source that is already schema-checked upstream skips validation. */
-class JSONDataProcessor extends DataProcessor {
-
-    @Override
-    String readData() {
-        return "read JSON file";
+class PreOrderFulfilment extends Fulfilment {
+    protected String charge() {
+        return "authorised card, charge on release";
     }
 
-    @Override
-    String parseData() {
-        return "parse JSON";
-    }
-
-    @Override
-    protected boolean needsValidation() {
-        return false;
+    protected String deliver(Order order) {
+        return "queued for release day";
     }
 }
 
 class TemplateDesignPattern {
 
     public static void main(String[] args) {
-        print("case 1 csv (default hook)", new CSVDataProcessor().processData(),
-                "[read CSV file, parse CSV, validate, save to database]");
+        print("case 1 physical", new PhysicalFulfilment().fulfil(new Order("OD-1", 2)),
+                "[validated OD-1, reserved stock x2, charged card, shipped by courier,"
+                        + " notified customer]");
+        print("case 2 digital ", new DigitalFulfilment().fulfil(new Order("OD-2", 1)),
+                "[validated OD-2, charged card, emailed download link, notified customer]");
+        print("case 3 preorder", new PreOrderFulfilment().fulfil(new Order("OD-3", 1)),
+                "[validated OD-3, reserved stock x1, authorised card, charge on release,"
+                        + " queued for release day, notified customer]");
 
-        print("case 2 xml (hook overridden)", new XMLDataProcessor().processData(),
-                "[read XML file, parse XML, validate against XSD, save to database]");
-
-        print("case 3 json (step skipped)", new JSONDataProcessor().processData(),
-                "[read JSON file, parse JSON, save to database]");
+        // Case 4: edge. The skeleton stops at validation for every type.
+        print("case 4 qty 0   ", new DigitalFulfilment().fulfil(new Order("OD-4", 0)),
+                "[rejected qty 0]");
     }
 
     private static void print(String label, Object actual, Object expected) {
-        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
-        System.out.println(label + ": " + actual + "   expected " + expected
-                + "   " + (ok ? "[OK]" : "[FAIL]"));
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

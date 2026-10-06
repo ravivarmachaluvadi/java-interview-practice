@@ -1,181 +1,144 @@
 /*
  * =====================================================================
- *  Interpreter Pattern - a tiny arithmetic evaluator   Behavioral | Hard
+ *  Interpreter - coupon eligibility rules            Behavioral | Hard
  * =====================================================================
  *
- * PATTERN
- *   Interpreter (Behavioral family). Close cousin of Composite: the object
- *   tree IS the parsed sentence, and each node knows how to evaluate itself.
- *
- * INTENT
- *   Represent each rule of a small, stable grammar as a class, then evaluate a
- *   sentence by walking the tree those classes form. The grammar here is:
- *       expr := number | expr '+' expr | expr '-' expr
- *
- * WHEN TO USE, WHEN NOT
- *   Use when the grammar is small, changes rarely, and rules must be composed
- *   at runtime: rule engines, feature-flag predicates, spreadsheet formulas.
- *   Do NOT use for a real language - one class per rule explodes fast, and a
- *   parser generator or recursive-descent parser over a plain AST wins.
- *
- * ROLES IN THIS CODE
- *   Expression                - AbstractExpression: declares interpret()
- *   NumberExpression          - TerminalExpression: leaf holding a literal
- *   AddExpression             - NonTerminal: combines two sub-expressions
- *   SubtractExpression        - NonTerminal: combines two sub-expressions
- *   InterpreterPatternExample - Client: builds the tree, then interprets it
- *   (no Context class: nothing is looked up by name here; variables need one)
+ * PROBLEM
+ *   Marketing writes coupon rules in an admin panel, for example
+ *     cartTotal >= 1000 AND category = ELECTRONICS OR tier = GOLD
+ *   and expects them live without a code deploy. Checkout must decide, per
+ *   cart, whether the rule matches.
  *
  * KEY INSIGHT
- *   interpret() is recursive by construction - a non-terminal asks its children
- *   for their values and never inspects their type. Building the tree and
- *   evaluating it are separate steps, so one tree can be evaluated many times,
- *   printed, or optimised.
+ *   Turn the rule text into a tree of small objects, one class per grammar
+ *   element: Compare is a leaf, And / Or hold two sub-rules. matches() on a
+ *   node asks its children and combines the answers, so evaluation is plain
+ *   recursion. Splitting on OR first and AND second makes AND bind tighter,
+ *   as in SQL.
+ *
+ * ROLES IN THIS CODE
+ *   Rule                  AbstractExpression
+ *   Compare               TerminalExpression (field op value)
+ *   And, Or               NonterminalExpression
+ *   Map<String, String>   Context (the cart's facts)
+ *   RuleParser            builds the tree (not part of the GoF roles)
  *
  * INTERVIEW FOLLOW-UPS
- *   - vs Composite: same tree shape; Composite's intent is uniform part/whole
- *     treatment, Interpreter's is evaluating a grammar.
- *   - vs Visitor: new operation without touching node classes -> Visitor;
- *     new node type without touching existing code -> Interpreter.
- *   - Add variables? Pass a Context (Map<String,Integer>) into interpret() and
- *     add a VariableExpression terminal that looks itself up.
- *   - Who builds the tree? A parser - parsePostfix() below is the smallest one.
+ *   - When it stops scaling: parentheses, NOT, precedence levels -> use a
+ *     real parser (ANTLR) or an engine (Drools, Spring SpEL).
+ *   - Seen in: Spring SpEL, regex engines, SQL WHERE clauses, feature-flag
+ *     targeting rules.
  *
  * RUN
- *   main() runs 5 cases (typical, single leaf, negative, left-nesting, parsed).
+ *   6 cases: the parsed tree, eligible by total + category, eligible by
+ *   GOLD only, not eligible, missing field, malformed rule.
  */
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.Map;
 
-/** AbstractExpression: every node in the tree can evaluate itself. */
-interface Expression {
-    int interpret();
+interface Rule {
+    boolean matches(Map<String, String> cart);
 }
 
-/** TerminalExpression: a literal number. Recursion bottoms out here. */
-class NumberExpression implements Expression {
-    private final int number;
-
-    public NumberExpression(int number) {
-        this.number = number;
-    }
-
-    @Override
-    public int interpret() {
-        return number;
+record Compare(String field, String op, String value) implements Rule {
+    public boolean matches(Map<String, String> cart) {
+        String actual = cart.get(field);
+        if (actual == null) {
+            return false; // unknown fact never matches
+        }
+        if (op.equals("=")) {
+            return actual.equals(value);
+        }
+        int left = Integer.parseInt(actual);
+        int right = Integer.parseInt(value);
+        return switch (op) {
+            case ">=" -> left >= right;
+            case "<=" -> left <= right;
+            case ">" -> left > right;
+            case "<" -> left < right;
+            default -> throw new IllegalArgumentException("unknown operator " + op);
+        };
     }
 
     @Override
     public String toString() {
-        return String.valueOf(number);
+        return field + " " + op + " " + value;
     }
 }
 
-/** NonTerminalExpression: left + right, whatever those sub-trees turn out to be. */
-class AddExpression implements Expression {
-    private final Expression left;
-    private final Expression right;
-
-    public AddExpression(Expression left, Expression right) {
-        this.left = left;
-        this.right = right;
-    }
-
-    @Override
-    public int interpret() {
-        // The whole pattern in one line: ask the children, do not inspect them.
-        return left.interpret() + right.interpret();
+record And(Rule left, Rule right) implements Rule {
+    public boolean matches(Map<String, String> cart) {
+        return left.matches(cart) && right.matches(cart);
     }
 
     @Override
     public String toString() {
-        return "(" + left + " + " + right + ")";
+        return "(" + left + " AND " + right + ")";
     }
 }
 
-/** NonTerminalExpression: left - right. Order matters, so the tree shape matters. */
-class SubtractExpression implements Expression {
-    private final Expression left;
-    private final Expression right;
-
-    public SubtractExpression(Expression left, Expression right) {
-        this.left = left;
-        this.right = right;
-    }
-
-    @Override
-    public int interpret() {
-        return left.interpret() - right.interpret();
+record Or(Rule left, Rule right) implements Rule {
+    public boolean matches(Map<String, String> cart) {
+        return left.matches(cart) || right.matches(cart);
     }
 
     @Override
     public String toString() {
-        return "(" + left + " - " + right + ")";
+        return "(" + left + " OR " + right + ")";
     }
 }
 
-/** Client: builds expression trees by hand and, in the last case, by parsing. */
+class RuleParser {
+    /** OR is split first, so AND groups bind tighter. */
+    static Rule parse(String text) {
+        Rule rule = null;
+        for (String orPart : text.split(" OR ")) {
+            Rule andRule = null;
+            for (String condition : orPart.split(" AND ")) {
+                String[] t = condition.trim().split("\\s+");
+                if (t.length != 3) {
+                    throw new IllegalArgumentException("bad condition '" + condition.trim() + "'");
+                }
+                Rule compare = new Compare(t[0], t[1], t[2]);
+                andRule = andRule == null ? compare : new And(andRule, compare);
+            }
+            rule = rule == null ? andRule : new Or(rule, andRule);
+        }
+        return rule;
+    }
+}
+
 class InterpreterPatternExample {
 
-    /**
-     * Smallest useful parser: reverse Polish notation to an Expression tree.
-     * Postfix is used because it needs no precedence rules - one token, one
-     * decision - which keeps the grammar-to-class mapping the visible part.
-     * "5 10 + 3 -"  ->  ((5 + 10) - 3)
-     */
-    static Expression parsePostfix(String tokens) {
-        Deque<Expression> stack = new ArrayDeque<>();
-        for (String token : tokens.trim().split("\\s+")) {
-            if (token.equals("+") || token.equals("-")) {
-                // Operands were pushed left-then-right, so pop right first.
-                Expression right = stack.pop();
-                Expression left = stack.pop();
-                stack.push(token.equals("+")
-                        ? new AddExpression(left, right)
-                        : new SubtractExpression(left, right));
-            } else {
-                stack.push(new NumberExpression(Integer.parseInt(token)));
-            }
-        }
-        if (stack.size() != 1) {
-            throw new IllegalArgumentException("Malformed postfix expression: " + tokens);
-        }
-        return stack.pop();
-    }
-
-    private static void print(String label, Expression expression, int expected) {
-        System.out.println(label + ": " + expression + " = " + expression.interpret()
-                + "   expected " + expected);
-    }
-
     public static void main(String[] args) {
-        Expression five = new NumberExpression(5);
-        Expression ten = new NumberExpression(10);
-        Expression three = new NumberExpression(3);
+        Rule rule = RuleParser.parse("cartTotal >= 1000 AND category = ELECTRONICS OR tier = GOLD");
+        print("case 1 tree        ", rule,
+                "((cartTotal >= 1000 AND category = ELECTRONICS) OR tier = GOLD)");
 
-        // Case 1 - typical: (5 + 10) - 3
-        Expression subtract = new SubtractExpression(new AddExpression(five, ten), three);
-        print("case 1 typical      ", subtract, 12);
+        // Case 2-4: one parsed rule, evaluated against three different carts.
+        print("case 2 big gadget  ", rule.matches(Map.of(
+                "cartTotal", "1500", "category", "ELECTRONICS", "tier", "SILVER")), true);
+        print("case 3 gold member ", rule.matches(Map.of(
+                "cartTotal", "400", "category", "BOOKS", "tier", "GOLD")), true);
+        print("case 4 big books   ", rule.matches(Map.of(
+                "cartTotal", "1500", "category", "BOOKS", "tier", "SILVER")), false);
 
-        // Case 2 - edge: a lone terminal is already a valid expression tree.
-        print("case 2 single leaf  ", new NumberExpression(7), 7);
+        // Case 5: edge. A guest has no tier at all; the missing fact is just false.
+        print("case 5 guest       ", rule.matches(Map.of(
+                "cartTotal", "900", "category", "ELECTRONICS")), false);
 
-        // Case 3 - tricky: 2 - (3 + 4) is negative, and proves the tree shape
-        // (not the token order) decides the answer.
-        Expression negative = new SubtractExpression(
-                new NumberExpression(2),
-                new AddExpression(new NumberExpression(3), new NumberExpression(4)));
-        print("case 3 negative     ", negative, -5);
+        // Case 6: a typo in the admin panel is caught when the rule is saved.
+        String outcome;
+        try {
+            RuleParser.parse("cartTotal >= AND tier = GOLD");
+            outcome = "parsed";
+        } catch (IllegalArgumentException e) {
+            outcome = e.getMessage();
+        }
+        print("case 6 bad rule    ", outcome, "bad condition 'cartTotal >='");
+    }
 
-        // Case 4 - tricky: left-nested subtraction, ((20 - 5) - 5), shows that
-        // subtraction is not associative so nesting direction is load-bearing.
-        Expression leftNested = new SubtractExpression(
-                new SubtractExpression(new NumberExpression(20), new NumberExpression(5)),
-                new NumberExpression(5));
-        print("case 4 left nesting ", leftNested, 10);
-
-        // Case 5 - the same tree as case 1, built by a parser instead of by hand.
-        print("case 5 parsed       ", parsePostfix("5 10 + 3 -"), 12);
+    private static void print(String label, Object actual, Object expected) {
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

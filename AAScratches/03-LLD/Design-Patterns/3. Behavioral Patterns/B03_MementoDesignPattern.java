@@ -1,56 +1,31 @@
 /*
  * =====================================================================
- *  Memento Pattern - text editor undo                        Behavioral
+ *  Memento - text editor undo                        Behavioral | Easy
  * =====================================================================
  *
- * PATTERN
- *   Memento (Behavioral, GoF). Also called Snapshot / Token.
- *
- * INTENT
- *   Capture an object's internal state so it can be restored later,
- *   WITHOUT exposing the fields that make up that state. The snapshot is
- *   meant to be opaque: whoever stores it hands it back without reading it.
- *   In this demo that opacity is a convention, not a compiler guarantee -
- *   EditorMemento.getContent() is public for brevity, so History could read
- *   every snapshot if it wanted to.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    : undo/redo, transactional rollback, checkpoints in a wizard,
- *            game save points, "restore previous version" in an editor.
- *   Not    : when the state is huge or saved on every keystroke - each
- *            memento is a full copy, so memory grows linearly.
- *            Prefer a command log (store the delta, replay in reverse)
- *            when the state is big and the edits are small.
- *
- * ROLES IN THIS CODE
- *   EditorMemento  Memento   - immutable snapshot; by convention only the
- *                              Originator reads its content.
- *   Editor         Originator- creates snapshots (save) and restores
- *                              itself from one (restore).
- *   History        Caretaker - owns a Stack of mementos. It stores and
- *                              returns them but never inspects them.
- *   main           Client    - drives the three roles.
+ * PROBLEM
+ *   An editor (or a form, or a game) must go back to an earlier saved
+ *   state on Ctrl+Z. The undo history has to keep those states without
+ *   reaching into the editor's private fields.
  *
  * KEY INSIGHT
- *   The Caretaker holds the state but does not read it; the Originator
- *   reads it but does not hold it. That split is the whole pattern - it is
- *   how undo works without leaking the Originator's fields to the world.
- *   To enforce the split for real, nest the memento as a private inner
- *   class of the Originator, or expose its content only through a narrow
- *   package-private accessor, instead of the public getter used here.
- *   A Stack gives LIFO undo for free; add a second stack for redo.
+ *   The editor (Originator) makes a sealed snapshot of itself; the history
+ *   (Caretaker) stores snapshots but never reads them. Only the editor can
+ *   restore from one. A stack gives last-in-first-out undo for free.
+ *
+ * ROLES IN THIS CODE
+ *   EditorMemento   Memento - immutable snapshot
+ *   Editor          Originator - save() and restore()
+ *   History         Caretaker - a Stack of mementos, never inspected
  *
  * INTERVIEW FOLLOW-UPS
- *   - Memento vs Command for undo? Memento stores WHAT the state was;
- *     Command stores HOW to reverse it. Real editors use both.
- *   - How do you add redo? Push popped mementos onto a redo stack and
- *     clear it on any fresh edit.
- *   - How do you bound memory? Cap the stack size, or snapshot only every
- *     N edits and replay commands forward from the nearest snapshot.
+ *   - Memento vs Command for undo: Memento stores WHAT the state was,
+ *     Command stores HOW to reverse a change (B02_CommandDesignPattern).
+ *   - Redo: push undone snapshots onto a second stack; clear it on a new
+ *     edit. Bound memory by capping the stack.
  *
  * RUN
- *   main() runs 3 cases (undo chain, undo on empty history, snapshot is
- *   immune to later edits) and prints actual vs expected.
+ *   3 cases: undo twice, undo on an empty history, restore one snapshot.
  */
 
 import java.util.Stack;

@@ -1,166 +1,139 @@
 /*
  * =====================================================================
- *  Observer Design Pattern                  LLD | Easy  MUST-KNOW
+ *  Observer - back-in-stock alerts                   Behavioral | Easy   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   Observer - Behavioral family (GoF). Also called Publish/Subscribe (in-process).
- *
- * INTENT
- *   Define a one-to-many dependency: when one object (the subject) changes state, every
- *   registered dependent (observer) is notified automatically. The subject knows only
- *   the Observer interface, so listeners can be added or dropped without editing it.
- *
- * WHEN TO USE, WHEN NOT
- *   Use when: one state change must fan out to an unknown number of reactions -
- *     price ticker to dashboards, cache invalidation, UI listeners, domain events.
- *   Do not use when: you need ordering, retries or durability across processes - that
- *     is a message broker, not an in-memory list. Also avoid when the "observers" are
- *     really one fixed collaborator; a direct call is clearer.
- *
- * ROLES IN THIS CODE
- *   Subject          -> Subject interface (register / remove / notify)
- *   WeatherStation   -> ConcreteSubject: holds temperature + humidity and the observer
- *                       list; updateMeasurements() is the state change that triggers notify
- *   Observer         -> Observer interface (update(temperature, humidity))
- *   MobileDisplay, WebDisplay       -> ConcreteObservers; each stores what it last received
- *   ObserverDesignPattern.main -> Client: wires observers to the subject
+ * PROBLEM
+ *   A product page offers "Notify me when available". When stock goes from
+ *   0 to anything, everyone who asked gets one alert and is then removed;
+ *   the wishlist badge updates every time. The product must not know about
+ *   email, push or badges, and one broken listener must not stop the rest.
  *
  * KEY INSIGHT
- *   The subject broadcasts to an interface it does not own instances of. Adding a
- *   sixth display is a new class plus one registerObserver call - the subject never
- *   changes. This demo uses PUSH (state is passed into update); the PULL variant passes
- *   the subject itself and lets each observer read only the fields it cares about.
+ *   The subject keeps a list of listeners behind one interface and calls
+ *   them on the event it owns - here the 0 -> positive transition, not
+ *   every restock. Two production details: catch per listener so one
+ *   failure is isolated, and use CopyOnWriteArrayList so a listener can
+ *   unsubscribe itself while the list is being walked.
+ *
+ * ROLES IN THIS CODE
+ *   StockListener    Observer
+ *   ProductPage      Subject - subscribe, unsubscribe, notify on 0 -> n
+ *   NotifyMeOnce     ConcreteObserver - one alert, then unsubscribes
+ *   lambdas in main  ConcreteObserver - wishlist badge, a broken listener
  *
  * INTERVIEW FOLLOW-UPS
- *   - Push vs pull notification: which scales better when observers need different slices?
- *   - Concurrency: iterating the list while an observer unregisters throws
- *     ConcurrentModificationException - fix with CopyOnWriteArrayList or a snapshot copy.
- *   - Memory leak: a subject that lives forever pins every observer it holds. Weak
- *     references or an explicit removeObserver on shutdown.
- *   - Observer vs Mediator: one-to-many broadcast vs a hub that coordinates many-to-many.
- *   - Java's own java.util.Observer is deprecated since Java 9 - why? (no ordering, no
- *     type safety, awkward threading). Today: PropertyChangeListener, Spring events, Flow.
+ *   - Push (send qty) vs pull (listener asks the subject): push here.
+ *   - Slow listeners: hand delivery to an executor or a queue (Kafka) so
+ *     restock() does not wait on email.
+ *   - Seen in: Spring ApplicationEventPublisher + @EventListener, UI event
+ *     listeners, PropertyChangeListener.
  *
  * RUN
- *   main() runs 3 cases: a broadcast to two observers, a broadcast after one observer
- *   unregisters, and the edge case of notifying with no observers registered.
+ *   4 cases: first restock alerts all, second restock alerts none, one-shot
+ *   listeners removed, a throwing listener does not block the badge.
  */
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-interface Observer {
-    void update(float temperature, float humidity);
+interface StockListener {
+    void backInStock(String product, int qty);
 }
 
-interface Subject {
-    void registerObserver(Observer observer);
+class ProductPage {
+    private final String name;
+    private int stock;
+    private final List<StockListener> listeners = new CopyOnWriteArrayList<>();
+    int failedListeners;
 
-    void removeObserver(Observer observer);
-
-    void notifyObservers();
-}
-
-class WeatherStation implements Subject {
-
-    private float temperature;
-    private float humidity;
-    private final List<Observer> observers = new ArrayList<>();
-
-    @Override
-    public void registerObserver(Observer observer) {
-        observers.add(observer);
+    ProductPage(String name) {
+        this.name = name;
     }
 
-    @Override
-    public void removeObserver(Observer observer) {
-        observers.remove(observer);
+    void subscribe(StockListener listener) {
+        listeners.add(listener);
     }
 
-    @Override
-    public void notifyObservers() {
-        // Push model: the new state travels with the call.
-        for (Observer observer : observers) {
-            observer.update(temperature, humidity);
+    void unsubscribe(StockListener listener) {
+        listeners.remove(listener);
+    }
+
+    int listenerCount() {
+        return listeners.size();
+    }
+
+    void sell(int qty) {
+        stock -= qty;
+    }
+
+    void restock(int qty) {
+        boolean wasEmpty = stock == 0;
+        stock += qty;
+        if (wasEmpty && stock > 0) { // the event is the transition, not every restock
+            for (StockListener listener : listeners) {
+                try {
+                    listener.backInStock(name, stock);
+                } catch (RuntimeException e) {
+                    failedListeners++; // one broken listener must not starve the others
+                }
+            }
         }
     }
-
-    /** The state change that drives the fan-out. */
-    public void updateMeasurements(float temperature, float humidity) {
-        this.temperature = temperature;
-        this.humidity = humidity;
-        notifyObservers();
-    }
-
-    int observerCount() {
-        return observers.size();
-    }
 }
 
-class MobileDisplay implements Observer {
+/** "Notify me" button: alert once, then leave. */
+class NotifyMeOnce implements StockListener {
+    private final ProductPage page;
+    private final String email;
+    private final List<String> outbox;
 
-    private String lastReading = "no reading yet";
-
-    @Override
-    public void update(float temperature, float humidity) {
-        lastReading = "Mobile temp=" + temperature + " humidity=" + humidity;
+    NotifyMeOnce(ProductPage page, String email, List<String> outbox) {
+        this.page = page;
+        this.email = email;
+        this.outbox = outbox;
     }
 
-    String getLastReading() {
-        return lastReading;
-    }
-}
-
-class WebDisplay implements Observer {
-
-    private String lastReading = "no reading yet";
-
-    @Override
-    public void update(float temperature, float humidity) {
-        lastReading = "Web temp=" + temperature + " humidity=" + humidity;
-    }
-
-    String getLastReading() {
-        return lastReading;
+    public void backInStock(String product, int qty) {
+        outbox.add("mail " + email);
+        page.unsubscribe(this); // safe mid-notify thanks to CopyOnWriteArrayList
     }
 }
 
 class ObserverDesignPattern {
 
     public static void main(String[] args) {
-        // Declared as WeatherStation, not Subject: updateMeasurements() is a concrete-subject
-        // method, so the Subject interface alone cannot trigger a state change.
-        WeatherStation weatherStation = new WeatherStation();
+        List<String> outbox = new ArrayList<>();
+        ProductPage sneakers = new ProductPage("Sneakers");
+        sneakers.subscribe(new NotifyMeOnce(sneakers, "a@example.com", outbox));
+        sneakers.subscribe(new NotifyMeOnce(sneakers, "b@example.com", outbox));
+        sneakers.subscribe((product, qty) -> outbox.add("badge " + product + " " + qty));
 
-        MobileDisplay phoneDisplay = new MobileDisplay();
-        WebDisplay webDisplay = new WebDisplay();
-        weatherStation.registerObserver(phoneDisplay);
-        weatherStation.registerObserver(webDisplay);
+        // Case 1: typical. 0 -> 5 alerts everyone.
+        sneakers.restock(5);
+        print("case 1 first restock", outbox,
+                "[mail a@example.com, mail b@example.com, badge Sneakers 5]");
 
-        // Case 1: one state change reaches both observers.
-        weatherStation.updateMeasurements(30.5f, 65f);
-        print("case 1 mobile", phoneDisplay.getLastReading(), "Mobile temp=30.5 humidity=65.0");
-        print("case 1 web", webDisplay.getLastReading(), "Web temp=30.5 humidity=65.0");
+        // Case 2: 5 -> 10 is not "back in stock", so nobody hears about it.
+        sneakers.restock(5);
+        print("case 2 second restock", outbox.size(), 3);
 
-        // Case 2: unregister the web display - it must keep its stale reading.
-        weatherStation.removeObserver(webDisplay);
-        weatherStation.updateMeasurements(28.2f, 70f);
-        print("case 2 mobile (updated)", phoneDisplay.getLastReading(),
-                "Mobile temp=28.2 humidity=70.0");
-        print("case 2 web (removed)", webDisplay.getLastReading(),
-                "Web temp=30.5 humidity=65.0");
+        // Case 3: the two one-shot listeners removed themselves; the badge stays.
+        print("case 3 listeners left", sneakers.listenerCount(), 1);
 
-        // Case 3 (edge): a subject with zero observers notifies nobody and must not fail.
-        WeatherStation emptyStation = new WeatherStation();
-        emptyStation.updateMeasurements(10f, 20f);
-        print("case 3 no observers", emptyStation.observerCount() + " notified, no exception",
-                "0 notified, no exception");
+        // Case 4: tricky. Sell out, add a broken listener, restock: the badge
+        // (subscribed earlier) still gets its update.
+        sneakers.sell(10);
+        sneakers.subscribe((product, qty) -> {
+            throw new IllegalStateException("SMS provider down");
+        });
+        sneakers.restock(2);
+        print("case 4a badge again ", outbox.get(outbox.size() - 1), "badge Sneakers 2");
+        print("case 4b failures    ", sneakers.failedListeners, 1);
     }
 
     private static void print(String label, Object actual, Object expected) {
-        boolean ok = String.valueOf(actual).equals(String.valueOf(expected));
-        System.out.println(label + ": " + actual + "   expected " + expected
-                + "   " + (ok ? "[OK]" : "[FAIL]"));
+        System.out.println(label + ": " + actual + "   expected " + expected);
     }
 }

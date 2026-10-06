@@ -1,56 +1,31 @@
 /*
  * =====================================================================
- *  Mediator Pattern - chat room                              Behavioral
+ *  Mediator - chat room                              Behavioral | Medium
  * =====================================================================
  *
- * PATTERN
- *   Mediator (Behavioral, GoF). Also seen as "hub", "broker", "controller".
- *
- * INTENT
- *   Define one object that encapsulates how a set of objects interact.
- *   Colleagues stop referring to each other directly, so the N-to-N mesh of
- *   references collapses into N-to-1 spokes around a hub.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    : chat rooms, air-traffic control, a dialog where enabling one
- *            widget depends on three others, an order service coordinating
- *            payment + inventory + shipping.
- *   Not    : when the interaction is genuinely simple, or when the hub keeps
- *            growing - a mediator that knows every rule in the system is a
- *            god object, and you have moved the complexity, not removed it.
- *
- * ROLES IN THIS CODE
- *   ChatMediator      Mediator           - the contract: addUser, removeUser,
- *                                          sendMessage.
- *   ChatMediatorImpl  ConcreteMediator   - holds the roster and decides who
- *                                          receives what (here: everyone
- *                                          except the sender).
- *   User              Colleague          - abstract participant; knows the
- *                                          mediator, not the other users.
- *   UserImpl          ConcreteColleague  - sends through the mediator and
- *                                          records what it receives.
- *   main              Client             - builds the room and sends.
+ * PROBLEM
+ *   In a group chat every member's message must reach everyone else. If
+ *   each user held references to all other users, n users would need
+ *   n*(n-1) links, and "mute" or "direct message" would touch every user.
  *
  * KEY INSIGHT
- *   No colleague holds a reference to another colleague. Adding a fourth
- *   user changes nothing in the first three; the routing rule lives in one
- *   place, so "mute this user" or "direct message" is a mediator change
- *   only. Wiring goes from O(n^2) links to O(n).
+ *   No user references another user. Everyone talks only to the room
+ *   (mediator), which owns the routing rule - here, everyone except the
+ *   sender. Links drop from O(n^2) to O(n), and new rules change one class.
+ *
+ * ROLES IN THIS CODE
+ *   ChatMediator        Mediator - addUser, removeUser, sendMessage
+ *   ChatMediatorImpl    ConcreteMediator - the roster and the routing rule
+ *   User, UserImpl      Colleague - knows the room, not the other users
  *
  * INTERVIEW FOLLOW-UPS
- *   - Mediator vs Observer? Observer is one subject broadcasting one way to
- *     listeners; Mediator is many peers talking both ways through a hub.
- *     A mediator is often implemented using observers internally.
- *   - Mediator vs Facade? A facade simplifies a subsystem for outsiders and
- *     the subsystem does not know it exists; colleagues know their mediator.
- *   - How do you stop the god object? Split by concern (one mediator per
- *     room), or move rules into strategy objects the mediator consults.
- *   - How would you scale this to a real chat service? The mediator becomes
- *     a message broker topic; users subscribe instead of being in a List.
+ *   - Mediator vs Observer: Observer is one-way broadcast from a subject;
+ *     a mediator routes many-to-many and holds the rules.
+ *   - Avoid a god object: one mediator per room or per concern.
+ *   - At scale the room becomes a broker topic (Kafka, Redis pub/sub).
  *
  * RUN
- *   main() runs 3 cases (broadcast to a room, single-member room, a user
- *   who left) and prints each inbox actual vs expected.
+ *   3 cases: broadcast in a 3-person room, single member, a member leaves.
  */
 
 import java.util.ArrayList;

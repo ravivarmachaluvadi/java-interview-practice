@@ -1,57 +1,34 @@
 /*
  * =====================================================================
- *  Chain of Responsibility - ATM cash dispenser              Behavioral
+ *  Chain of Responsibility - ATM cash dispenser      Behavioral | Medium
  * =====================================================================
  *
- * PATTERN
- *   Chain of Responsibility (Behavioral, GoF).
- *
- * INTENT
- *   Decouple the sender of a request from its receiver by giving more than
- *   one object a chance to handle it. Each handler either deals with the
- *   request, forwards it, or does both - and nobody knows the full chain.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    : ATM note dispensing, servlet filters, Spring Security filter
- *            chain, logging levels, approval/escalation ladders, middleware.
- *            Good when the set of handlers, or their order, changes.
- *   Not    : when exactly one handler can ever apply and you know which -
- *            a map lookup is cheaper and easier to debug. Also avoid it
- *            when a request MUST be handled: a chain can silently drop it.
- *
- * ROLES IN THIS CODE
- *   DispenseChain             Handler         - holds nextChain, declares
- *                                               dispense(), and owns the shared forward() step.
- *   Rupee2000/500/200/100     ConcreteHandler - each knows one denomination:
- *   Dispenser                                   take what it can, pass the
- *                                               remainder down.
- *   ChainOfResponsibilityExample Client       - wires 2000 -> 500 -> 200 ->
- *                                               100 once and then only ever
- *                                               calls the chain head.
+ * PROBLEM
+ *   An ATM must pay Rs 8,700 with the fewest notes from 2000, 500, 200 and
+ *   100 cassettes, and refuse amounts it cannot pay. Adding a Rs 50
+ *   cassette should not mean rewriting one big if/else.
  *
  * KEY INSIGHT
- *   This is the PARTIAL-handling flavour of the chain: a handler does part
- *   of the work and forwards the remainder, rather than handling all or
- *   nothing. Because the chain is ordered by descending denomination, the
- *   greedy "take as many as fit, pass the rest" step produces the minimum
- *   note count - the ordering IS the algorithm.
- *   Fixed: a remainder that reached the end of the chain, and amounts of
- *   zero or less, used to vanish with no output at all.
+ *   Handlers are linked 2000 -> 500 -> 200 -> 100. Each takes as many of
+ *   its notes as fit and forwards the remainder - partial handling, not
+ *   all-or-nothing. Because the chain is ordered high to low, that greedy
+ *   step gives the fewest notes: the ordering IS the algorithm.
+ *
+ * ROLES IN THIS CODE
+ *   DispenseChain                Handler - holds nextChain, shared forward()
+ *   Rupee2000/500/200/100..      ConcreteHandler - one denomination each
+ *   ChainOfResponsibilityExample Client - wires the chain, calls its head
  *
  * INTERVIEW FOLLOW-UPS
- *   - What if a denomination runs out of notes? Give each handler a stock
- *     count, dispense min(needed, stock), forward the rest - and the greedy
- *     result stops being optimal, so you need DP for the true minimum.
- *   - CoR vs Decorator? Same linked shape; a decorator always calls the
- *     next link and adds behaviour, a chain link may stop the request dead.
- *   - How do you make the chain configurable? Build it from a sorted list
- *     of denominations at startup instead of hard-coding four classes.
- *   - How do you roll back a partial dispense that fails midway? Collect
- *     the plan first, verify it covers the amount, then commit.
+ *   - A cassette runs out: dispense min(needed, stock) and forward the rest;
+ *     greedy then stops being optimal.
+ *   - CoR vs Decorator: same linked shape; a decorator always calls the
+ *     next link, a chain link may stop the request.
+ *   - Seen in: servlet filters, Spring Security's filter chain, support
+ *     ticket escalation, approval workflows by amount.
  *
  * RUN
- *   main() runs 4 cases (typical, chain skips a denomination, smallest
- *   note, rejected amount) and prints the note plan actual vs expected.
+ *   4 cases: 8700, 2500, 100, and 50 / 0 rejected.
  */
 
 import java.util.ArrayList;

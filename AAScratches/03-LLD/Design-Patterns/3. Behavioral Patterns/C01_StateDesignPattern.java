@@ -1,56 +1,35 @@
 /*
  * =====================================================================
- *  State Pattern - e-commerce order lifecycle        Behavioral  MUST-KNOW
+ *  State - e-commerce order lifecycle        Behavioral | Medium   MUST-KNOW
  * =====================================================================
  *
- * PATTERN
- *   State (Behavioral, GoF). The "objects as a finite state machine" pattern.
- *
- * INTENT
- *   Let an object change its behaviour when its internal state changes, so
- *   that it appears to change its class. Every state becomes its own class;
- *   the operation you call is dispatched to whichever state is current.
- *
- * WHEN TO USE, WHEN NOT
- *   Use    : any lifecycle with rules about what is legal next - order
- *            (NEW/PAID/SHIPPED/DELIVERED/CANCELLED), vending machine,
- *            elevator, ATM, document approval, TCP connection.
- *            The giveaway is a method full of "if (status == X) ... else if".
- *   Not    : two states and one flag. A boolean plus an if is clearer than
- *            five classes. Also not when transitions are driven by an
- *            external table you would rather configure than compile.
- *
- * ROLES IN THIS CODE
- *   OrderState     State          - the interface every state implements.
- *   NewState,      ConcreteState  - each owns its own behaviour AND decides
- *   PaidState,                      its own successor via order.setState().
- *   ShippedState, DeliveredState,
- *   CancelledState                  (DELIVERED and CANCELLED are terminal:
- *                                    they refuse every transition.)
- *   Order          Context        - holds the current state and forwards
- *                                   next()/cancel()/printStatus() to it.
- *   main           Client         - only ever talks to the Order.
+ * PROBLEM
+ *   An order moves NEW -> PAID -> SHIPPED -> DELIVERED and can be cancelled
+ *   only before shipping (with a refund once paid). Written as
+ *   "if (status == ...)" in every method, each new state means editing
+ *   every branch.
  *
  * KEY INSIGHT
- *   The transition table lives INSIDE the states, not in the context. A
- *   state does two things: behave, and name its successor. Adding a
- *   RETURNED state means adding one class, not editing a switch in five
- *   places - that is Open/Closed applied to a state machine.
- *   Illegal moves are handled by a state simply not transitioning.
+ *   Each state is a class that knows its own rules AND names its successor
+ *   via order.setState(). The Order just forwards next()/cancel() to its
+ *   current state. A RETURNED state is one new class; an illegal move is a
+ *   state that simply does not transition.
+ *
+ * ROLES IN THIS CODE
+ *   OrderState                      State
+ *   NewState, PaidState, Shipped..  ConcreteState (Delivered and Cancelled
+ *                                   are terminal)
+ *   Order                           Context
  *
  * INTERVIEW FOLLOW-UPS
- *   - State vs Strategy? Same class shape. Strategy is chosen by the client
- *     and never changes itself; State swaps itself and knows its neighbours.
- *   - Where do you persist this? Store the state NAME in the DB and rebuild
- *     the state object on load (a small enum/map factory).
- *   - States are stateless here - make them singletons/enum constants to
- *     stop allocating a new object on every transition.
- *   - How do you audit transitions? Wrap setState() in the context and log
- *     from/to; the states stay untouched.
+ *   - State vs Strategy: same shape; the client picks a strategy, a state
+ *     picks its own successor.
+ *   - Persist the state NAME in the DB and rebuild the object on load.
+ *   - States hold no data here, so enum constants would avoid allocating
+ *     one per transition.
  *
  * RUN
- *   main() runs 3 cases (full happy path, cancel from NEW, illegal cancel
- *   after shipping) and prints the resulting state actual vs expected.
+ *   3 cases: full happy path, cancel from NEW, cancel from PAID vs SHIPPED.
  */
 
 /** State: every lifecycle step implements this. */
