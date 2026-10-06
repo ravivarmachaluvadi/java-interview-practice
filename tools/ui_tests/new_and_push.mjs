@@ -122,4 +122,23 @@ await suite(async t => {
   await ev(`${q('#pushMsg')}.focus()`);
   await press('Escape');
   check('Esc closes the panel', await ev(`${q('#pushPanel')}.hidden`));
+
+  // ---- the method from its signature (pasted from LeetCode): it names the file, main() calls it, Run works
+  await ev(`${q('#newBtn')}.click()`); await sleep(300);
+  await ev(`${q('#npMethod')}.focus()`);
+  await type('twoSum');
+  check('a method that is not Java is refused in the preview', await ev(`${q('#npPreview')}.classList.contains('bad') && ${q('#npCreate')}.disabled`), await preview());
+  await ev(`${q('#npMethod')}.value = ''`);
+  await type('class Solution { public boolean isAnagram(String s, String t) { } }');
+  const pv = await preview();
+  check('the name comes from the method, and the preview shows both', pv === '→ 01-Arrays/B13_IsAnagram.java\n  with boolean isAnagram(String s, String t) and a main() that calls it', pv);
+  check("…the empty Name shows the name it will use", (await ev(`${q('#npName')}.placeholder`)) === 'Is Anagram');
+  await inScratch();
+  await press('Enter');
+  check('Create makes the file with that method', await waitFor(`location.hash.endsWith('/01-Arrays/B13_IsAnagram.java') && !!${ED}.getModel()
+    && ${ED}.getModel().getValue().includes('static boolean isAnagram(String s, String t) {')`, 10000));
+  await sleep(500);
+  await ev(`${q('#runBtn')}.click()`);
+  check('Run prints its cases right away', await waitFor(`${q('#output')}.textContent.includes('case 1: false   expected ?')`, 30000),
+    (await ev(`${q('#output')}.textContent`)).slice(0, 300));
 });

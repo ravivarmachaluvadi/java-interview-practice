@@ -100,7 +100,7 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .np-pair { display: flex; gap: 6px; min-width: 0; }
 .np-pair select { flex: none; height: 30px; }
 .np-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; justify-self: start; }
-.np-preview { font: 12px var(--code); overflow-wrap: anywhere; }
+.np-preview { font: 12px var(--code); overflow-wrap: anywhere; white-space: pre-line; }
 .np-preview.bad { color: var(--warn); font-family: var(--ui); }
 /* Push */
 #pushBtn { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; color: var(--muted); }
@@ -418,6 +418,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <datalist id="npFolders"></datalist>
       <div class="np-row"><span>Level</span><span class="seg" id="npLevel"><button data-l="A" title="A: building block">A</button><button data-l="B" title="B: easy">B</button><button data-l="C" title="C: medium">C</button><button data-l="D" title="D: hard">D</button><button data-l="" title="No level letter and number in the file name">none</button></span></div>
       <label class="np-row"><span>Name</span><input id="npName" placeholder="Two Sum" spellcheck="false" autocomplete="off"></label>
+      <label class="np-row" title="Type the method, or paste LeetCode's starter code (class Solution { ... } is fine). The file gets that method and a main() that calls it. Empty: solve(int[] nums)"><span>Method</span><input id="npMethod" placeholder="int[] twoSum(int[] nums, int target)" spellcheck="false" autocomplete="off"></label>
       <div class="np-row"><span>Source</span><span class="np-pair"><input id="npSource" placeholder="LeetCode no., or GfG" spellcheck="false" autocomplete="off"><select id="npDiff" title="Difficulty, as the source rates it"><option>Easy</option><option>Medium</option><option>Hard</option></select></span></div>
       <label class="np-check"><input type="checkbox" id="npMust"> ★ Must-know</label>
       <div class="np-preview" id="npPreview"></div>
@@ -615,7 +616,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
-    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. "Type a path…" makes any other file</td></tr>
+    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. "Type a path…" makes any other file</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
@@ -1237,13 +1238,27 @@ function npSetLevel(l) {
   if (!np.diffTouched) $('#npDiff').value = NP_DIFF[l];
   npUpdate();
 }
+/* the server's parse_signature(), loosely: enough for the preview; the server has the last word */
+const NP_SIG = /(?:\b(?:public|private|protected|static|final|synchronized)\s+)*([A-Za-z_$][\w$.]*(?:\s*<[^()]*?>)?(?:\s*\[\s*\])*)\s+([A-Za-z_$][\w$]*)\s*\(([^()]*)\)/;
+function npMethod() {                  // null: none given; false: not readable
+  const v = $('#npMethod').value.replace(/\bclass\s+[\w$]+\s*\{/, ' ').trim();
+  if (!v) return null;
+  const m = v.match(NP_SIG);
+  return m && !/^(return|new|class|if|for|while)$/.test(m[2]) && !/^(return|new)$/.test(m[1])
+    ? { ret: m[1].replace(/\s+/g, ''), name: m[2], params: m[3].trim().replace(/\s+/g, ' ') } : false;
+}
 function npUpdate() {
-  const folder = npFolder(), name = $('#npName').value.trim(), cls = npClass(name), pv = $('#npPreview');
-  const bad = !name ? "Type the problem's name." : !cls ? 'Use letters or digits in the name.'
+  const folder = npFolder(), meth = npMethod(), pv = $('#npPreview');
+  const fromMethod = meth ? (meth.name[0].toUpperCase() + meth.name.slice(1)).replace(/(?<=[a-z0-9])(?=[A-Z])/g, ' ') : '';
+  $('#npName').placeholder = fromMethod || 'Two Sum';
+  const name = $('#npName').value.trim() || fromMethod, cls = npClass(name);
+  const bad = meth === false ? 'Write the method as Java, such as int[] twoSum(int[] nums, int target).'
+    : !name ? "Type the problem's name, or its method." : !cls ? 'Use letters or digits in the name.'
     : /^\d/.test(cls) ? 'A class name cannot start with a digit: write it in words, such as Three Sum.' : '';
   pv.classList.toggle('bad', !!bad);
   pv.textContent = bad || '→ ' + (folder ? folder + '/' : '') + (np.level ? npNext(folder, np.level) + '_' : '') + cls + '.java'
-    + (folder && !np.folders.includes(folder) ? '   (new folder)' : '');
+    + (folder && !np.folders.includes(folder) ? '   (new folder)' : '')
+    + (meth ? `\n  with ${meth.ret} ${meth.name}(${meth.params}) and a main() that calls it` : '');
   $('#npCreate').disabled = !!bad;
 }
 function showNewForm(form) {
@@ -1262,7 +1277,8 @@ function openNewPanel() {
   (function walk(n) { for (const d of n.dirs) { np.folders.push(d.path); walk(d); } })(S.tree);
   $('#npFolders').replaceChildren(...np.folders.map(p => Object.assign(document.createElement('option'), { value: p })));
   $('#npFolder').value = dir;
-  $('#npName').value = ''; $('#npSource').value = ''; $('#npMust').checked = false;
+  $('#npName').value = ''; $('#npMethod').value = ''; $('#npSource').value = ''; $('#npMust').checked = false;
+  $('#npMethod').closest('label').hidden = !(S.info && S.info.stub);     // a server from before it would ignore it
   np.diffTouched = false;
   const tiered = S.files.some(f => dirOf(f.path) === (dir ? dir + '/' : '') && levelOf(f.name));
   npSetLevel(here && levelOf(here.split('/').pop()) || (tiered ? 'B' : ''));
@@ -1283,13 +1299,13 @@ async function npCreate() {
   if ($('#npCreate').disabled) return;
   try {
     await created(await api('/api/new', { root: S.root, folder: npFolder(), level: np.level, name: $('#npName').value,
-      source: $('#npSource').value, difficulty: $('#npDiff').value, must: $('#npMust').checked }));
+      source: $('#npSource').value, difficulty: $('#npDiff').value, must: $('#npMust').checked, method: $('#npMethod').value }));
   } catch (err) { toast(err.message); }
 }
 $('#newBtn').onclick = () => { setSide(false); if ($('#newPanel').hidden) openNewPanel(); else closeNew(); };
 $('#npLevel').onclick = e => { const b = e.target.closest('button'); if (b) { npSetLevel(b.dataset.l); $('#npName').focus(); } };
 $('#npDiff').onchange = () => { np.diffTouched = true; };
-for (const id of ['#npFolder', '#npName']) $(id).addEventListener('input', npUpdate);
+for (const id of ['#npFolder', '#npName', '#npMethod']) $(id).addEventListener('input', npUpdate);
 $('#npCreate').onclick = npCreate;
 $('#npCancel').onclick = closeNew;
 $('#npPathBtn').onclick = () => showNewForm(false);

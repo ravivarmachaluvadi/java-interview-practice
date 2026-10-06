@@ -488,9 +488,236 @@ def save_file(rid, rel, text, base_hash, force):
     return {"ok": True, "hash": digest(data)}
 
 
-def java_template(name, title=None, meta="LeetCode ? | ?", must=False):
+# ---- the method a new problem file starts with (6 Oct: Ravi asked for it to be made from the
+# signature, typed or pasted from LeetCode, with a main() that already calls it)
+
+JAVA_KEYWORDS = set("""abstract assert boolean break byte case catch char class const continue default do double
+    else enum extends final finally float for goto if implements import instanceof int interface long native new
+    package private protected public return short static strictfp super switch synchronized this throw throws
+    transient try void volatile while true false null var record yield""".split())
+PRIMITIVES = {"int", "long", "short", "byte", "char", "boolean", "double", "float"}
+TYPE = r"[A-Za-z_$][\w$.]*(?:\s*<[^()]*?>)?(?:\s*\[\s*\])*"
+SIGNATURE = re.compile(r"(?:\b(?:public|private|protected|static|final|synchronized)\s+)*"
+                       rf"(?P<ret>{TYPE})\s+(?P<name>[A-Za-z_$][\w$]*)\s*\((?P<params>[^()]*)\)")
+# typical value, edge value, three values for an array or collection
+SAMPLES = {"int": ("2", "0", "1, 2, 3"), "long": ("2L", "0L", "1L, 2L, 3L"), "short": ("(short) 2", "(short) 0", "1, 2, 3"),
+           "byte": ("(byte) 2", "(byte) 0", "1, 2, 3"), "double": ("1.5", "0.0", "1.5, 2.5, 3.5"),
+           "float": ("1.5f", "0f", "1.5f, 2.5f, 3.5f"), "boolean": ("true", "false", "true, false, true"),
+           "char": ("'a'", "'a'", "'a', 'b', 'c'"), "String": ('"abc"', '""', '"a", "b", "c"'),
+           "Integer": ("2", "0", "1, 2, 3"), "Long": ("2L", "0L", "1L, 2L, 3L"), "Double": ("1.5", "0.0", "1.5, 2.5, 3.5"),
+           "Boolean": ("true", "false", "true, false, true"), "Character": ("'a'", "'a'", "'a', 'b', 'c'")}
+EMPTY = {"int": "0", "long": "0", "short": "0", "byte": "0", "double": "0", "float": "0", "boolean": "false",
+         "char": "' '", "String": '""', "Integer": "0", "Long": "0L", "Double": "0.0", "Boolean": "false",
+         "Character": "' '"}
+NEW_OF = {"List": "ArrayList", "Collection": "ArrayList", "Iterable": "ArrayList", "ArrayList": "ArrayList",
+          "LinkedList": "LinkedList", "Set": "HashSet", "HashSet": "HashSet", "TreeSet": "TreeSet",
+          "Map": "HashMap", "HashMap": "HashMap", "TreeMap": "TreeMap", "Queue": "ArrayDeque",
+          "Deque": "ArrayDeque", "ArrayDeque": "ArrayDeque", "PriorityQueue": "PriorityQueue"}
+UTIL = ("ArrayDeque", "ArrayList", "Arrays", "Collection", "Deque", "HashMap", "HashSet", "LinkedList", "List",
+        "Map", "PriorityQueue", "Queue", "Set", "TreeMap", "TreeSet")
+NODES = {
+    "TreeNode": """class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+
+    TreeNode() {
+    }
+
+    TreeNode(int val) {
+        this.val = val;
+    }
+
+    TreeNode(int val, TreeNode left, TreeNode right) {
+        this.val = val;
+        this.left = left;
+        this.right = right;
+    }
+
+    @Override
+    public String toString() {                  // level order, as LeetCode prints a tree
+        List<String> out = new ArrayList<>();
+        Queue<TreeNode> queue = new LinkedList<>();
+        queue.add(this);
+        while (!queue.isEmpty()) {
+            TreeNode node = queue.poll();
+            out.add(node == null ? "null" : String.valueOf(node.val));
+            if (node != null) {
+                queue.add(node.left);
+                queue.add(node.right);
+            }
+        }
+        while (out.get(out.size() - 1).equals("null")) {
+            out.remove(out.size() - 1);
+        }
+        return out.toString();
+    }
+}
+""",
+    "ListNode": """class ListNode {
+    int val;
+    ListNode next;
+
+    ListNode() {
+    }
+
+    ListNode(int val) {
+        this.val = val;
+    }
+
+    ListNode(int val, ListNode next) {
+        this.val = val;
+        this.next = next;
+    }
+
+    @Override
+    public String toString() {                  // the values, as LeetCode prints a list
+        StringBuilder sb = new StringBuilder("[");
+        for (ListNode node = this; node != null; node = node.next) {
+            sb.append(node.val).append(node.next == null ? "" : ", ");
+        }
+        return sb.append("]").toString();
+    }
+}
+"""}
+
+
+def norm_type(t):
+    """'Map<String,List<Integer> >' -> 'Map<String, List<Integer>>'; 'int [ ]' -> 'int[]'."""
+    t = re.sub(r"\s*([<>\[\]])\s*", r"\1", t.strip())
+    return re.sub(r"\s*,\s*", ", ", t)
+
+
+def split_top(s):
+    """Split on the commas outside <...>: 'Map<String, Integer> m, int k' -> 2 parts."""
+    out, depth, cur = [], 0, ""
+    for ch in s:
+        depth += (ch == "<") - (ch == ">")
+        if ch == "," and depth == 0:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    return [x.strip() for x in out + [cur] if x.strip()]
+
+
+def parse_signature(text):
+    """'public int[] twoSum(int[] nums, int target) {' -> ('int[]', 'twoSum', [('int[]', 'nums'),
+    ('int', 'target')]). LeetCode's whole starter code (class Solution { ... }) works too."""
+    text = re.sub(r"\bclass\s+[\w$]+\s*\{", " ", text or "")
+    m = SIGNATURE.search(text)
+    if not m or m["name"] in JAVA_KEYWORDS or (m["ret"] in JAVA_KEYWORDS and m["ret"] not in PRIMITIVES | {"void"}):
+        raise ValueError("Write the method as Java, such as int[] twoSum(int[] nums, int target)")
+    params = []
+    for p in split_top(m["params"]):
+        p = re.sub(r"@[\w.]+\s*|\bfinal\s+", "", p).replace("...", "[] ")
+        pm = re.fullmatch(rf"({TYPE})\s+([A-Za-z_$][\w$]*)((?:\s*\[\s*\])*)", p.strip())
+        if not pm or pm[2] in JAVA_KEYWORDS or (pm[1] in JAVA_KEYWORDS and pm[1] not in PRIMITIVES):
+            raise ValueError(f"Cannot read the parameter '{p.strip()}': write it as type and name, such as int[] nums")
+        params.append((norm_type(pm[1] + pm[3]), pm[2]))
+    name = m["name"]
+    if name in ("check", "show", "main"):
+        raise ValueError(f"main() already uses {name}: give the method another name")
+    return norm_type(m["ret"]), name, params
+
+
+def generic(t):
+    g = re.fullmatch(r"([\w.]+)<(.*)>", t)
+    return (g[1].split(".")[-1], split_top(g[2])) if g else (None, [])
+
+
+def literal(t, edge=False):
+    """A value of type t for main() to pass in: typical, or the edge case (empty, zero)."""
+    raw, args = generic(t)
+    if t.endswith("[]"):
+        base = t[:-2]
+        if "<" in base:
+            return "null"                                       # Java has no generic array literal
+        if edge:
+            return f"new {base}[]{{}}"
+        inner = SAMPLES[base][2] if base in SAMPLES else ", ".join([literal(base)] * 2)
+        return f"new {base}[]{{{inner}}}"
+    if t in SAMPLES:
+        return SAMPLES[t][1 if edge else 0]
+    if t == "TreeNode":
+        return "null" if edge else "new TreeNode(1, new TreeNode(2), new TreeNode(3))"
+    if t == "ListNode":
+        return "null" if edge else "new ListNode(1, new ListNode(2, new ListNode(3)))"
+    if raw in NEW_OF and args:
+        if raw in ("Map", "HashMap", "TreeMap"):
+            items = "" if edge or len(args) < 2 else f"{literal(args[0])}, {literal(args[1])}"
+            made = f"Map.of({items})"
+        else:
+            el = args[0]
+            many = SAMPLES[el][2] if el in SAMPLES else literal(el)       # one of anything else: Set.of refuses repeats
+            made = ("Set" if "Set" in raw else "List") + f".of({'' if edge else many})"
+        exact = raw in ("List", "Collection", "Iterable", "Set", "Map")
+        return made if exact else f"new {NEW_OF[raw]}<>({made})"
+    return "null"
+
+
+def empty_value(t):
+    """What the stub returns until it is written: 0, "", an empty array or collection."""
+    if t in EMPTY:
+        return EMPTY[t]
+    if t.endswith("[]"):
+        first = t.index("[")
+        return "null" if "<" in t else f"new {t[:first]}[0]{t[first + 2:]}"
+    raw, _ = generic(t)
+    return f"new {NEW_OF[raw]}<>()" if raw in NEW_OF else "null"
+
+
+def stub_code(cls, ret, name, params):
+    """The class with `static ret name(params)` returning an empty value, check() and a main() that
+    calls it on a typical and an edge input; a void method's changed argument is printed."""
+    printed, cases = ret, []
+    for no, edge in ((1, False), (2, True)):
+        args, label = [literal(t, edge) for t, _ in params], f"case {no}" + (" edge" if edge else "")
+        if ret != "void":
+            line = f'        check("{label}", {name}({", ".join(args)}), "?");'
+            if len(line) > 100:                # the repo's line limit: name each input first
+                line = "".join(f"        {t} {n}{no} = {a};\n" for (t, n), a in zip(params, args)) \
+                    + f'        check("{label}", {name}({", ".join(f"{n}{no}" for _, n in params)}), "?");'
+            cases += [line, ""] if "\n" in line else [line]
+        elif params:
+            i = next((k for k, (t, _) in enumerate(params) if t.endswith("]") or "<" in t or t in NODES), 0)
+            var, printed = f"{params[i][1]}{no}", params[i][0]
+            cases += [f"        {printed} {var} = {args[i]};", f"        {name}({', '.join(args[:i] + [var] + args[i + 1:])});",
+                      f'        check("{label}", {var}, "?");', ""]
+        else:
+            cases.append(f'        {name}();\n        check("{label}", "ran", "ran");')
+            break
+    arrays = printed.endswith("]")
+    show = "show(actual)" if arrays else "actual"
+    head = f"    static {ret} {name}("
+    decl = head + ", ".join(f"{t} {n}" for t, n in params) + ") {"
+    if len(decl) > 100:                        # wrapped as IntelliJ does: each parameter under the first
+        decl = head + (",\n" + " " * len(head)).join(f"{t} {n}" for t, n in params) + ") {"
+    code = [f"class {cls} {{", "", decl,
+            "        // your code here" if ret == "void" else f"        return {empty_value(ret)};",
+            "    }", "",
+            "    private static void check(String label, Object actual, Object expected) {",
+            f'        System.out.println(label + ": " + {show} + "   expected " + expected);', "    }", ""]
+    if arrays:
+        code += ["    private static String show(Object o) {          // an array prints its values, not [I@1b6d3586",
+                 *[f"        if (o instanceof {p}[] a) return Arrays.toString(a);" for p in
+                   ("int", "long", "double", "char", "boolean")],
+                 "        if (o instanceof Object[] a) return Arrays.deepToString(a);",
+                 "        return String.valueOf(o);", "    }", ""]
+    code += ["    public static void main(String[] args) {",
+             *(['        // LeetCode\'s examples go here: replace the inputs, and each "?" with the answer']
+               if params else []),
+             *(cases[:-1] if cases and cases[-1] == "" else cases), "    }", "}", ""]
+    body = "\n".join(code)
+    nodes = "".join(NODES[n] + "\n" for n in NODES if re.search(rf"\b{n}\b", body))
+    used = sorted(u for u in UTIL if re.search(rf"\b{u}\b", nodes + body))
+    return "".join(f"import java.util.{u};\n" for u in used) + ("\n" if used else "") + nodes + body
+
+
+def java_template(name, title=None, meta="LeetCode ? | ?", must=False, method=None):
     """A new practice file: the header every DSA file carries (tools/check_headers.py), with
-    `...` and `O(?)` left for you to fill, and a main() that prints actual vs expected."""
+    `...` and `O(?)` left for you to fill, and a main() that prints actual vs expected.
+    method: parse_signature()'s (return type, name, params); then the class holds that method."""
     cls = re.sub(r"^[A-D]\d\d_", "", pathlib.Path(name).stem)
     if not re.fullmatch(r"[A-Za-z_$][\w$]*", cls):
         cls = "Main"
@@ -526,7 +753,7 @@ def java_template(name, title=None, meta="LeetCode ? | ?", must=False):
  * RUN
  *   main() runs the cases below and prints actual vs expected.
  */
-class {cls} {{
+""" + (stub_code(cls, *method) if method else f"""class {cls} {{
 
     static int solve(int[] nums) {{
         return 0;
@@ -541,10 +768,10 @@ class {cls} {{
         check("case 2 empty  ", solve(new int[]{{}}), 0);
     }}
 }}
-"""
+""")
 
 
-def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False):
+def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False, method=None):
     rel = rel.strip().replace("\\", "/").strip("/")
     if not rel or ".." in rel.split("/"):
         raise ValueError("give a file name such as 01-Arrays/C16_MyProblem.java")
@@ -559,7 +786,7 @@ def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False):
         if taken:
             raise ValueError(f"{p.name[:3]} is already {taken} in this folder; "
                              f"the next free {tier[1]} number is {next_tier(p.parent, tier[1])}")
-    text = java_template(p.name, title, meta, must) if p.suffix == ".java" else (
+    text = java_template(p.name, title, meta, must, method) if p.suffix == ".java" else (
         f"# {p.stem}\n" if p.suffix == ".md" else "")
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(text.encode("utf-8"))                # LF like the repo's files (write_text gives CRLF on Windows)
@@ -594,9 +821,14 @@ def class_name(name):
     return cls
 
 
-def new_problem(rid, folder, level, name, source, difficulty, must=False):
+def new_problem(rid, folder, level, name, source, difficulty, must=False, method=""):
     """The New problem form (6 Oct): 01-Arrays + B + "Two Sum" -> 01-Arrays/B12_TwoSum.java,
-    numbered after the folder's last B file, with the header's first line filled in."""
+    numbered after the folder's last B file, with the header's first line filled in. method: a
+    signature the class starts with; with no name, the name comes from it (twoSum -> Two Sum)."""
+    sig = parse_signature(method) if method and method.strip() else None
+    if sig and not name.strip():
+        name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", sig[1])
+        name = name[0].upper() + name[1:]
     folder = folder.strip().replace("\\", "/").strip("/")
     level = (level or "").strip().upper()
     if level not in ("", "A", "B", "C", "D"):
@@ -613,7 +845,7 @@ def new_problem(rid, folder, level, name, source, difficulty, must=False):
         raise ValueError(f"{folder} is a file, not a folder")
     prefix = next_tier(where, level) + "_" if level else ""
     return new_file(rid, f"{folder}/{prefix}{cls}.java" if folder else f"{prefix}{cls}.java",
-                    title, f"{source} | {difficulty}", must)
+                    title, f"{source} | {difficulty}", must, sig)
 
 
 def to_recycle_bin(p):
@@ -1349,7 +1581,7 @@ class Handler(BaseHTTPRequestHandler):
                                  "public, max-age=31536000, immutable")
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
-                                       "autostart": autostart_on(), "platform": sys.platform, "git": True})
+                                       "autostart": autostart_on(), "platform": sys.platform, "git": True, "stub": True})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":
@@ -1398,7 +1630,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/new" and "name" in req:
                 return self.send_json(new_problem(rid, req.get("folder", ""), req.get("level", ""), req["name"],
                                                   req.get("source", ""), req.get("difficulty", ""),
-                                                  bool(req.get("must"))))
+                                                  bool(req.get("must")), req.get("method", "")))
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
             if path == "/api/git/push":

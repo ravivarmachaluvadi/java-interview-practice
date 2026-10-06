@@ -248,6 +248,109 @@ class NewProblemTest(unittest.TestCase):
         self.assertEqual(lines[sel["line"] - 1][sel["col"] - 1:sel["col"] - 1 + sel["len"]], "...")
 
 
+class MethodStubTest(unittest.TestCase):
+    """6 Oct: Ravi asked for the method to be made too. The form takes a signature, typed or pasted
+    from LeetCode (even its whole `class Solution { ... }`), and the file gets that method with a
+    default return and a main() that calls it. Every case below must compile and run."""
+
+    SIGS = [
+        "public int[] twoSum(int[] nums, int target) {",
+        "class Solution {    public List<List<Integer>> threeSum(int[] nums) {            }}",
+        "public void rotate(int[] nums, int k)",
+        "boolean isAnagram(String s, String t)",
+        "public int maxDepth(TreeNode root) {",
+        "public ListNode reverseList(ListNode head) {",
+        "public TreeNode invertTree(TreeNode root)",
+        "public int[][] merge(int[][] intervals) {",
+        "public String longestCommonPrefix(String[] strs) {",
+        "public Map<String, Integer> count(List<String> words)",
+        "public char findTheDifference(String s, String t)",
+        "public double findMedianSortedArrays(int[] nums1, int[] nums2)",
+        "static long total(long... values)",
+        "public void moveZeroes(int nums[])",
+        "public void setZeroes(int[][] matrix)",
+        "public boolean seenAll(Set<Integer> seen, char[] cs, Deque<Integer> stack, Long big)",
+        "public List<String> letterCombinations(String digits)",
+        "public void hello()",
+        "public int longestOne(Map<String, List<Integer>> graphByName, int[][] distances, Deque<Integer> stack, int k)",
+    ]
+
+    def setUp(self):
+        self.base = TMP / "stub_root"
+        (self.base / "01-Arrays").mkdir(parents=True, exist_ok=True)
+        (self.base / "01-Arrays" / "B11_FindCorruptPair.java").write_text("class X {}", encoding="utf-8")
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def make(self, method, name="", level=""):
+        res = codeview.new_problem(self.rid, "01-Arrays", level, name, "1", "Easy", method=method)
+        return res["path"], (self.base / res["path"]).read_text(encoding="utf-8")
+
+    def test_reads_signatures(self):
+        P = codeview.parse_signature
+        self.assertEqual(P("public int[] twoSum(int[] nums, int target) {"),
+                         ("int[]", "twoSum", [("int[]", "nums"), ("int", "target")]))
+        self.assertEqual(P("class Solution { public Map<String,List<Integer>> group(String[] words, int k) { } }"),
+                         ("Map<String, List<Integer>>", "group", [("String[]", "words"), ("int", "k")]))
+        self.assertEqual(P("static long total(long... values)"), ("long", "total", [("long[]", "values")]))
+        self.assertEqual(P("void moveZeroes(int nums[])"), ("void", "moveZeroes", [("int[]", "nums")]))
+        self.assertEqual(P("int count(final @Deprecated int n)"), ("int", "count", [("int", "n")]))
+        for bad in ("twoSum", "int twoSum", "int[] (int a)", "return x(y)", "int class(int a)", "int f(int)", ""):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                P(bad)
+
+    def test_every_signature_compiles_and_runs(self):
+        for i, sig in enumerate(self.SIGS):
+            with self.subTest(sig=sig):
+                path, text = self.make(sig, name=f"Case {chr(65 + i)}")
+                method = codeview.parse_signature(sig)[1]
+                self.assertIn(f" {method}(", text)
+                res = codeview.run_code(text, self.rid, path, "", 30, None)
+                self.assertTrue(res["ok"], (res.get("phase"), res.get("output", "")[:600], text[-1500:]))
+                self.assertIn("case 1", res["output"])
+                if codeview.parse_signature(sig)[2]:
+                    self.assertIn("expected ?", res["output"])
+                self.assertTrue(javasrc.practice_skeleton(text)[1], "Practice would find nothing to hide")
+                with mock.patch.object(check_headers, "ROOT", self.base):
+                    self.assertEqual(check_headers.check(self.base / path)[2], ["unfilled-template:['O(?)', '...']"])
+
+    def test_main_calls_it_with_samples_and_prints_arrays(self):
+        _, text = self.make("public int[] twoSum(int[] nums, int target) {", name="Two Sum")
+        self.assertIn("    static int[] twoSum(int[] nums, int target) {\n        return new int[0];\n    }", text)
+        self.assertIn('check("case 1", twoSum(new int[]{1, 2, 3}, 2), "?");', text)
+        out = codeview.run_code(text, self.rid, "01-Arrays/TwoSum.java", "", 30, None)["output"]
+        self.assertIn("case 1: []   expected ?", out)                   # an array prints as [..], not [I@1b6d
+
+    def test_a_void_method_prints_what_it_changed(self):
+        path, text = self.make("public void rotate(int[] nums, int k)", name="Rotate Array")
+        self.assertIn("int[] nums1 = new int[]{1, 2, 3};\n        rotate(nums1, 2);\n        check(\"case 1\", nums1, \"?\");", text)
+        out = codeview.run_code(text, self.rid, path, "", 30, None)["output"]
+        self.assertIn("case 1: [1, 2, 3]   expected ?", out)
+
+    def test_trees_and_lists_get_their_node_class(self):
+        _, text = self.make("public TreeNode invertTree(TreeNode root)", name="Invert")
+        self.assertIn("class TreeNode {\n    int val;\n    TreeNode left;\n    TreeNode right;", text)
+        self.assertNotIn("class ListNode", text)
+        path, text = self.make("public ListNode reverseList(ListNode head) {", name="Reverse")
+        self.assertIn("class ListNode {\n    int val;\n    ListNode next;", text)
+        res = codeview.run_code(text.replace("return null;", "return head;"), self.rid, path, "", 30, None)
+        self.assertIn("case 1: [1, 2, 3]   expected ?", res["output"])       # a list prints its values
+
+    def test_the_name_can_come_from_the_method(self):
+        path, text = self.make("public int[] twoSum(int[] nums, int target) {", level="B")
+        self.assertEqual(path, "01-Arrays/B12_TwoSum.java")
+        self.assertEqual(check_headers.parse_header(text)["title"], "Two Sum")
+        with self.assertRaises(ValueError):
+            self.make("", name="")
+
+    def test_no_method_keeps_the_old_template(self):
+        _, text = self.make("", name="Plain")
+        self.assertIn("    static int solve(int[] nums) {\n        return 0;\n    }", text)
+
+
 def git(cwd, *args):
     return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=True,
                           encoding="utf-8").stdout.strip()
