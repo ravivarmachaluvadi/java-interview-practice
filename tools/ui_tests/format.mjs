@@ -62,4 +62,23 @@ await suite(async t => {
   await format();
   ok = await waitFor(`${ED}.getModel().getValue() === ${JSON.stringify(expected)}`, 8000);
   check('Ctrl+Alt+L also works when the focus is on a button, not in the code', focusOut && ok, focusOut);
+
+  // 6 Oct, Ravi's screenshot: the code changed while the formatter was answering, and the answer
+  // was dropped. Now it formats the new text instead. The first answer is held back 1.5 s here
+  // and a line is added meanwhile; the result must be formatted and keep that line.
+  await ev(`${ED}.getModel().setValue(${JSON.stringify(messy)}); ${ED}.setPosition({ lineNumber: 12, column: 3 }); ${ED}.focus();
+    if (!window.__realFetch) window.__realFetch = window.fetch;
+    window.__held = false;
+    window.fetch = async (u, o) => {
+      if (!window.__held && String(u).includes('/api/assist') && o && String(o.body).includes('"op":"format"')) {
+        window.__held = true; await new Promise(r => setTimeout(r, 1500));
+      }
+      return window.__realFetch(u, o);
+    }`);
+  await format();
+  await ev(`${ED}.executeEdits('t', [{ range: new monaco.Range(1, 1, 1, 1), text: '// added while formatting' + String.fromCharCode(10) }])`);
+  ok = await waitFor(`${ED}.getModel().getValue() === ${JSON.stringify('// added while formatting\n' + expected)}`, 10000);
+  check('a change during formatting: it formats the new text, keeping the change', ok,
+        [await ev(`document.querySelector('#toast').textContent`), (await ev(`${ED}.getModel().getValue()`)).split('\n').slice(0, 3)]);
+  await ev(`window.fetch = window.__realFetch`);
 });

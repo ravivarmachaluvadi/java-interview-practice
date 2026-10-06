@@ -2485,11 +2485,23 @@ async function formatFile() {
   if (c.kind !== 'java') return toast('Ctrl+Alt+L formats Java files.');
   if (!m) return;
   if (!isEditable()) return toast('Formatting changes the code: press Edit (or Try) first.');
-  const v = m.getVersionId();
+  // Ravi's screenshot (6 Oct): the code changed while the formatter answered and the answer was
+  // dropped. It now formats the new text, up to 3 times; the last message names what changed.
+  let r, seen = '';
+  const watch = m.onDidChangeContent(e => {
+    const ch = e.changes[0];
+    if (ch && !seen) seen = ` (line ${ch.range.startLineNumber}: ${JSON.stringify(ch.text.slice(0, 30)) || 'text removed'})`;
+  });
   const slow = setTimeout(() => toast('Formatting… the Java helper is starting, a few seconds the first time.'), 400);
-  const r = await assistAsk('format', m, 0, null, null, true).finally(() => clearTimeout(slow));
-  if (!r) return;
-  if (m.getVersionId() !== v) return toast('The code changed while it was being formatted: press Ctrl+Alt+L again.');
+  try {
+    for (let tries = 0; ; tries++) {
+      const v = m.getVersionId();
+      r = await assistAsk('format', m, 0, null, null, true);
+      if (!r || m.isDisposed() || editor.getModel() !== m) return;
+      if (m.getVersionId() === v) break;
+      if (tries === 2) return toast('The code kept changing while it was being formatted' + seen + ': press Ctrl+Alt+L again.');
+    }
+  } finally { clearTimeout(slow); watch.dispose(); }
   if (r.reject) return toast(r.reject);
   const eol = m.getEOL(), old = m.getLinesContent(), now = r.text.split(/\r?\n/);
   let a = 0, b = 0;
