@@ -149,6 +149,17 @@ class RestartTest(unittest.TestCase):
         menu = codeview.tray_menu(pystray, FakeServer(), "http://127.0.0.1:1/")
         self.assertIsNone(menu_item(menu, "Restart Code Viewer").submenu)
 
+    def test_a_tray_started_by_a_right_click_does_not_reopen_that_path(self):
+        steps = []
+        codeview.restart_from_tray(FakeIcon(), FakeServer(steps),
+                                   argv=["codeview.py", "--tray", "--open", r"C:\x\A.java", "--port=9000"],
+                                   spawn=lambda args: steps.append(args))
+        self.assertEqual(steps[-1][2:], ["--tray", "--port=9000", "--no-open"])
+        steps.clear()
+        codeview.restart_from_tray(FakeIcon(), FakeServer(steps), argv=["codeview.py", "--tray", r"--open=C:\x"],
+                                   spawn=lambda args: steps.append(args))
+        self.assertEqual(steps[-1][2:], ["--tray", "--no-open"])
+
 
 class TemplateTest(unittest.TestCase):
     """5 Oct: a blank New-file template (DecodeWays.java) passed check_headers.py."""
@@ -741,6 +752,140 @@ class BrowserTest(unittest.TestCase):
         self.assertNotIn("browser", codeview.State().data)
 
 
+class LocateTest(unittest.TestCase):
+    """7 Oct: Explorer's right-click "Open in Code Viewer" hands over any file or folder.
+    locate() says which folder in the list shows it and where. Runs on a fake repo."""
+
+    def setUp(self):
+        self.top = pathlib.Path(os.path.realpath(tempfile.mkdtemp(dir=TMP)))
+        self.repo, self.away = self.top / "repo", self.top / "elsewhere"
+        for p in (self.repo / "a/b/B01_X.java", self.repo / "a/pic.png", self.repo / "tools/t.py",
+                  self.repo / ".idea/w.xml", self.repo / "a/target/T.java", self.away / "sub/N.md",
+                  self.away / "loose.txt"):
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b"x")
+        codeview.STATE.data = {"roots": [], "progress": {}}
+        patcher = mock.patch.object(codeview, "REPO", self.repo)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.repo_id = codeview.STATE.roots()[0]["id"]
+
+    def where(self, p):
+        r = codeview.locate(str(p))
+        return codeview.STATE.root(r["root"])["path"], r["path"], r["added"]
+
+    def test_a_repo_file_or_folder_stays_in_the_repo(self):
+        """Progress is kept per folder in the list, so the repo always wins."""
+        self.assertEqual(self.where(self.repo / "a/b/B01_X.java"), (str(self.repo), "a/b/B01_X.java", False))
+        self.assertEqual(self.where(self.repo / "a/b"), (str(self.repo), "a/b", False))
+        self.assertEqual(self.where(self.repo), (str(self.repo), "", False))
+        codeview.STATE.add_root(str(self.repo / "a"))          # even with a deeper folder listed
+        self.assertEqual(self.where(self.repo / "a/b/B01_X.java"), (str(self.repo), "a/b/B01_X.java", False))
+
+    def test_a_file_the_tree_leaves_out_keeps_its_path(self):
+        """The page shows its folder instead; nothing is added to the list."""
+        self.assertEqual(self.where(self.repo / "a/pic.png"), (str(self.repo), "a/pic.png", False))
+
+    def test_folders_the_repo_tree_skips_get_their_own_entry(self):
+        for rel, root, path in (("tools/t.py", "tools", "t.py"), (".idea/w.xml", ".idea", "w.xml"),
+                                ("a/target/T.java", "a/target", "T.java"), ("tools", "tools", "")):
+            with self.subTest(rel):
+                got = self.where(self.repo / rel)
+                self.assertEqual(got[:2], (str(self.repo / root), path))
+        self.assertEqual(len(codeview.STATE.roots()), 4)        # the repo + 3; "tools" was not added twice
+
+    def test_outside_every_folder_its_folder_joins_the_list(self):
+        self.assertEqual(self.where(self.away / "sub"), (str(self.away / "sub"), "", True))
+        self.assertEqual(self.where(self.away / "sub/N.md"), (str(self.away / "sub"), "N.md", False))
+        self.assertEqual(self.where(self.away / "loose.txt"), (str(self.away), "loose.txt", True))
+
+    def test_the_deepest_listed_folder_wins_outside_the_repo(self):
+        codeview.STATE.add_root(str(self.away))
+        codeview.STATE.add_root(str(self.away / "sub"))
+        self.assertEqual(self.where(self.away / "sub/N.md"), (str(self.away / "sub"), "N.md", False))
+
+    def test_refuses_what_cannot_be_shown(self):
+        for bad in ("", "  ", str(self.top / "missing.java"), pathlib.Path(self.top.anchor)):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                codeview.locate(str(bad))
+        self.assertEqual(len(codeview.STATE.roots()), 1)
+
+    def test_quotes_around_a_pasted_path_are_ignored(self):
+        self.assertEqual(codeview.locate(f'"{self.repo / "a"}"')["path"], "a")
+
+    def test_page_url(self):
+        self.assertEqual(codeview.page_url(8025), "http://127.0.0.1:8025/")
+        self.assertEqual(codeview.page_url(8025, {"root": "r", "path": "a b/C#1.java"}),
+                         "http://127.0.0.1:8025/#/r/a%20b/C%231.java")
+        self.assertEqual(codeview.page_url(8025, {"root": "r", "path": ""}), "http://127.0.0.1:8025/#/r/")
+
+
+@unittest.skipUnless(codeview.IS_WIN, "the right-click menu is Windows-only")
+class ContextMenuTest(unittest.TestCase):
+    """The three Explorer right-click entries, written under a throwaway key so the real
+    HKCU\\Software\\Classes is never touched."""
+
+    BASE = r"Software\CodeViewerTest\Classes"
+
+    def tearDown(self):
+        import winreg
+
+        def drop(path):
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as k:
+                    kids = [winreg.EnumKey(k, i) for i in range(winreg.QueryInfoKey(k)[0])]
+            except FileNotFoundError:
+                return
+            for kid in kids:
+                drop(path + "\\" + kid)
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, path)
+        drop(r"Software\CodeViewerTest")
+
+    def values(self, cls):
+        import winreg
+        key = rf"{self.BASE}\{cls}\shell\CodeViewer"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
+            out = {winreg.EnumValue(k, i)[0]: winreg.EnumValue(k, i)[1] for i in range(winreg.QueryInfoKey(k)[1])}
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key + r"\command") as k:
+            out["command"] = winreg.QueryValue(k, None)
+        return out
+
+    def test_on_adds_files_folders_and_folder_background(self):
+        self.assertFalse(codeview.context_menu_on(self.BASE))
+        codeview.set_context_menu(True, self.BASE)
+        self.assertTrue(codeview.context_menu_on(self.BASE))
+        pyw = str(pathlib.Path(sys.executable).with_name("pythonw.exe"))
+        script = str(HERE / "codeview.py")
+        for cls, arg in (("*", "%1"), ("Directory", "%1"), (r"Directory\Background", "%V")):
+            with self.subTest(cls):
+                v = self.values(cls)
+                self.assertEqual(v[""], "Open in Code Viewer")
+                self.assertEqual(v["MultiSelectModel"], "Single")     # 10 files selected: no 10 tabs
+                self.assertTrue(v["Icon"].endswith("codeview.ico"))
+                self.assertEqual(v["command"], f'"{pyw}" "{script}" --tray --open "{arg}"')
+
+    def test_off_removes_them_and_twice_is_fine(self):
+        import winreg
+        codeview.set_context_menu(True, self.BASE)
+        codeview.set_context_menu(True, self.BASE)
+        codeview.set_context_menu(False, self.BASE)
+        codeview.set_context_menu(False, self.BASE)
+        self.assertFalse(codeview.context_menu_on(self.BASE))
+        for cls in ("*", "Directory", r"Directory\Background"):
+            with self.subTest(cls), self.assertRaises(FileNotFoundError):
+                winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"{self.BASE}\{cls}\shell\CodeViewer")
+
+    def test_tray_switch(self):
+        import pystray
+        with mock.patch.object(codeview, "context_menu_on", return_value=False), \
+                mock.patch.object(codeview, "set_context_menu") as setter:
+            menu = codeview.tray_menu(pystray, FakeServer(), "http://127.0.0.1:1/")
+            item = menu_item(menu, "Right-click: Open in Code Viewer")
+            self.assertFalse(item.checked)
+            item(FakeIcon())
+        setter.assert_called_once_with(True)
+
+
 class LogTest(unittest.TestCase):
     """3 Oct: it vanished with no record of why. The log keeps start and stop lines,
     so a run that started but never logged a stop was ended from outside."""
@@ -1056,6 +1201,31 @@ class HttpTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             self.post("/api/delete", body, page_header=False)
         self.assertEqual(cm.exception.code, 403)
+
+    def test_locate_is_wired_and_guarded(self):
+        """A web page cannot use it to add folders: it needs the page's own header."""
+        target = str(codeview.REPO / "AAScratches")
+        want = {"root": codeview.STATE.roots()[0]["id"], "path": "AAScratches", "added": False}
+        self.assertEqual(json.load(self.post("/api/locate", {"path": target})), want)
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/locate", {"path": target}, page_header=False)
+        self.assertEqual(cm.exception.code, 403)
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/locate", {"path": str(codeview.REPO / "no_such_folder")})
+        self.assertEqual(cm.exception.code, 400)
+
+    def test_second_launch_opens_the_place_the_running_copy_found(self):
+        with mock.patch.object(codeview, "open_page") as opened:
+            url = codeview.open_in_running(self.port, str(codeview.REPO / "AAScratches" / "README.md"))
+        rid = codeview.STATE.roots()[0]["id"]
+        self.assertEqual(url, f"http://127.0.0.1:{self.port}/#/{rid}/AAScratches/README.md")
+        opened.assert_called_once_with(url)
+
+    def test_an_older_running_copy_says_to_restart(self):
+        old = urllib.error.HTTPError("http://x/api/locate", 404, "Not found", {}, io.BytesIO(b"Not found"))
+        with mock.patch.object(urllib.request, "urlopen", side_effect=old), \
+                self.assertRaisesRegex(ValueError, "Restart Code Viewer"):
+            codeview.locate_running(self.port, "C:\\x")
 
     def test_refusal_is_always_a_clean_403(self):
         """Answering before reading the body made Windows abort about 7% of refusals

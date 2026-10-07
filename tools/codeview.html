@@ -328,6 +328,19 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .md th { background: var(--panel); font-weight: 600; }
 .md blockquote { margin: 0; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--muted); }
 
+/* ---- a folder's listing (Explorer's right-click on a folder) ---- */
+.dirview .dv-path { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin-bottom: 4px; }
+.dirview h1 { margin-bottom: 4px; overflow-wrap: anywhere; }
+.dirview .dv-sum { color: var(--muted); margin: 0 0 14px; }
+.dirview .dv-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.dirview .row { min-height: 34px; padding: 0 12px; gap: 8px; border-top: 1px solid var(--border); }
+.dirview .row:first-child { border-top: 0; }
+.md .dirview a.row { color: var(--text); text-decoration: none; }
+.dirview .row .ico { width: 22px; flex: none; display: flex; justify-content: center; color: var(--muted); }
+.dirview .row.dir .ico { color: var(--accent); }
+.dirview .row.dir .nm { font-weight: 500; }
+.dirview .empty { padding: 12px; color: var(--muted); }
+
 /* ---- output ---- */
 .out { display: flex; flex-direction: column; min-height: 0; background: var(--out-bg); }
 .out-head { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; flex: none; border-bottom: 1px solid var(--border); }
@@ -709,7 +722,7 @@ function macKeys() {
 }
 
 const S = {
-  info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), progress: {},
+  info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), dirs: new Set(), progress: {},
   cur: null, pending: null,
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), tmodels: new Map(), skeletons: new Map(),
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
@@ -908,7 +921,7 @@ async function switchRoot(id, openSomething) {
   refreshGit();
   if (openSomething) {
     const last = store.get('last:' + id, null);
-    const pick = last && S.byPath.has(last) ? last
+    const pick = last && (S.byPath.has(last) || S.dirs.has(last)) ? last
       : S.byPath.has('README.md') ? 'README.md' : (S.files[0] && S.files[0].path);
     if (pick) go(pick); else { S.cur = null; toast('No viewable files in ' + r.name); }
   }
@@ -921,9 +934,9 @@ async function loadTree() {
   delete t._status;
   const sig = JSON.stringify(t);
   if (sig === S.treeSig) return false;
-  S.treeSig = sig; S.tree = t; S.files = []; S.byPath.clear();
+  S.treeSig = sig; S.tree = t; S.files = []; S.byPath.clear(); S.dirs.clear();
   (function index(n, prefix) {
-    for (const d of n.dirs) { d.path = prefix ? prefix + '/' + d.name : d.name; index(d, d.path); }
+    for (const d of n.dirs) { d.path = prefix ? prefix + '/' + d.name : d.name; S.dirs.add(d.path); index(d, d.path); }
     for (const f of n.files) { S.files.push(f); S.byPath.set(f.path, f); }
   })(t, '');
   return true;
@@ -1060,14 +1073,16 @@ function toggleDir(p, force) {
 function markActive(scroll = true) {
   document.querySelectorAll('#tree .row.active').forEach(r => r.classList.remove('active'));
   if (!S.cur) return;
-  if (S.cur.path !== SCRATCH) {
+  const dir = S.cur.kind === 'dir';           // a folder's listing: that folder opens too
+  if (S.cur.path !== SCRATCH && S.cur.path) {
     const parts = S.cur.path.split('/');
-    for (let i = 1; i < parts.length; i++) {
+    for (let i = 1; i < parts.length + dir; i++) {
       const d = parts.slice(0, i).join('/');
       if (S.show === 'all' && !S.openDirs.has(d)) toggleDir(d, true);
     }
   }
-  const row = document.querySelector(`#tree .row.file[data-path="${CSS.escape(S.cur.path)}"]`);
+  const row = dir ? S.cur.path && document.querySelector(`#tree .row.dir[data-dir="${CSS.escape(S.cur.path)}"]`)
+    : document.querySelector(`#tree .row.file[data-path="${CSS.escape(S.cur.path)}"]`);
   if (row) { row.classList.add('active'); if (scroll) row.scrollIntoView({ block: 'nearest' }); }
 }
 $('#showSel').addEventListener('change', e => { S.show = e.target.value; store.set('show', S.show); renderTree(); });
@@ -1083,7 +1098,7 @@ async function setProgress(path, status, pass, extra = {}) {
 }
 function cycleProgress() {
   const c = S.cur;
-  if (!c || c.path === SCRATCH) return;
+  if (!c || c.path === SCRATCH || c.kind === 'dir') return;
   const next = STATUS_NEXT[statusOf(c.path)];
   setProgress(c.path, next);
   toast(next === 'done' ? 'Marked done ✓' : next === 'revise' ? 'Marked to revise ↻' : 'Mark cleared');
@@ -1107,8 +1122,10 @@ async function refreshFromDisk() {
   if (document.visibilityState !== 'visible' || !S.root || !editor) return;
   checkVersion();
   refreshGit();
-  try { if (await loadTree()) renderTree(); } catch { return; }
+  let changed;
+  try { changed = await loadTree(); if (changed) renderTree(); } catch { return; }
   const c = S.cur;
+  if (c && c.kind === 'dir') { if (changed && S.cur === c) renderDir(c.path); return; }
   if (!c || c.path === SCRATCH || c.mode === 'practice' || hasDraft(c)) return;
   let d;
   try { d = await api('/api/file?' + qs({ root: S.root, path: c.path })); } catch { return; }
@@ -1278,8 +1295,9 @@ function showNewForm(form) {
 function openNewPanel() {
   if (!S.root) return;
   $('#pushPanel').hidden = true;
-  const here = S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
-  const dir = here ? dirOf(here).slice(0, -1) : '';
+  const inDir = S.cur && S.cur.kind === 'dir';            // a folder's listing: new files go in it
+  const here = inDir ? null : S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
+  const dir = inDir ? S.cur.path : here ? dirOf(here).slice(0, -1) : '';
   np.folders = [];
   (function walk(n) { for (const d of n.dirs) { np.folders.push(d.path); walk(d); } })(S.tree);
   $('#npFolders').replaceChildren(...np.folders.map(p => Object.assign(document.createElement('option'), { value: p })));
@@ -1452,6 +1470,7 @@ $('#pushPanel').addEventListener('keydown', e => {
 function deleteFile() {
   const c = S.cur;
   if (!c || c.path === SCRATCH) return toast('The Scratch pad lives in the browser, not in a file.');
+  if (c.kind === 'dir') return toast('Delete moves one file to the Recycle Bin, not a folder.');
   const dir = c.path.split('/').slice(0, -1).join('/');
   showBanner(`Move ${c.path} to the Recycle Bin? You can restore it from there.`, [
     ['Move to Recycle Bin', async () => {
@@ -1732,9 +1751,9 @@ async function route() {
   const t = parseHash();
   if (t.root && t.root !== S.root) await switchRoot(t.root, false);
   let p = t.path;
-  if (!p) {
+  if (p === undefined) {                    // #/<folder>/ with nothing after it is that folder's listing
     const last = store.get('last:' + S.root, null);
-    p = last && (last === SCRATCH || S.byPath.has(last)) ? last : (S.byPath.has('README.md') ? 'README.md' : SCRATCH);
+    p = last && (last === SCRATCH || S.byPath.has(last) || S.dirs.has(last)) ? last : (S.byPath.has('README.md') ? 'README.md' : SCRATCH);
     history.replaceState(null, '', '#/' + (p === SCRATCH ? SCRATCH : S.root + '/' + encPath(p)));
   }
   openPath(p);
@@ -1757,7 +1776,7 @@ async function openPath(path) {
     return afterOpen();
   }
   const f = S.byPath.get(path);
-  if (!f) { toast('No such file here: ' + path); return; }
+  if (!f) return openDir(path);
   const k = keyOf(path);
   let d;
   try { d = await api('/api/file?' + qs({ root: S.root, path })); } catch (e) { toast(e.message); return; }
@@ -1783,6 +1802,47 @@ async function openPath(path) {
     else showEditor(modelFor(k, d.text, LANG[ext] || 'plaintext'));
   }
   afterOpen();
+}
+/* A folder's listing (7 Oct): what File Explorer's right-click "Open in Code Viewer" shows for
+   a folder - its subfolders, then its files, with the tree's marks; every row is a link. A path
+   the tree does not have (a .png, an empty or deleted folder) shows the nearest folder above. */
+function openDir(path) {
+  let dir = path.replace(/\/+$/, '');
+  while (dir && !S.dirs.has(dir)) dir = dir.includes('/') ? dir.slice(0, dir.lastIndexOf('/')) : '';
+  if (dir !== path.replace(/\/+$/, '')) {
+    toast(`Code Viewer doesn't show "${path.split('/').filter(Boolean).pop()}" (it lists .java, .md and other text files, and the folders that hold them). Here is the folder it is in.`);
+    history.replaceState(null, '', '#/' + S.root + '/' + encPath(dir));
+  }
+  S.cur = { path: dir, key: 'dir:' + keyOf(dir), name: dir ? dir.split('/').pop() : rootObj().name, kind: 'dir', mode: 'file' };
+  $('#editor').hidden = true;
+  $('#md').hidden = false;
+  renderDir(dir);
+  $('#md').scrollTop = 0;
+  afterOpen();
+}
+const FOLDER_SVG = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 3.5a1 1 0 0 1 1-1h3.6l1.5 1.5h5.9a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/></svg>';
+function renderDir(dir) {
+  let node = S.tree;
+  for (const part of dir ? dir.split('/') : []) node = node && node.dirs.find(d => d.name === part);
+  if (!node) return openDir(dir);           // gone since (a refresh from disk): the folder above
+  const md = $('#md'), top = md.scrollTop, r = rootObj(), href = p => '#/' + S.root + '/' + encPath(p);
+  const s = stats(node), parts = dir ? dir.split('/') : [];
+  const crumbs = [`<a href="${href('')}">${esc(r.name)}</a>`].concat(parts.slice(0, -1).map((p, i) =>
+    `<a href="${href(parts.slice(0, i + 1).join('/'))}">${esc(p)}</a>`));
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  let rows = dir ? `<a class="row up" href="${href(parts.slice(0, -1).join('/'))}" title="Up to ${esc(parts.length > 1 ? parts[parts.length - 2] : r.name)}"><span class="ico">↑</span><span class="nm">..</span></a>` : '';
+  for (const d of node.dirs) {
+    const c = d._s, cnt = c.java ? `${c.done}/${c.java} done` : '';
+    rows += `<a class="row dir" href="${href(d.path)}" title="${esc(d.path)}"><span class="ico">${FOLDER_SVG}</span><span class="nm">${esc(d.name)}</span><span class="cnt">${cnt}</span></a>`;
+  }
+  for (const f of node.files)
+    rows += `<a class="row${hasDraftStored(f.path) ? ' drafted' : ''}" href="${href(f.path)}" title="${esc(f.path)}">${fileInner(f)}</a>`;
+  md.innerHTML = `<div class="dirview">${dir ? `<div class="dv-path">${crumbs.join(' / ')} /</div>` : ''}<h1></h1>`
+    + `<p class="dv-sum">${plural(node.dirs.length, 'folder')} · ${plural(node.files.length, 'file')} here`
+    + (s.java ? ` · ${s.done} of ${s.java} Java files done${node.dirs.length ? ', subfolders included' : ''}` : '') + '</p>'
+    + `<div class="dv-list">${rows || '<div class="empty">No files here that Code Viewer opens.</div>'}</div></div>`;
+  md.querySelector('h1').textContent = dir ? parts[parts.length - 1] : r.name;
+  md.scrollTop = top;
 }
 function isEditable() {
   const c = S.cur;
@@ -1972,7 +2032,7 @@ const backFile = () => { const p = store.get('backFile:' + S.root, null); return
 $('#backBtn').onclick = () => { const p = backFile(); if (p) go(p); };
 function afterOpen() {
   store.set('last:' + S.root, S.cur.path);
-  if (S.cur.path !== SCRATCH) store.set('backFile:' + S.root, S.cur.path);
+  if (S.cur.path !== SCRATCH && S.cur.kind !== 'dir') store.set('backFile:' + S.root, S.cur.path);
   document.title = S.cur.name + ' · Code Viewer';
   markActive();
   refreshBar();
@@ -1990,19 +2050,20 @@ function afterOpen() {
 function refreshBar() {
   const c = S.cur;
   if (!c) return;
-  const isScratch = c.path === SCRATCH, practice = c.mode === 'practice', rendered = c.kind === 'md' && !c.source && !practice;
+  const isScratch = c.path === SCRATCH, practice = c.mode === 'practice', folder = c.kind === 'dir';
+  const rendered = (c.kind === 'md' && !c.source && !practice) || folder;
   const trying = c.mode === 'try';
   const crumbs = $('#crumbs');
   crumbs.textContent = '';
   if (isScratch) crumbs.innerHTML = '<b>Scratch pad</b>';
   else {
-    const parts = c.path.split('/');
+    const parts = c.path ? c.path.split('/') : [c.name];
     if (parts.length > 1) crumbs.append(Object.assign(document.createElement('span'), { className: 'dirs', textContent: parts.slice(0, -1).join(' / ') + ' /' }));
     const b = document.createElement('b'); b.textContent = parts[parts.length - 1]; crumbs.append(b);
   }
-  crumbs.title = isScratch ? '' : (rootObj().path + '\\' + c.path.replace(/\//g, '\\'));
+  crumbs.title = isScratch ? '' : rootObj().path + (c.path ? '\\' + c.path.replace(/\//g, '\\') : '');
   const drafted = hasDraft(c), editing = isScratch || practice || S.editing.has(c.key);
-  const [label, cls] = isScratch ? ['Scratch · kept in this browser', 'scratch']
+  const [label, cls] = folder ? ['Folder', ''] : isScratch ? ['Scratch · kept in this browser', 'scratch']
     : trying ? ['Try copy · never saved to the file', 'try']
     : practice ? [drafted ? 'Practice · your attempt' : 'Practice · solution hidden', 'practice']
     : rendered ? ['Rendered markdown', '']
@@ -2024,7 +2085,9 @@ function refreshBar() {
   pb.innerHTML = practice ? wideNarrow('Show solution', 'Solution') : 'Practice';
   pb.classList.toggle('practice-on', practice);
   const st = statusOf(c.path), gb = $('#progBtn');
-  gb.hidden = isScratch;
+  gb.hidden = isScratch || folder;
+  $('#copyBtn').hidden = folder;
+  $('#menu [data-act="delete"]').hidden = folder;
   gb.innerHTML = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ ' + wideNarrow('Mark done', 'Done');
   gb.className = st === 'done' ? 'good' : st === 'revise' ? 'warnb' : '';
   $('#editBtn').hidden = isScratch || practice || rendered || trying;
@@ -2070,7 +2133,7 @@ const TRY_NO_SAVE = 'A Try copy is never saved: the copy button beside ⋯ takes
 function toggleEdit() {
   const c = S.cur;
   if (c && c.mode === 'try') return toast(TRY_NO_SAVE);
-  if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source)) return;
+  if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source) || c.kind === 'dir') return;
   if (S.editing.has(c.key)) S.editing.delete(c.key); else S.editing.add(c.key);
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
@@ -2120,6 +2183,7 @@ function stripTrailing(m, c) {
 }
 function resetDraft() {
   const c = S.cur;
+  if (!c || c.kind === 'dir') return;
   if (c.mode === 'practice') {          // it sits beside Next: one stray click must not cost an attempt
     const t = timerOf(c.key);
     return showBanner(`Start this problem over? Your code, the timer (${mmss(t.ms)}) and the hints you opened are cleared.`, [
@@ -3451,11 +3515,14 @@ let nextStay = store.get('nextStay', false);
 const dirOf = p => p.slice(0, p.lastIndexOf('/') + 1);
 
 function step(dir) {
-  const mode = NEXT_MODES[nextMode], here = S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
-  const home = nextStay && here ? dirOf(here) : null, where = home ? ' in this folder' : '';
-  const pos = new Map(S.files.map((f, i) => [f.path, i])), at = here ? pos.get(here) : -1;
+  // from a folder's listing: start where that folder's files start in the tree
+  const inDir = S.cur && S.cur.kind === 'dir', below = inDir && S.cur.path ? S.cur.path + '/' : '';
+  const mode = NEXT_MODES[nextMode], here = inDir ? null : S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
+  const home = nextStay && (here || inDir) ? (inDir ? below : dirOf(here)) : null, where = home !== null ? ' in this folder' : '';
+  const pos = new Map(S.files.map((f, i) => [f.path, i]));
+  const at = inDir ? S.files.findIndex(f => f.path.startsWith(below)) - 0.5 : here ? pos.get(here) : -1;
   const wants = f => mode.tiers.some(([test]) => test(f));
-  let pool = S.files.filter(f => isJava(f) && f.path !== here && (!home || dirOf(f.path) === home) && wants(f));
+  let pool = S.files.filter(f => isJava(f) && f.path !== here && (home === null || dirOf(f.path) === home) && wants(f));
   if (dir < 0) pool.reverse();
   const ahead = f => dir > 0 ? pos.get(f.path) > at : pos.get(f.path) < at;
   const order = pool.filter(ahead).concat(pool.filter(f => !ahead(f)));    // from here on, then wrap
@@ -3839,7 +3906,7 @@ $('#srcBtn').onclick = () => { if (!S.cur) return; S.mdSource = !S.cur.source; o
    attempt or Try copy - or the file itself when rendered markdown is showing */
 $('#copyBtn').onclick = async () => {
   const c = S.cur;
-  if (!c) return;
+  if (!c || c.kind === 'dir') return;
   const text = $('#editor').hidden ? S.originals.get(c.key) : editor.getModel().getValue();
   try { await navigator.clipboard.writeText(text); toast('Copied ' + text.split('\n').length + ' lines'); } catch { toast('Clipboard blocked by the browser'); }
 };

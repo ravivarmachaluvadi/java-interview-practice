@@ -9,6 +9,11 @@ codeview - read, practise and run the practice files (or any folder) in a browse
                                          or quit, and to pick the browser it opens (Open in)
     tools/codeview --install-shortcuts   "Code Viewer" on the Desktop and Start menu (tray version)
     tools/codeview --autostart on|off    start the tray version when Windows starts
+    tools/codeview --open PATH           open the page on this file or folder (any folder:
+                                         one outside the list is added to it)
+    tools/codeview --context-menu on|off "Open in Code Viewer" in File Explorer's right-click
+                                         menu, for files, folders and a folder's empty space
+                                         (Windows 11: under "Show more options", or Shift+right-click)
 
 Starting it again while it is already running just opens a browser tab.
 
@@ -41,7 +46,9 @@ THE PAGE
   Progress   mark each file Done or Revise; counts per folder and overall. A done file
              comes back for review after 3, 7, 21 and 60 days (◷ in the list); Next (Alt+J)
              opens due reviews first, then to-revise, then must-know not done
-  Folders    the folder menu opens any other folder, not just this repo
+  Folders    the folder menu opens any other folder, not just this repo. A folder opened
+             from Explorer's right-click shows a listing: its subfolders and files with
+             their done / revise / must-know marks
   Full screen  the corners button (Alt+Enter) hides the browser's tabs, address and bookmarks
              bars and the page header, for small screens; hold Esc or Alt+Enter to leave
   Offline    the editor and markdown libraries are downloaded once (tools/offline.py), so
@@ -71,9 +78,9 @@ needs the page's X-CodeView header and a same-origin Origin. A web page you happ
 visit cannot make it run or write anything.
 """
 import argparse, atexit, hashlib, itertools, json, logging, logging.handlers, os, pathlib, queue, re, shutil
-import subprocess, sys, tempfile, threading, time, urllib.request, webbrowser
+import subprocess, sys, tempfile, threading, time, urllib.error, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -423,6 +430,36 @@ def resolve(rid, rel):
     if any(part in skip_dirs(base) for part in p.relative_to(base).parts):
         raise ValueError("excluded folder")
     return p
+
+
+def shows(base, p):
+    """True when folder base's tree has p in it: inside base, and no folder on the way is
+    one walk() skips (skip_dirs, or a name starting with a dot)."""
+    if p != base and base not in p.parents:
+        return False
+    parts = p.relative_to(base).parts
+    skip = skip_dirs(base)
+    return not any(d in skip or d.startswith(".") for d in (parts if p.is_dir() else parts[:-1]))
+
+
+def locate(path):
+    """Any file or folder -> {root, path, added}: where the page shows it. Explorer's
+    right-click "Open in Code Viewer" uses it (7 Oct). This repo first, because progress
+    is kept per folder in the list; then the deepest listed folder that shows it; else
+    its folder joins the list. path is "" for the folder itself."""
+    text = str(path).strip().strip('"')
+    if not text:
+        raise ValueError("no path given")
+    p = pathlib.Path(os.path.realpath(os.path.expanduser(text)))
+    if not p.exists():
+        raise ValueError(f"not found: {text}")
+    roots = STATE.roots()
+    for r in roots[:1] + sorted(roots[1:], key=lambda r: -len(pathlib.Path(r["path"]).parts)):
+        base = pathlib.Path(r["path"])
+        if shows(base, p):
+            return {"root": r["id"], "path": "" if p == base else p.relative_to(base).as_posix(), "added": False}
+    r = STATE.add_root(str(p if p.is_dir() else p.parent))
+    return {"root": r["id"], "path": "" if p.is_dir() else p.name, "added": True}
 
 
 def walk(base):
@@ -1180,6 +1217,50 @@ def open_page(url, found=None, launch=subprocess.Popen, fallback=webbrowser.open
     fallback(url)
 
 
+def page_url(port, where=None):
+    """The page's address, opened on {root, path} from locate() when given (path "" is the
+    folder itself, which the page shows as a listing)."""
+    url = f"http://127.0.0.1:{port}/"
+    return url + f"#/{quote(where['root'], safe='')}/{quote(where['path'], safe='/')}" if where else url
+
+
+def locate_running(port, path):
+    """Ask the copy already running on this port where it shows path. It must be that copy
+    that answers: it may add a folder to its list, and it keeps the list in memory."""
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/api/locate", json.dumps({"path": str(path)}).encode(),
+                                 {"Content-Type": "application/json", "X-CodeView": "1"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise ValueError("The Code Viewer that is running is an older copy. "
+                             "Tray icon → Restart Code Viewer once, then try again.") from None
+        try:
+            msg = json.load(e)["error"]
+        except (ValueError, KeyError, TypeError):
+            msg = f"Code Viewer answered {e.code}"
+        raise ValueError(msg) from None
+
+
+def open_in_running(port, path):
+    """Second launch with --open: the running copy finds the place, this one opens the tab."""
+    url = page_url(port, locate_running(port, path))
+    open_page(url)
+    return url
+
+
+def tell(msg):
+    """Say something to whoever started this: a printed line in a console, a message box
+    under pythonw (Explorer's right-click starts it with no console)."""
+    log.info(msg)
+    if sys.stdout is not None or not IS_WIN:
+        print(msg, flush=True)
+        return
+    import ctypes
+    ctypes.windll.user32.MessageBoxW(None, msg, "Code Viewer", 0x30 | 0x10000 | 0x40000)  # warning, foreground, topmost
+
+
 def reveal(rid, rel):
     """Show the file selected in Explorer / Finder (Linux: open its folder)."""
     p = resolve(rid, rel) if rel else root_path(rid)
@@ -1653,6 +1734,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/reveal":
                 reveal(rid, req.get("path", ""))
                 return self.send_json({"ok": True})
+            if path == "/api/locate":           # Explorer's right-click; a POST since it may add a folder
+                return self.send_json(locate(req.get("path", "")))
             if path == "/api/autostart":
                 set_autostart(bool(req.get("enabled")))
                 return self.send_json({"autostart": autostart_on()})
@@ -1694,12 +1777,18 @@ def ensure_icon():
     return ICON
 
 
-def make_shortcut(lnk, args):
-    """A .lnk that runs this script under pythonw (no console) with the given arguments."""
-    ensure_icon()
+def pythonw():
+    """The console-less Python next to this one: shortcuts and the right-click menu use it."""
     pyw = pathlib.Path(sys.executable).with_name("pythonw.exe")
     if not pyw.exists():
         raise ValueError(f"pythonw.exe not found next to {sys.executable}")
+    return pyw
+
+
+def make_shortcut(lnk, args):
+    """A .lnk that runs this script under pythonw (no console) with the given arguments."""
+    ensure_icon()
+    pyw = pythonw()
     script = HERE / "codeview.py"
     ps = (
         "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:CV_LNK)\n"
@@ -1739,6 +1828,47 @@ def set_autostart(enabled):
         STARTUP_LNK.unlink()
 
 
+# Explorer's right-click "Open in Code Viewer" (7 Oct): one verb for every file, one for a
+# folder, one for the empty space inside a folder (%V is that folder). Per user, so no admin.
+# Windows 11 puts verbs like these under "Show more options"; Shift+right-click shows them.
+MENU_BASE = r"Software\Classes"
+MENU_KEYS = (("*", "%1"), ("Directory", "%1"), (r"Directory\Background", "%V"))
+
+
+def context_menu_on(base=MENU_BASE):
+    """True/False on Windows; None where there is no such menu."""
+    if not IS_WIN:
+        return None
+    import winreg
+    try:
+        winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"{base}\*\shell\CodeViewer\command"))
+        return True
+    except OSError:
+        return False
+
+
+def set_context_menu(enabled, base=MENU_BASE):
+    if not IS_WIN:
+        raise ValueError("The right-click menu is only set up on Windows")
+    import winreg
+    hk = winreg.HKEY_CURRENT_USER
+    for cls, arg in MENU_KEYS:
+        key = rf"{base}\{cls}\shell\CodeViewer"
+        if not enabled:
+            for k in (key + r"\command", key):
+                try:
+                    winreg.DeleteKey(hk, k)
+                except FileNotFoundError:
+                    pass
+            continue
+        with winreg.CreateKeyEx(hk, key, 0, winreg.KEY_SET_VALUE) as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, "Open in Code Viewer")
+            winreg.SetValueEx(k, "Icon", 0, winreg.REG_SZ, str(ensure_icon()))
+            winreg.SetValueEx(k, "MultiSelectModel", 0, winreg.REG_SZ, "Single")   # 10 files: no 10 tabs
+        with winreg.CreateKeyEx(hk, key + r"\command", 0, winreg.KEY_SET_VALUE) as k:
+            winreg.SetValueEx(k, "", 0, winreg.REG_SZ, f'"{pythonw()}" "{HERE / "codeview.py"}" --tray --open "{arg}"')
+
+
 def quit_from_tray(icon, server):
     log_stop("Quit from the tray menu")
     icon.stop()
@@ -1758,7 +1888,12 @@ def restart_from_tray(icon, server, argv=None, spawn=start_detached):
     log_stop("Restart from the tray menu")
     server.shutdown()
     server.server_close()
-    args = list((argv or sys.argv)[1:])
+    args, rest = [], iter((argv or sys.argv)[1:])
+    for x in rest:                      # a tray started by a right-click: don't open that path again
+        if x == "--open":
+            next(rest, None)
+        elif not x.startswith("--open="):
+            args.append(x)
     if "--no-open" not in args:
         args.append("--no-open")
     spawn([sys.executable, str(pathlib.Path(__file__).resolve())] + args)
@@ -1770,6 +1905,9 @@ def tray_menu(pystray, server, url):
     which on 5 Oct opened out of sight and froze the tray until it was answered."""
     def toggle_autostart(icon, _item):
         set_autostart(not STARTUP_LNK.exists())
+
+    def toggle_context_menu(icon, _item):
+        set_context_menu(not context_menu_on())
 
     def pick_browser(bid):
         def act(icon, _item):
@@ -1792,6 +1930,8 @@ def tray_menu(pystray, server, url):
         pystray.MenuItem("Open repo folder", lambda *_: open_path(REPO)),
         pystray.MenuItem("Start with Windows", toggle_autostart, checked=lambda _i: bool(autostart_on()),
                          visible=IS_WIN),
+        pystray.MenuItem("Right-click: Open in Code Viewer", toggle_context_menu,
+                         checked=lambda _i: bool(context_menu_on()), visible=IS_WIN),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Restart Code Viewer", lambda icon, _item: restart_from_tray(icon, server)),
         pystray.MenuItem("Quit Code Viewer", pystray.Menu(
@@ -1799,7 +1939,7 @@ def tray_menu(pystray, server, url):
                              lambda icon, _item: quit_from_tray(icon, server)))))
 
 
-def run_tray(server, url, open_browser):
+def run_tray(server, url, open_browser, open_url=None):
     try:
         import pystray
         from PIL import Image
@@ -1821,7 +1961,7 @@ def run_tray(server, url, open_browser):
     def setup(icon):
         icon.visible = True
         if open_browser:
-            open_page(url)
+            open_page(open_url or url)
 
     image = Image.open(ICON) if ICON.exists() else draw_icon()
     tray["icon"] = pystray.Icon("codeview", image, f"Code Viewer - {url}", tray_menu(pystray, server, url))
@@ -1837,6 +1977,10 @@ def main():
                     help="create Desktop and Start-menu shortcuts that start the tray version")
     ap.add_argument("--autostart", choices=["on", "off"],
                     help="start the tray version when Windows starts (or stop doing so)")
+    ap.add_argument("--open", metavar="PATH",
+                    help="open the page on this file or folder (Explorer's right-click menu uses it)")
+    ap.add_argument("--context-menu", choices=["on", "off"],
+                    help='"Open in Code Viewer" in File Explorer\'s right-click menu (or remove it)')
     a = ap.parse_args()
 
     if a.install_shortcuts:
@@ -1847,9 +1991,22 @@ def main():
         set_autostart(a.autostart == "on")
         print(f"  start with Windows: {'on' if autostart_on() else 'off'}  ({STARTUP_LNK})")
         return
+    if a.context_menu:
+        if not IS_WIN:
+            sys.exit("--context-menu is Windows-only.")
+        set_context_menu(a.context_menu == "on")
+        print(f"  right-click \"Open in Code Viewer\": {'on' if context_menu_on() else 'off'}"
+              f"  (HKEY_CURRENT_USER\\{MENU_BASE}\\*\\shell\\CodeViewer and the Directory keys)")
+        return
     setup_log()
     if already_running(a.port):
         url = f"http://127.0.0.1:{a.port}/"
+        if a.open:
+            try:
+                url = open_in_running(a.port, a.open)
+            except (ValueError, OSError) as e:
+                return tell(f"Could not open {a.open} in Code Viewer:\n{e}")
+            return log.info(f"opened {a.open} -> {url}")
         log.info(f"second launch: already running at {url}" + ("" if a.no_open else ", opened a tab"))
         print(f"codeview is already running at {url} - opening it.")
         if not a.no_open:
@@ -1872,15 +2029,22 @@ def main():
     log_start(port, "tray" if a.tray else "console")
     threading.Thread(target=offline.ensure, args=(log.info,), name="offline-copy", daemon=True).start()
     threading.Thread(target=sweep_leftovers, name="clean-up", daemon=True).start()
+    start_url = url
+    if a.open:
+        try:
+            start_url = page_url(port, locate(a.open))
+            log.info(f"opened {a.open} -> {start_url}")
+        except ValueError as e:
+            tell(f"Could not open {a.open} in Code Viewer:\n{e}")
     if a.tray:
-        return run_tray(server, url, not a.no_open)
+        return run_tray(server, url, not a.no_open or bool(a.open), start_url)
 
     print(f"codeview  {url}")
     print(f"  repo {REPO}")
     print(f"  JDK  {server.jdk}  ({JAVA})")
     print("  Ctrl+C to stop", flush=True)
-    if not a.no_open:
-        open_page(url)
+    if not a.no_open or a.open:
+        open_page(start_url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
