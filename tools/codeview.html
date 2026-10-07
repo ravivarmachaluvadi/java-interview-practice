@@ -142,6 +142,7 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 }
 .row:hover { background: var(--hover); }
 .row.active, .row.kb { background: var(--active); }
+#tree .row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .row .caret { width: 12px; flex: none; color: var(--muted); font-size: 10px; transition: transform .12s; text-align: center; }
 .row.open .caret { transform: rotate(90deg); }
 .row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -235,6 +236,11 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .menu.chooser button { font: 13px var(--code); justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu.chooser button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .monaco-editor .extract-hl { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+/* lines changed since the file was opened (IntelliJ's colours): a bar, or a mark where lines went */
+.monaco-editor .chg-add, .monaco-editor .chg-mod { border-left: 3px solid; margin-left: 3px; }
+.monaco-editor .chg-add { border-left-color: #59a869; }
+.monaco-editor .chg-mod { border-left-color: #6897bb; }
+.monaco-editor .chg-del::after { content: ''; position: absolute; left: 3px; top: -5px; border: 5px solid transparent; border-left-color: #c75450; }
 /* right-click on a file or folder in the list (or on the folder page) */
 .menu.rowmenu { position: fixed; top: auto; right: auto; z-index: 40; }
 .menu.rowmenu button { justify-content: flex-start; }
@@ -621,6 +627,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <table>
     <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Hide / show the file list</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Find a file by name</td></tr>
+    <tr><td><kbd>↑</kbd> / <kbd>↓</kbd> in the file list</td><td>Previous / next file, which opens as you go (hold the key and only the one it stops on opens). <kbd>→</kbd> / <kbd>←</kbd> open and close a folder, Enter does too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
@@ -635,6 +642,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Alt</kbd>+<kbd>M</kbd></td><td>Mark done → to revise → not done</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
+    <tr><td>Bar beside the line numbers</td><td>Lines you changed since opening the file in this tab, saved or not: green added, blue changed, red where lines were removed. Forgotten on reload. Edit pressed instead of Try? Compare (<kbd>Alt</kbd>+<kbd>C</kbd>) shows the changes, Reset puts the file back as you opened it (<kbd>Ctrl</kbd>+<kbd>S</kbd> saves that), and Try (<kbd>Alt</kbd>+<kbd>T</kbd>) offers to move them into a Try copy</td></tr>
     <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. "Type a path…" makes any other file</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
@@ -730,6 +738,7 @@ const S = {
   info: {}, roots: [], root: null, tree: null, treeSig: '', files: [], byPath: new Map(), dirs: new Set(), progress: {},
   cur: null, pending: null,
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), tmodels: new Map(), skeletons: new Map(),
+  opened: new Map(),                // each file's text as this tab first read it: what the change bars compare with
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
@@ -990,6 +999,8 @@ function stats(n) {
 function renderTree() {
   if (!S.tree) return;
   const root = $('#tree'), top = root.scrollTop;
+  const had = root.contains(document.activeElement) && document.activeElement.closest('.row.file, .row.dir');   // the ↑ / ↓ keys' row
+  const keep = had && (had.dataset.dir !== undefined ? `.row.dir[data-dir="${CSS.escape(had.dataset.dir)}"]` : `.row.file[data-path="${CSS.escape(had.dataset.path)}"]`);
   stats(S.tree);
   root.textContent = '';
   root.append(fileRow({ path: SCRATCH, name: 'Scratch pad' }, 0, true));
@@ -1000,6 +1011,8 @@ function renderTree() {
   }
   root.scrollTop = top;
   markActive(false);
+  const again = keep && root.querySelector(keep);
+  if (again) again.focus({ preventScroll: true });
   renderFooter();
   if ($('#filter').value.trim()) doFilter();
 }
@@ -1011,6 +1024,7 @@ function build(node, depth, parent) {
     const row = document.createElement('div');
     row.className = 'row dir' + (open ? ' open' : '');
     row.dataset.dir = d.path;
+    row.tabIndex = -1;                       // the ↑ / ↓ keys can rest on it
     row.style.paddingLeft = (8 + depth * 14) + 'px';
     const s = d._s;
     const cnt = filtered ? s.shown : s.done ? `${s.done}/${s.java}` : s.java || '';
@@ -1065,8 +1079,42 @@ function renderFooter() {
     : `${S.files.length} files in ${esc(r ? r.name : '')}`;
 }
 $('#tree').addEventListener('click', e => {
+  clearTimeout(treeOpenTimer);
   const r = e.target.closest('.row.dir');
   if (r) toggleDir(r.dataset.dir);
+});
+
+/* ↑ / ↓ in the file list (7 Oct, Ravi's screenshot): a click left the focus on the row and the
+   arrows only scrolled the list. Now they move along the rows and the file landed on opens, 150 ms
+   after the last press, so a held key opens only the one it stops on. → / ← open and close a
+   folder, and step into it or up to it; Enter on a folder does too (on a file it is the link's). */
+let treeOpenTimer;
+const treeRows = () => [...$('#tree').querySelectorAll('.row.file, .row.dir')].filter(r => r.offsetParent !== null);
+function treeMove(row) {
+  if (!row) return;
+  row.focus();
+  row.scrollIntoView({ block: 'nearest' });
+  clearTimeout(treeOpenTimer);
+  const p = row.dataset.path;
+  if (p !== undefined) treeOpenTimer = setTimeout(() => { if (!S.cur || S.cur.path !== p) go(p); }, 150);
+}
+$('#tree').addEventListener('keydown', e => {
+  if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+  const row = e.target.closest('.row.file, .row.dir');
+  if (!row) return;
+  if (e.key === 'Enter') clearTimeout(treeOpenTimer);
+  const dir = row.dataset.dir, isDir = dir !== undefined, isOpen = isDir && row.classList.contains('open');
+  const up = row.parentElement.id === 'tree' ? null : row.parentElement.previousElementSibling;   // its folder's row
+  let act;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const rows = treeRows(), i = rows.indexOf(row);
+    act = () => treeMove(rows[i + (e.key === 'ArrowDown' ? 1 : -1)]);
+  } else if (e.key === 'ArrowRight' && isDir) act = () => isOpen ? treeMove(row.nextElementSibling.firstElementChild) : toggleDir(dir, true);
+  else if (e.key === 'ArrowLeft') act = () => isOpen ? toggleDir(dir, false) : treeMove(up);
+  else if (e.key === 'Enter' && isDir) act = () => toggleDir(dir, !isOpen);
+  if (!act) return;
+  e.preventDefault();
+  act();
 });
 
 /* Right-click on a file or folder (7 Oct, Ravi): "Open in browser" shows it as a file:/// tab -
@@ -1196,6 +1244,7 @@ async function refreshFromDisk() {
   try { d = await api('/api/file?' + qs({ root: S.root, path: c.path })); } catch { return; }
   if (S.cur !== c || d.hash === S.hashes.get(c.key)) return;
   S.originals.set(c.key, d.text); S.hashes.set(c.key, d.hash);
+  S.opened.set(c.key, d.text);                // changed by something else: not yours to mark
   const m = S.models.get(c.key);
   if (m && editor.getModel() === m) { const vs = editor.saveViewState(); m.setValue(d.text); editor.restoreViewState(vs); }
   else if (c.kind === 'md' && !c.source) renderMd(c.path, d.text);
@@ -1621,8 +1670,9 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyN, toggleMinimap);
   // IntelliJ's Alt+Enter on a missing class; full screen everywhere else, as before
   // (getAction().run(), not trigger(..., null): with a null argument the quick fix menu never opened)
-  editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? editor.getAction('editor.action.quickFix').run() : toggleFull());
-  editor.addCommand(K.Shift | C.F6, () => editor.getAction('editor.action.rename').run());
+  // the keys that act at the caret use typing(): in Compare, its right side (7 Oct)
+  editor.addCommand(K.Alt | C.Enter, () => importFixHere() ? typing().getAction('editor.action.quickFix').run() : toggleFull());
+  editor.addCommand(K.Shift | C.F6, () => typing().getAction('editor.action.rename').run());
   editor.addCommand(K.CtrlCmd | K.Alt | C.KeyV, () => introduceVariable());
   editor.addCommand(K.CtrlCmd | K.Alt | C.KeyL, () => formatFile('the editor key'));
   editor.addCommand(K.Alt | C.KeyP, togglePractice);
@@ -1630,15 +1680,16 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyH, hintButton);
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
   editor.addCommand(K.Alt | C.KeyT, toggleTry);
+  editor.onDidChangeModelContent(debounce(paintChanges, 150));
   editor.addCommand(K.Alt | C.KeyV, toggleVisual);
   // 6 Oct, as in IntelliJ (Ravi's choice): Ctrl+D duplicates the line or the selection; with text
   // selected Alt+J adds the next match as another cursor (no selection: Next file, as before),
   // Alt+Shift+J takes the last one back and Ctrl+Alt+Shift+J selects every match
-  const selected = () => editor.getSelections().some(s => !s.isEmpty());
-  editor.addCommand(K.CtrlCmd | C.KeyD, () => editor.trigger('keyboard', 'editor.action.duplicateSelection', null));
-  editor.addCommand(K.Alt | C.KeyJ, () => selected() ? editor.trigger('keyboard', 'editor.action.addSelectionToNextFindMatch', null) : step(1));
-  editor.addCommand(K.Alt | K.Shift | C.KeyJ, () => editor.getSelections().length > 1 && editor.trigger('keyboard', 'cursorUndo', null));
-  editor.addCommand(K.CtrlCmd | K.Alt | K.Shift | C.KeyJ, () => editor.trigger('keyboard', 'editor.action.selectHighlights', null));
+  const selected = () => typing().getSelections().some(s => !s.isEmpty());
+  editor.addCommand(K.CtrlCmd | C.KeyD, () => typing().trigger('keyboard', 'editor.action.duplicateSelection', null));
+  editor.addCommand(K.Alt | C.KeyJ, () => selected() ? typing().trigger('keyboard', 'editor.action.addSelectionToNextFindMatch', null) : step(1));
+  editor.addCommand(K.Alt | K.Shift | C.KeyJ, () => typing().getSelections().length > 1 && typing().trigger('keyboard', 'cursorUndo', null));
+  editor.addCommand(K.CtrlCmd | K.Alt | K.Shift | C.KeyJ, () => typing().trigger('keyboard', 'editor.action.selectHighlights', null));
   editor.addCommand(K.Alt | C.KeyK, () => step(-1));
   // IntelliJ's navigation (6 Oct, Ravi): Back / Forward, next / previous method. Moving a line
   // goes to Alt+Shift+↑/↓, where IntelliJ has it (Alt+↑/↓ was the editor's own key for it).
@@ -1648,9 +1699,9 @@ function initEditor() {
   editor.addCommand(K.Alt | C.DownArrow, () => gotoMethod(1), '!parameterHintsVisible');
   editor.addCommand(K.Alt | C.UpArrow, () => gotoMethod(-1), '!parameterHintsVisible');
   // trigger(), not getAction().run(): getAction finds neither of these (measured, 6 Oct)
-  editor.addCommand(K.Alt | K.Shift | C.DownArrow, () => editor.trigger('keyboard', 'editor.action.moveLinesDownAction', null));
-  editor.addCommand(K.Alt | K.Shift | C.UpArrow, () => editor.trigger('keyboard', 'editor.action.moveLinesUpAction', null));
-  editor.addCommand(C.F12, () => { nav.armed = Date.now(); editor.trigger('keyboard', 'editor.action.revealDefinition', {}); });
+  editor.addCommand(K.Alt | K.Shift | C.DownArrow, () => typing().trigger('keyboard', 'editor.action.moveLinesDownAction', null));
+  editor.addCommand(K.Alt | K.Shift | C.UpArrow, () => typing().trigger('keyboard', 'editor.action.moveLinesUpAction', null));
+  editor.addCommand(C.F12, () => { nav.armed = Date.now(); typing().trigger('keyboard', 'editor.action.revealDefinition', {}); });
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
   initAssist();
@@ -1742,6 +1793,7 @@ function methodLines(m) {
   return out;
 }
 function gotoMethod(dir) {
+  const editor = typing();
   const m = editor.getModel(), p = editor.getPosition(), c = S.cur;
   if (!m || !p) return;
   if (!c || c.kind !== 'java') return editor.trigger('keyboard', dir > 0 ? 'editor.action.moveLinesDownAction' : 'editor.action.moveLinesUpAction', null);
@@ -1846,6 +1898,8 @@ async function openPath(path) {
   let d;
   try { d = await api('/api/file?' + qs({ root: S.root, path })); } catch (e) { toast(e.message); return; }
   if (S.pending !== token) return;            // another file was clicked meanwhile
+  // the first time this tab reads it, or changed on disk by something else since: the change bars' start
+  if (!S.opened.has(k) || (S.hashes.has(k) && S.hashes.get(k) !== d.hash)) S.opened.set(k, d.text);
   S.originals.set(k, d.text); S.hashes.set(k, d.hash);
   const ext = ((path.match(/\.([^./]+)$/) || [])[1] || '').toLowerCase();
   const kind = ext === 'md' ? 'md' : ext === 'java' ? 'java' : 'text';
@@ -1924,6 +1978,73 @@ function showEditor(m) {
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
   editor.layout();
+  paintChanges();
+}
+
+/* 7 Oct, Ravi: Edit pressed instead of Try, and saved before noticing. A bar beside the line
+   numbers marks every line that differs from the file as this tab first read it (S.opened),
+   saved or not, until a reload: green added, blue changed, red where lines were removed.
+   Compare, Reset and Try work from the same text, so the file can go back as it was. */
+const sameText = (a, b) => a != null && b != null && a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
+const savedSinceOpen = c => !!c && c.mode === 'file' && c.path !== SCRATCH && S.opened.has(c.key)
+  && S.originals.has(c.key) && !sameText(S.opened.get(c.key), S.originals.get(c.key));
+/* [class, first line, last line] in `after`'s numbering: lines added, changed, or removed just above */
+function lineChanges(before, after) {
+  const a = before.split(/\r?\n/), b = after.split(/\r?\n/), out = [];
+  let top = 0, end = 0;
+  while (top < a.length && top < b.length && a[top] === b[top]) top++;                       // same lines at the top
+  while (end < a.length - top && end < b.length - top && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;   // and the bottom
+  const A = a.slice(top, a.length - end), B = b.slice(top, b.length - end), n = A.length, m = B.length;
+  const run = (at, dels, adds) => {           // at: where the run starts in B; a run with both is "changed"
+    const line = top + at + 1, mods = Math.min(dels, adds);
+    if (mods) out.push(['chg-mod', line, line + mods - 1]);
+    if (adds > mods) out.push(['chg-add', line + mods, line + adds - 1]);
+    if (!adds) out.push(['chg-del', Math.min(line, b.length), Math.min(line, b.length)]);
+  };
+  if (!n && !m) return out;
+  if (n * m > 4e6) { run(0, n, m); return out; }               // a huge rewrite: all of it changed
+  const w = m + 1, L = new Uint16Array((n + 1) * w);           // L[i][j]: longest common lines of A[i..] and B[j..]
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i * w + j] = A[i] === B[j] ? L[(i + 1) * w + j + 1] + 1 : Math.max(L[(i + 1) * w + j], L[i * w + j + 1]);
+  let i = 0, j = 0, dels = 0, adds = 0, start = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && A[i] === B[j]) {
+      if (dels || adds) run(start, dels, adds);
+      dels = adds = 0; i++; j++; start = j;
+    } else if (j < m && (i === n || L[i * w + j + 1] >= L[(i + 1) * w + j])) { adds++; j++; }
+    else { dels++; i++; }
+  }
+  if (dels || adds) run(start, dels, adds);
+  return out;
+}
+const CHG_COLOR = { 'chg-add': '#59a869', 'chg-mod': '#6897bb', 'chg-del': '#c75450' };
+let chgMarks = null;
+function paintChanges() {
+  if (!editor) return;
+  const c = S.cur, m = editor.getModel();
+  const base = c && c.mode === 'file' && m && m === S.models.get(c.key) ? S.opened.get(c.key) : null;
+  const runs = base == null || sameText(base, m.getValue()) ? [] : lineChanges(base, m.getValue());
+  chgMarks = chgMarks || editor.createDecorationsCollection();
+  chgMarks.set(runs.map(([cls, from, to]) => ({ range: new monaco.Range(from, 1, to, 1), options: {
+    isWholeLine: true, linesDecorationsClassName: cls,
+    overviewRuler: { color: CHG_COLOR[cls], position: monaco.editor.OverviewRulerLane.Left } } })));
+}
+/* Try's "Move them": the file goes back to the text it had when opened; the copy keeps the changes */
+async function putBack(c) {
+  const k = c.key, text = S.opened.get(k);
+  if (text == null) return;
+  let r;
+  try { r = await api('/api/save', { root: S.root, path: c.path, code: text, base: S.hashes.get(k) }); }
+  catch (e) { return toast(e.message); }
+  if (r.conflict) return toast('The file changed on disk meanwhile (another editor?), so it was left as it is.');
+  S.originals.set(k, text); S.hashes.set(k, r.hash);
+  store.del('draft:' + k);
+  const m = S.models.get(k);
+  if (m && !m.isDisposed()) m.setValue(text);         // the file's own view, behind the Try copy
+  markDraft(c.path);
+  if (S.cur === c) refreshBar();
+  refreshGit();
+  toast('Your changes are in this Try copy. The file is back as you opened it.');
 }
 async function showPractice(token) {
   const c = S.cur, k = c.key;
@@ -2060,16 +2181,22 @@ function toggleTry() {
     const fileView = editor.saveViewState();
     // 5 Oct: Edit pressed instead of Try. An unsaved edit moves into the new copy (showTry
     // starts it from what the editor showed) and the file goes back to its original.
-    const drafted = hasDraft(c), moving = drafted && !store.has('try:' + c.key);
+    const drafted = hasDraft(c), fresh = !store.has('try:' + c.key), moving = drafted && fresh;
+    const saved = fresh && savedSinceOpen(c);    // 7 Oct: saved before noticing - the copy starts with those changes too
     c.mode = 'try'; setMode(c.key, 'try');
     const gone = showTry(fileView);
     if (moving) dropDraft(c);
-    toast((moving ? 'Your unsaved edit moved into this Try copy. The file is back to its original.'
+    toast((moving ? 'Your unsaved edit moved into this Try copy.' + (saved ? '' : ' The file is back to its original.')
                   : 'Try: a copy to change and run freely. The file is never touched; Discard when you are done.'
                     + (drafted ? ' You also have an unsaved edit on the file itself.' : ''))
           + (gone.length ? ` Only one copy at a time, so your try copy of ${gone.join(', ')} was deleted.` : ''));
+    if (saved) showBanner('You saved changes to this file since you opened it. Move them into this Try copy and put the file back as it was?', [
+      ['Move them', () => { hideBanner(); if (S.cur === c && c.mode === 'try') putBack(c); }],
+      ['Keep them in the file', () => hideBanner()],
+    ], 'putback');
     editor.focus();
   } else {
+    if ($('#banner').dataset.kind === 'putback') hideBanner();    // its copy is going: the question is moot
     const k = c.key, m = S.tmodels.get(k), text = m ? m.getValue() : store.get('try:' + k, null);
     store.del('try:' + k);
     if (m) { m.dispose(); S.tmodels.delete(k); }
@@ -2165,12 +2292,15 @@ function refreshBar() {
     : 'Change and run a throwaway copy of this file; the file itself is never changed (Alt+T)';
   tb.classList.toggle('on', trying);
   $('#saveBtn').hidden = isScratch || practice || rendered || trying || !drafted;
-  $('#resetBtn').hidden = rendered || trying || !drafted;
+  const sinceOpen = savedSinceOpen(c);           // saved changes since this tab opened the file
+  $('#resetBtn').hidden = rendered || trying || !(drafted || sinceOpen);
+  $('#resetBtn').title = !drafted && sinceOpen ? 'Put the file back as you opened it (Ctrl+S then saves that)' : 'Throw away your edit';
   $('#runBtn').disabled = c.kind !== 'java' || S.running;
   const cb = $('#compareBtn');
-  const editDraft = !isScratch && !practice && !trying && !rendered && drafted;
+  const editDraft = !isScratch && !practice && !trying && !rendered && (drafted || sinceOpen);
   cb.hidden = !practice && !trying && !editDraft;
   cb.title = trying ? 'Your try copy next to the file, every change marked (Alt+C)'
+    : editDraft && sinceOpen ? 'Your changes next to the file as you opened it, every change marked (Alt+C)'
     : editDraft ? 'Your unsaved edit next to the file on disk, every change marked (Alt+C)'
     : 'Your attempt next to the original solution, differences marked (Alt+C)';
   cb.textContent = S.comparing ? 'Close compare' : 'Compare';
@@ -2260,6 +2390,16 @@ function resetDraft() {
       ['Cancel', () => hideBanner()],
     ], 'reset');
   }
+  if (!hasDraft(c) && savedSinceOpen(c)) {     // 7 Oct: nothing unsaved, but saved changes: the text as opened
+    const m = S.models.get(c.key);
+    if (!m) return;
+    S.editing.add(c.key);                      // an unsaved edit now, so Ctrl+S and Ctrl+Z work on it
+    editor.updateOptions({ readOnly: !isEditable() });
+    applyAssist();
+    replaceAll(m, S.opened.get(c.key));
+    refreshBar();
+    return toast('The file as you opened it is back in the editor, not saved yet: Ctrl+S saves it, Ctrl+Z undoes this.');
+  }
   const m = c.path === SCRATCH ? S.models.get(SCRATCH) : S.models.get(c.key);
   const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : S.originals.get(c.key);
   if (!m || orig == null) return;
@@ -2307,6 +2447,15 @@ function assistOn(c = S.cur) {
 }
 /* the model being typed in: the editor's, or the right side of Compare */
 function shownModel() { return S.comparing && diffEditor ? diffEditor.getModifiedEditor().getModel() : editor.getModel(); }
+/* the editor being typed in, for the keys that act at the caret (7 Oct, Ravi: Ctrl+Shift+Enter
+   in Compare did nothing there - Monaco runs an editor's addCommand keys in every editor, so it
+   completed a line in the hidden editor behind Compare, which holds the same code). Compare's
+   left side is read-only, so a key there changes nothing. */
+function typing() {
+  if (!S.comparing || !diffEditor) return editor;
+  const left = diffEditor.getOriginalEditor();
+  return left.hasTextFocus() ? left : diffEditor.getModifiedEditor();
+}
 function assistModel(model, readOnlyToo) {
   const c = S.cur;
   if (!c || c.kind !== 'java' || !model || model.isDisposed() || model !== shownModel()) return false;
@@ -2413,6 +2562,7 @@ function lineParts(line) {
    the method expects, the one you are on in bold. Anywhere else it still finds a file. It
    runs only when pressed, so typing is untouched. */
 function ctrlP() {
+  const editor = typing();
   const m = editor.getModel(), pos = editor.getPosition(), c = S.cur;
   if (!m || !pos || !c || c.kind !== 'java' || !inCallParens(m, pos)) return focusFilter();
   if (c.mode === 'practice' && !assistPracticeOn())
@@ -2458,6 +2608,7 @@ function matchParen(s) {
   return -1;
 }
 function completeStatement() {
+  const editor = typing();                    // in Compare: its right side
   const m = editor.getModel(), pos = editor.getPosition(), c = S.cur;
   if (!m || !pos || !isEditable()) return;
   if (!c || c.kind !== 'java') return editor.trigger('keyboard', 'editor.action.insertLineBefore', null);   // Monaco's own use of the key
@@ -2494,6 +2645,7 @@ const JAVA_WORDS = new Set(('abstract assert boolean break byte case catch char 
   + 'return short static strictfp super switch synchronized this throw throws transient try void volatile while true false null var').split(' '));
 /* Alt+Enter: a red "cannot find symbol" under the cursor, so the quick fix menu has an import */
 function importFixHere() {
+  const editor = typing();
   const m = editor.getModel(), p = editor.getPosition();
   if (!m || !p || !assistModel(m)) return false;
   return monaco.editor.getModelMarkers({ resource: m.uri, owner: 'javac' }).some(mk => /cannot find symbol/.test(mk.message)
@@ -2504,6 +2656,7 @@ function importFixHere() {
    click elsewhere closes it. The focused row's code is highlighted in the editor.
    Resolves to the row's index, or null. */
 function chooser(title, rows) {
+  const editor = typing();
   return new Promise(resolve => {
     const box = document.createElement('div');
     box.className = 'menu chooser';
@@ -2536,6 +2689,7 @@ function chooser(title, rows) {
    type, a free name and where the declaration goes; this asks the questions, makes the edit
    as one undo step, then opens rename on the new name so a better one can be typed. */
 async function introduceVariable() {
+  const editor = typing();
   const m = editor.getModel();
   if (!m || !assistModel(m)) return toast('Introduce variable (Ctrl+Alt+V) works while editing Java: Edit, Try or the Scratch pad.');
   const sel = editor.getSelection();
@@ -2590,6 +2744,7 @@ async function introduceVariable() {
    undo step - its imports, then the method after the one holding the call - and the new body's
    `return 0;` is selected to type over (a void body: the cursor waits on its empty line). */
 function applyCreate(version, r) {
+  const editor = typing();
   const m = editor.getModel();
   if (!m || m.getVersionId() !== version) return toast('The code changed meanwhile: press Alt+Enter again.');
   const at = m.getPositionAt(r.insertAt), edits = [];
@@ -2653,6 +2808,7 @@ window.addEventListener('keydown', e => {               // capture: before the e
   }
 }, true);
 async function formatFile(how = '') {
+  const editor = typing();
   const m = editor.getModel(), c = S.cur;
   const say = msg => { fmtLog(msg); toast(msg); };
   fmtLog('format started' + (how ? ' by ' + how : ''));
@@ -3271,13 +3427,16 @@ function openCompare() {
   const c = S.cur, trying = c && c.mode === 'try';
   // 5 Oct: also an unsaved edit next to the file, to see what an Edit pressed by mistake changed
   const editDraft = c && c.mode === 'file' && c.path !== SCRATCH && hasDraft(c) && S.models.has(c.key);
+  // 7 Oct: after a Save too - then against the file as this tab opened it
+  const sinceOpen = c && savedSinceOpen(c) && S.models.has(c.key);
   const attempt = c && (trying ? S.tmodels.get(c.key) : c.mode === 'practice' ? S.pmodels.get(c.key)
-                        : editDraft ? S.models.get(c.key) : null);
+                        : editDraft || sinceOpen ? S.models.get(c.key) : null);
   if (!attempt) return;
   closeVisual(false);
   notePeek(c);
-  $('#diffLeft').textContent = trying ? 'The file (unchanged)' : editDraft ? 'The file (on disk)' : 'Original solution';
-  $('#diffRight').textContent = trying ? 'Your try copy' : editDraft ? 'Your edit · not saved' : 'Your attempt';
+  $('#diffLeft').textContent = trying ? 'The file (unchanged)' : sinceOpen ? 'The file when you opened it' : editDraft ? 'The file (on disk)' : 'Original solution';
+  $('#diffRight').textContent = trying ? 'Your try copy' : sinceOpen ? (editDraft ? 'Your changes · not all saved' : 'Your changes · saved')
+    : editDraft ? 'Your edit · not saved' : 'Your attempt';
   if (trying && attempt.getValue() === S.originals.get(c.key)) toast('No differences yet: your try copy matches the file.');
   if (!diffEditor) {
     diffEditor = monaco.editor.createDiffEditor($('#diff'), {
@@ -3290,7 +3449,7 @@ function openCompare() {
     diffEditor.getModifiedEditor().onDidChangeModelContent(() => liveCheck());
   }
   saveView();
-  diffOrig = monaco.editor.createModel(S.originals.get(c.key), attempt.getLanguageId());
+  diffOrig = monaco.editor.createModel((sinceOpen ? S.opened : S.originals).get(c.key), attempt.getLanguageId());
   diffEditor.setModel({ original: diffOrig, modified: attempt });
   diffEditor.updateOptions({ fontSize: S.font, wordWrap: S.wrap ? 'on' : 'off' });
   diffEditor.getModifiedEditor().updateOptions({ readOnly: !isEditable() });   // a locked edit stays locked here too
@@ -3984,7 +4143,7 @@ $('#menu').addEventListener('click', async e => {
   switch (b.dataset.act) {
     case 'wrap': toggleWrap(); break;
     case 'minimap': toggleMinimap(); break;
-    case 'format': editor.focus(); formatFile('the menu'); break;
+    case 'format': typing().focus(); formatFile('the menu'); break;
     case 'bigger': setFont(1); break;
     case 'smaller': setFont(-1); break;
     case 'reveal':
@@ -4069,7 +4228,7 @@ document.addEventListener('keydown', e => {
   else if (mod && k === 'e') { e.preventDefault(); toggleEdit(); }
   else if (mod && k === 's') { e.preventDefault(); save(); }
   // 6 Oct: after a click on Try or Edit the focus is on that button, and Ctrl+Alt+L did nothing
-  else if (mod && e.altKey && e.code === 'KeyL') { e.preventDefault(); editor.focus(); formatFile('the page key'); }
+  else if (mod && e.altKey && e.code === 'KeyL') { e.preventDefault(); typing().focus(); formatFile('the page key'); }
   else if (mod && e.altKey && k === 'arrowleft') { e.preventDefault(); navGo(-1); }
   else if (mod && e.altKey && k === 'arrowright') { e.preventDefault(); navGo(1); }
   else if (e.altKey && e.code === 'KeyP') { e.preventDefault(); togglePractice(); }   // e.code: Option+P types π on a Mac

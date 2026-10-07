@@ -79,12 +79,12 @@ It opens http://127.0.0.1:8025:
 
 | Feature | How |
 |---|---|
-| Read | every file in a tree, coloured as in IntelliJ; `Ctrl+P` finds a file by name; `Ctrl+B` hides the tree |
+| Read | every file in a tree, coloured as in IntelliJ; `↑` / `↓` in the tree open the previous / next file; `Ctrl+P` finds a file by name; `Ctrl+B` hides the tree |
 | Run | `Ctrl+Enter` compiles like `runjava` and ticks each `expected` line that matches |
 | Practice | hides the solution bodies and approach notes; all cases passing marks the file done |
 | Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* |
 | Search | `Ctrl+Shift+F` searches inside every file |
-| Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; **+** creates a file from the template |
+| Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; a bar beside the line numbers marks what you changed since opening the file, saved or not, and **Reset** or **Try** puts the file back; **+** creates a file from the template |
 | Folders | the folder menu opens any other folder, not just this repo |
 
 Progress is stored in `tools/codeview-state.json`, which is git-ignored. The editor loads from a
