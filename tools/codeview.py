@@ -49,6 +49,9 @@ THE PAGE
   Folders    the folder menu opens any other folder, not just this repo. A folder opened
              from Explorer's right-click shows a listing: its subfolders and files with
              their done / revise / must-know marks
+  Right-click a file or folder in the list: Open in browser (a folder as the browser's own
+             "Index of" page, a file as itself), its folder in the browser, a new Code Viewer
+             tab, Show in File Explorer, Copy path. Shift+right-click keeps the browser's menu
   Full screen  the corners button (Alt+Enter) hides the browser's tabs, address and bookmarks
              bars and the page header, for small screens; hold Esc or Alt+Enter to leave
   Offline    the editor and markdown libraries are downloaded once (tools/offline.py), so
@@ -1217,6 +1220,36 @@ def open_page(url, found=None, launch=subprocess.Popen, fallback=webbrowser.open
     fallback(url)
 
 
+def open_local(rid, rel, family, found=None, launch=subprocess.Popen, fallback=webbrowser.open):
+    """Right-click in the page's file list → "Open in browser" (7 Oct): the file, or a folder's
+    "Index of" page, as a file:/// tab. A page served from http may not open file:/// itself,
+    so this starts the browser the page runs in (family "chrome" or "edge"): the tray's Open-in
+    choice with its profile when it is that browser, else that browser as is (it opens the tab
+    in the profile used last), else whichever Chrome or Edge is installed. Not the Windows
+    default: that is Edge here while the work is in Chrome, and for a file:/// folder address
+    webbrowser would open File Explorer."""
+    p = resolve(rid, rel) if rel else root_path(rid)
+    if not p.exists():
+        raise ValueError(f"not found: {rel or p}")
+    url = p.as_uri() + ("/" if p.is_dir() else "")
+    found = browsers() if found is None else found
+    kind = lambda b: b["id"].split("/")[0]                    # noqa: E731
+    chosen = next((b for b in found if b["id"] == STATE.data.get("browser")), None)
+    if chosen and (not family or kind(chosen) == family):
+        cmd = [chosen["exe"], f"--profile-directory={chosen['profile']}", url]
+    else:
+        b = next((b for b in found if kind(b) == family), None) or (found[0] if found else None)
+        if not b:
+            if IS_WIN:
+                raise ValueError("Opening this in a browser needs Chrome or Edge.")
+            fallback(url)
+            return {"ok": True, "url": url}
+        cmd = [b["exe"], url]
+    launch(cmd)
+    log.info(f"opened {url} in {pathlib.Path(cmd[0]).name}")
+    return {"ok": True, "url": url}
+
+
 def page_url(port, where=None):
     """The page's address, opened on {root, path} from locate() when given (path "" is the
     folder itself, which the page shows as a listing)."""
@@ -1734,6 +1767,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/reveal":
                 reveal(rid, req.get("path", ""))
                 return self.send_json({"ok": True})
+            if path == "/api/open-local":       # the file list's right-click → Open in browser
+                return self.send_json(open_local(rid, req.get("path", ""), req.get("browser", "")))
             if path == "/api/locate":           # Explorer's right-click; a POST since it may add a folder
                 return self.send_json(locate(req.get("path", "")))
             if path == "/api/autostart":

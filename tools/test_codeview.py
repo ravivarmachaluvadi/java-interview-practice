@@ -820,6 +820,69 @@ class LocateTest(unittest.TestCase):
         self.assertEqual(codeview.page_url(8025, {"root": "r", "path": ""}), "http://127.0.0.1:8025/#/r/")
 
 
+class OpenLocalTest(unittest.TestCase):
+    """7 Oct: right-click in the page's file list → "Open in browser" shows the file, or a
+    folder's "Index of" page, as a file:/// tab. A page served from http may not open file:///
+    itself, so the server starts the browser the page runs in. Nothing real is launched here."""
+
+    CHROME = {"id": "chrome/Default", "label": "Chrome (Ravi)", "exe": r"C:\c\chrome.exe", "profile": "Default"}
+    CHROME2 = {"id": "chrome/Profile 2", "label": "Chrome (Work)", "exe": r"C:\c\chrome.exe", "profile": "Profile 2"}
+    EDGE = {"id": "edge/Default", "label": "Edge (Ravi)", "exe": r"C:\e\msedge.exe", "profile": "Default"}
+
+    def setUp(self):
+        self.base = pathlib.Path(os.path.realpath(tempfile.mkdtemp(dir=TMP))) / "my root"
+        (self.base / "Sub Dir").mkdir(parents=True)
+        (self.base / "Sub Dir" / "A01_X.java").write_bytes(b"class X {}")
+        codeview.STATE.data = {"roots": [], "progress": {}}
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+        self.launched = []
+
+    def open(self, rel, family="chrome", found=None):
+        return codeview.open_local(self.rid, rel, family, launch=self.launched.append,
+                                   found=[self.CHROME, self.CHROME2, self.EDGE] if found is None else found)
+
+    def test_a_folder_opens_as_its_index_page(self):
+        url = self.open("Sub Dir")["url"]
+        self.assertEqual(url, (self.base / "Sub Dir").as_uri() + "/")
+        self.assertTrue(url.startswith("file:///") and "my%20root/Sub%20Dir/" in url, url)
+        self.assertEqual(self.launched, [[self.CHROME["exe"], url]])
+
+    def test_a_file_opens_itself_and_the_root_is_a_folder_too(self):
+        self.assertEqual(self.open("Sub Dir/A01_X.java")["url"], (self.base / "Sub Dir" / "A01_X.java").as_uri())
+        self.assertEqual(self.open("")["url"], self.base.as_uri() + "/")
+
+    def test_the_tray_choice_of_that_browser_keeps_its_profile(self):
+        codeview.STATE.set_browser("chrome/Profile 2")
+        url = self.open("Sub Dir")["url"]
+        self.assertEqual(self.launched, [[self.CHROME2["exe"], "--profile-directory=Profile 2", url]])
+
+    def test_an_edge_page_opens_edge_even_when_the_tray_picked_chrome(self):
+        codeview.STATE.set_browser("chrome/Default")
+        url = self.open("Sub Dir", family="edge")["url"]
+        self.assertEqual(self.launched, [[self.EDGE["exe"], url]])
+
+    def test_without_that_browser_any_installed_one(self):
+        url = self.open("Sub Dir", family="edge", found=[self.CHROME])["url"]
+        self.assertEqual(self.launched, [[self.CHROME["exe"], url]])
+
+    def test_an_unknown_page_browser_uses_the_tray_choice(self):
+        codeview.STATE.set_browser("edge/Default")
+        url = self.open("Sub Dir", family="")["url"]
+        self.assertEqual(self.launched, [[self.EDGE["exe"], "--profile-directory=Default", url]])
+
+    @unittest.skipUnless(codeview.IS_WIN, "Windows: the default-browser fallback would open Explorer")
+    def test_no_chrome_or_edge_is_an_error(self):
+        with self.assertRaisesRegex(ValueError, "Chrome or Edge"):
+            self.open("Sub Dir", found=[])
+        self.assertEqual(self.launched, [])
+
+    def test_refuses_outside_or_missing(self):
+        for rel in ("../outside", "Sub Dir/missing.java"):
+            with self.subTest(rel), self.assertRaises(ValueError):
+                self.open(rel)
+        self.assertEqual(self.launched, [])
+
+
 @unittest.skipUnless(codeview.IS_WIN, "the right-click menu is Windows-only")
 class ContextMenuTest(unittest.TestCase):
     """The three Explorer right-click entries, written under a throwaway key so the real
@@ -1213,6 +1276,17 @@ class HttpTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             self.post("/api/locate", {"path": str(codeview.REPO / "no_such_folder")})
         self.assertEqual(cm.exception.code, 400)
+
+    def test_open_local_is_wired_and_guarded(self):
+        """A missing path gets open-local's own refusal (400), so no browser ever starts here."""
+        body = {"root": codeview.STATE.roots()[0]["id"], "path": "AAScratches/no_such_folder", "browser": "chrome"}
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/open-local", body)
+        self.assertEqual(cm.exception.code, 400)
+        self.assertIn("not found", json.load(cm.exception)["error"])
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.post("/api/open-local", body, page_header=False)
+        self.assertEqual(cm.exception.code, 403)
 
     def test_second_launch_opens_the_place_the_running_copy_found(self):
         with mock.patch.object(codeview, "open_page") as opened:

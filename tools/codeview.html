@@ -235,6 +235,10 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .menu.chooser button { font: 13px var(--code); justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu.chooser button.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .monaco-editor .extract-hl { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+/* right-click on a file or folder in the list (or on the folder page) */
+.menu.rowmenu { position: fixed; top: auto; right: auto; z-index: 40; }
+.menu.rowmenu button { justify-content: flex-start; }
+.menu.rowmenu .foot { padding: 4px 8px 2px; color: var(--muted); font-size: 11px; }
 /* Prev · Next · mode, joined into one control */
 .seg { display: inline-flex; flex: none; }
 .seg button { border-radius: 0; }
@@ -658,6 +662,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <p>A file marked done comes back for review (◷ in the list) after 3 days, then 7, 21 and 60 days each time you solve it again in practice mode.</p>
   <label id="autostartRow"><input type="checkbox" id="autostartChk"> Start Code Viewer when Windows starts</label>
 </div>
+<div class="menu rowmenu" id="rowMenu" hidden></div>
 <div class="toast" id="toast"></div>
 
 <!-- marked must load before Monaco's AMD loader, or it registers as an AMD module instead of a global.
@@ -1063,6 +1068,66 @@ $('#tree').addEventListener('click', e => {
   const r = e.target.closest('.row.dir');
   if (r) toggleDir(r.dataset.dir);
 });
+
+/* Right-click on a file or folder (7 Oct, Ravi): "Open in browser" shows it as a file:/// tab -
+   a folder as the browser's own "Index of" page. A page served from http may not open file:///
+   (Chrome: "Not allowed to load local resource"), so the server starts the browser this page
+   runs in. Shift+right-click keeps the browser's own menu; so does the Scratch pad row. */
+const pageBrowser = () => {
+  const brands = (navigator.userAgentData && navigator.userAgentData.brands || []).map(b => b.brand);
+  return brands.includes('Microsoft Edge') || /\bEdg\//.test(navigator.userAgent) ? 'edge' : 'chrome';
+};
+const winPath = p => rootObj().path + (p ? '\\' + p.replace(/\//g, '\\') : '');
+async function openLocal(path) {
+  const name = path ? path.split('/').pop() : rootObj().name;
+  try { await api('/api/open-local', { root: S.root, path, browser: pageBrowser() }); }
+  catch (err) { return toast(err.message); }
+  toast(`Opened ${name} in ${pageBrowser() === 'edge' ? 'Edge' : 'Chrome'}`);
+}
+function rowTarget(row) {          // {path, dir} of a list row, or null (Scratch pad, ..)
+  if (!row || row.classList.contains('up')) return null;
+  if (row.dataset.dir !== undefined) return { path: row.dataset.dir, dir: true };
+  const h = row.getAttribute('href') || '';
+  const m = h.match(/^#\/([^/]+)\/(.*)$/);
+  if (!m || m[1] !== S.root) return null;
+  const p = decodeURIComponent(m[2]);
+  return S.byPath.has(p) ? { path: p, dir: false } : S.dirs.has(p) || p === '' ? { path: p, dir: true } : null;
+}
+function showRowMenu(e) {
+  if (e.shiftKey) return;
+  const row = e.target.closest('#tree .row.file, #tree .row.dir, #md .dirview a.row');
+  const t = rowTarget(row);
+  if (!t) return;
+  e.preventDefault();
+  const menu = $('#rowMenu'), folder = t.path.includes('/') ? t.path.slice(0, t.path.lastIndexOf('/')) : '';
+  const items = t.dir ? [['Open in browser', () => openLocal(t.path)], null]
+    : [['Open in browser', () => openLocal(t.path)], ['Open its folder in browser', () => openLocal(folder)], null,
+       ['Open in a new Code Viewer tab', () => window.open(location.pathname + '#/' + S.root + '/' + encPath(t.path), '_blank')]];
+  items.push(['Show in File Explorer', async () => { try { await api('/api/reveal', { root: S.root, path: t.path }); } catch (err) { toast(err.message); } }],
+             ['Copy path', async () => { try { await navigator.clipboard.writeText(winPath(t.path)); toast('Copied ' + winPath(t.path)); } catch { toast('Clipboard blocked by the browser'); } }]);
+  menu.textContent = '';
+  for (const it of items) {
+    if (!it) { menu.append(document.createElement('hr')); continue; }
+    const b = document.createElement('button');
+    b.textContent = it[0];
+    b.onclick = () => { closeRowMenu(); it[1](); };
+    menu.append(b);
+  }
+  menu.append(Object.assign(document.createElement('div'), { className: 'foot', textContent: "Shift+right-click: the browser's own menu" }));
+  menu.hidden = false;
+  const w = menu.offsetWidth, h = menu.offsetHeight;      // keep it inside the window
+  menu.style.left = Math.max(4, Math.min(e.clientX, innerWidth - w - 4)) + 'px';
+  menu.style.top = Math.max(4, e.clientY + h > innerHeight - 4 ? e.clientY - h : e.clientY) + 'px';
+}
+const closeRowMenu = () => { $('#rowMenu').hidden = true; };
+$('#tree').addEventListener('contextmenu', showRowMenu);
+$('#md').addEventListener('contextmenu', showRowMenu);
+document.addEventListener('mousedown', e => { if (!e.target.closest('#rowMenu')) closeRowMenu(); }, true);
+document.addEventListener('keydown', e => {             // capture: also with the focus in the editor
+  if (e.key === 'Escape' && !$('#rowMenu').hidden) { e.preventDefault(); e.stopPropagation(); closeRowMenu(); }
+}, true);
+$('#tree').addEventListener('scroll', closeRowMenu);
+window.addEventListener('blur', closeRowMenu);
 function toggleDir(p, force) {
   const open = force ?? !S.openDirs.has(p);
   if (open) S.openDirs.add(p); else S.openDirs.delete(p);
