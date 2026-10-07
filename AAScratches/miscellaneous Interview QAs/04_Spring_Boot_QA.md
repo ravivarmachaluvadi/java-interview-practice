@@ -764,9 +764,11 @@ Make jobs idempotent anyway — a lock can expire mid-run.
   leak secrets. Put Actuator on a separate port (`management.server.port`) that the
   ingress doesn't route, and protect it with Spring Security.
 
-**Kubernetes probes:** `/actuator/health/liveness` and `/actuator/health/readiness`
-(on automatically on Kubernetes; elsewhere set
-`management.endpoint.health.probes.enabled=true`).
+**Kubernetes probes:** `/actuator/health/liveness` and `/actuator/health/readiness`.
+In Boot 4.1.1 they are on everywhere by default
+(`management.endpoint.health.probes.enabled=true`, checked in the jar metadata). In
+Boot 3 they were switched on automatically only when running on Kubernetes (not
+checked here — the Boot 3 actuator jar isn't in the local repository).
 
 | Probe | Question it answers | Failing it means | Should include the DB? |
 | --- | --- | --- | --- |
@@ -792,9 +794,15 @@ class PaymentGatewayHealth implements HealthIndicator {
 }
 ```
 
+In Boot 4, `HealthIndicator` and `Health` moved to the
+`org.springframework.boot.health.contributor` package (checked in
+`spring-boot-health` 4.1.1).
+
 **Metrics and tracing:** Micrometer provides JVM, HTTP (`http.server.requests`) and
 Hikari pool metrics, plus your own `Counter` and `Timer`. Micrometer Tracing
 (OpenTelemetry or Brave) handles distributed traces.
+
+Full Actuator depth: [07_Spring_Boot_Actuator_QA.md](07_Spring_Boot_Actuator_QA.md).
 
 ---
 
