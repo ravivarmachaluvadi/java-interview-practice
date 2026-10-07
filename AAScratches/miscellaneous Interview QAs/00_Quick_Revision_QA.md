@@ -18,6 +18,19 @@ one-line answer per question — use those tables for quick revision.
 interview files [17_JavaScript_QA.md](17_JavaScript_QA.md) and
 [18_React_QA.md](18_React_QA.md) with one-line answers in their contents tables.
 
+**End-to-end microservices** (one request from the UI through the gateway, services,
+Kafka and databases, plus how it's secured, deployed and monitored) are files 19–27,
+again with one-line answers in each contents table:
+[19 request flow and architecture](19_Microservices_Request_Flow_Architecture_QA.md),
+[20 security](20_Microservices_Security_AuthN_AuthZ_QA.md),
+[21 gateway, rate limiting, resilience](21_API_Gateway_Rate_Limiting_Resilience_QA.md),
+[22 Kafka and events](22_Kafka_Event_Driven_Microservices_QA.md),
+[23 caching and data](23_Caching_Data_Management_QA.md),
+[24 patterns catalogue](24_Microservice_Patterns_Catalogue_QA.md),
+[25 CI/CD](25_CI_CD_Build_Deploy_QA.md),
+[26 observability](26_Observability_Logging_Monitoring_Tracing_QA.md),
+[27 production scenarios](27_Microservices_Production_Scenarios_QA.md).
+
 | Section | Questions | Detailed files |
 | --- | --- | --- |
 | [Spring core and Spring Boot](#spring-core-and-spring-boot) | 1–26 | [04](04_Spring_Boot_QA.md) |
