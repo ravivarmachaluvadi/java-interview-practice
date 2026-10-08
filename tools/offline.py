@@ -1,12 +1,12 @@
 """
-offline - a copy of the page's two libraries on this PC, so codeview works without internet.
+offline - a copy of the page's three libraries on this PC, so codeview works without internet.
 
     ensure(log)      download whatever is missing (codeview runs this in the background at start)
     url_for(lib)     the local /vendor/... URL once the copy is complete, else the cdnjs URL
     path_for(rel)    the file behind /vendor/<rel>, refusing anything outside a complete copy
 
 The copies come from the npm registry, checked against the registry's sha512, and live
-outside the repo (they are 13 MB and OneDrive does not need them):
+outside the repo (they are 17 MB and OneDrive does not need them):
     Windows  %LOCALAPPDATA%\\CodeViewer\\vendor     macOS  ~/Library/Caches/CodeViewer/vendor
     Linux    $XDG_CACHE_HOME/codeview/vendor (~/.cache)
 CODEVIEW_VENDOR overrides the folder. Delete it to make codeview download again.
@@ -18,7 +18,12 @@ Lib = collections.namedtuple("Lib", "npm version member cdn")
 MONACO = Lib("monaco-editor", "0.52.2", "min/", "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min")
 MARKED = Lib("marked", "18.0.14", "lib/marked.umd.js",
              "https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.14/lib/marked.umd.min.js")
-LIBS = (MONACO, MARKED)
+# 8 Oct: draws the ```mermaid blocks in .md pages. 11.15.0 is the newest that cdnjs has; only the
+# one 3.5 MB bundle is kept from the 16 MB package. It sets globalThis.mermaid (not UMD), so the
+# page can load it on demand even after Monaco's AMD loader is in place.
+MERMAID = Lib("mermaid", "11.15.0", "dist/mermaid.min.js",
+              "https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.15.0/mermaid.min.js")
+LIBS = (MONACO, MARKED, MERMAID)
 DONE = ".complete"
 
 

@@ -339,6 +339,32 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .md th, .md td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; vertical-align: top; }
 .md th { background: var(--panel); font-weight: 600; }
 .md blockquote { margin: 0; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--muted); }
+/* ```mermaid blocks drawn as pictures (8 Oct). While one is typed beside its source and is not
+   valid yet, its last picture stays, dimmed, with the reason on top: nothing below it moves. */
+.md .mmd { position: relative; margin: 12px 0; overflow-x: auto; }
+.md .mmd svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.md .mmd.invalid svg { opacity: .45; }
+.md .mmd-note { position: absolute; top: 0; right: 0; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                font-size: 11.5px; color: var(--bad); background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.md .mmd-err { border: 1px solid color-mix(in srgb, var(--bad) 55%, transparent); border-radius: 8px; padding: 8px 12px;
+               background: color-mix(in srgb, var(--bad) 7%, transparent); }
+.md .mmd-err b { color: var(--bad); font-weight: 600; }
+.md .mmd-err pre { margin: 8px 0 0; }
+
+/* ---- the Outline (Alt+O): a .md's headings, docked on the stage's right (8 Oct) ---- */
+.stage { --ol: 0px; }
+.stage.ol-on { --ol: 260px; }
+.stage.ol-on #editor, .stage.ol-on #md { right: var(--ol); }
+#outline { position: absolute; top: 0; right: 0; bottom: 0; width: var(--ol); overflow: auto; box-sizing: border-box;
+           background: var(--panel); border-left: 1px solid var(--border); padding-bottom: 24px; }
+#outline .ol-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; height: 30px; padding: 0 6px 0 12px; background: var(--panel);
+                    font: 600 11px var(--ui); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+#outline .ol-head span { flex: 1; }
+#outline .ol-item { display: block; width: 100%; height: auto; border: 0; border-radius: 0; text-align: left; font: 12.5px/1.45 var(--ui);
+                    padding: 3px 10px 3px calc(12px + var(--d, 0) * 14px); overflow: hidden; text-overflow: ellipsis; }
+#outline .ol-item.top { font-weight: 600; }
+#outline .ol-item.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+#outline .ol-empty { padding: 6px 12px; color: var(--muted); }
 
 /* ---- a folder's listing (Explorer's right-click on a folder) ---- */
 .dirview .dv-path { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin-bottom: 4px; }
@@ -354,8 +380,8 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .dirview .empty { padding: 12px; color: var(--muted); }
 .dirview .empty button { margin: 8px 6px 0 0; }
 /* ---- a .md in source with its rendered page beside it (8 Oct) ---- */
-.stage.split #editor { right: 50%; }
-.stage.split #md { left: 50%; border-left: 1px solid var(--border); padding: 16px 24px 60px; }
+.stage.split #editor { right: calc(50% + var(--ol) / 2); }     /* with the Outline open, the two share what is left */
+.stage.split #md { left: calc(50% - var(--ol) / 2); border-left: 1px solid var(--border); padding: 16px 24px 60px; }
 
 /* ---- output ---- */
 .out { display: flex; flex-direction: column; min-height: 0; background: var(--out-bg); }
@@ -534,6 +560,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <button id="backBtn" hidden></button>
       <button id="srcBtn" hidden title="Show the markdown source">Source</button>
       <button id="previewBtn" hidden>Preview</button>
+      <button id="outlineBtn" hidden title="This page's headings on the right; click one to go there (Alt+O)">Outline</button>
       <button id="practiceBtn" hidden title="Hide the solution and write it yourself (Alt+P)">Practice</button>
       <button id="timerBtn" class="timer" hidden></button>
       <button id="hintBtn" hidden title="Show the hidden notes one at a time, gentlest first (Alt+H)">Hint</button>
@@ -607,6 +634,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <div class="vis-legend" id="visLegend"></div>
       </div>
     </div>
+    <nav id="outline" hidden aria-label="Outline">
+      <div class="ol-head"><span>Outline</span><button class="icon" id="outlineClose" title="Close the outline (Alt+O)">×</button></div>
+      <div id="olList"></div>
+    </nav>
     <article class="md" id="md" hidden></article>
     <div class="hintcard" id="hintCard" hidden>
       <header><span id="hintTitle">Hint</span><button class="icon" id="hintClose" title="Close (the hints stay shown; Hint opens them again)">×</button></header>
@@ -656,6 +687,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. File: any file, such as notes.md (with no type, .md is added). Folder: an empty folder, which the list shows until it has files</td></tr>
     <tr><td>Right-click in the file list</td><td>New file / New folder here (on empty space: at the top level), Rename (the name before the type is selected; unsaved edits, attempts and marks move along), Move to Recycle Bin (files and folders, after a confirm bar), Open in browser, Show in File Explorer, Copy path. Shift+right-click: the browser's own menu</td></tr>
     <tr><td>A .md file</td><td>Opens rendered. Edit (<kbd>Ctrl</kbd>+<kbd>E</kbd>) goes straight to its source, editable, with the rendered page beside it as you type; Preview hides or shows that side (for every .md), Rendered goes back. Each file remembers source or rendered. An unsaved edit shows in Rendered too, with Save</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>O</kbd></td><td>Outline: a .md's headings on the right, with the rendered page, the source, or both. Click one to go there; the section you are in is marked. Stays open for every .md until you close it</td></tr>
+    <tr><td>Diagrams in a .md</td><td>A <code>```mermaid</code> block is drawn as a picture, in the page's light or dark colours. While you type one beside its source, the last picture stays until the new text is a valid diagram; a broken one shows Mermaid's reason and its text</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
@@ -698,6 +731,7 @@ if (location.hostname === 'localhost') { location.replace(location.href.replace(
 const MONACO =new URL('__CV_MONACO__', location.href).href.replace(/\/$/, '');   // absolute: the worker needs it
 const MONACO_LOCAL = MONACO.startsWith(location.origin + '/');
 const PAGE_VERSION = '__CV_VERSION__';      // filled in by the server; compared with /api/info
+const MERMAID_SRC = '__CV_MERMAID__';        // the diagram library: this PC's copy once downloaded, else cdnjs
 const SCRATCH = 'scratch';
 const SCRATCH_TEMPLATE = `// Scratch pad: kept in this browser, never written to a file.
 // Ctrl+Enter compiles and runs it. JDK 25 lets a file be just a main() method.
@@ -754,6 +788,7 @@ const S = {
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), running: false, hits: [], hitIdx: 0, pendingReveal: null,
   mdPreview: store.get('mdPreview', true),   // a .md's source with its rendered page beside it
+  outline: store.get('mdOutline', false),    // a .md's headings docked on the right
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
@@ -809,6 +844,7 @@ function isDark() { return S.theme === 'dark' || (S.theme !== 'light' && matchMe
 function applyTheme() {
   if (S.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = S.theme;
   if (window.monaco) monaco.editor.setTheme(isDark() ? 'idea-dark' : 'idea-light');
+  if (window.mermaid) themeDiagrams();        // only once a page had a diagram (it loads then)
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 applyTheme();
@@ -1844,6 +1880,7 @@ function initEditor() {
   editor.addCommand(K.Alt | C.KeyH, hintButton);
   editor.addCommand(K.Alt | C.KeyC, toggleCompare);
   editor.addCommand(K.Alt | C.KeyT, toggleTry);
+  editor.addCommand(K.Alt | C.KeyO, toggleOutline);
   editor.onDidChangeModelContent(debounce(paintChanges, 150));
   editor.addCommand(K.Alt | C.KeyV, toggleVisual);
   // 6 Oct, as in IntelliJ (Ravi's choice): Ctrl+D duplicates the line or the selection; with text
@@ -2394,6 +2431,7 @@ function afterOpen() {
   if (S.cur.path !== SCRATCH && S.cur.kind !== 'dir') store.set('backFile:' + S.root, S.cur.path);
   document.title = S.cur.name + ' · Code Viewer';
   markActive();
+  paintOutline();                             // before paintSplit: it takes room from the page beside
   paintSplit(true);                           // before refreshBar: it shows whether the page is beside
   refreshBar();
   if (!$('#attemptsPane').hidden) renderAttempts(); else paintAttTab();
@@ -2442,6 +2480,7 @@ function refreshBar() {
   }
   $('#srcBtn').hidden = c.kind !== 'md';
   $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
+  $('#outlineBtn').hidden = c.kind !== 'md';
   const pv = $('#previewBtn'), split = $('.stage').classList.contains('split');
   pv.hidden = c.kind !== 'md' || !c.source;
   pv.classList.toggle('on', split);
@@ -3635,6 +3674,7 @@ function openCompare() {
   S.comparing = true;
   applyAssist();
   paintSplit();                              // the page beside a .md's source would cover the diff
+  paintOutline();
   $('#editor').hidden = true; $('#diffWrap').hidden = false;
   refreshBar();
   diffEditor.getModifiedEditor().focus();
@@ -3645,7 +3685,7 @@ function closeCompare(restore = true) {
   $('#diffWrap').hidden = true;
   diffEditor.setModel(null);                 // detach first: the attempt model must outlive the view
   if (diffOrig) { diffOrig.dispose(); diffOrig = null; }
-  if (restore) { $('#editor').hidden = false; editor.layout(); paintSplit(true); editor.focus(); }
+  if (restore) { $('#editor').hidden = false; paintOutline(); editor.layout(); paintSplit(true); editor.focus(); }
   refreshBar();
 }
 $('#compareBtn').onclick = toggleCompare;
@@ -4115,8 +4155,8 @@ function renderMd(path, text, beside) {
   md.hidden = false;
   md.innerHTML = window.marked ? marked.parse(text, { gfm: true }) : '<pre></pre>';
   if (!window.marked) md.firstChild.textContent = text;
-  const dir = path.split('/').slice(0, -1);
-  md.querySelectorAll('h1, h2, h3, h4').forEach(h => { h.id = slug(h.textContent); });
+  const dir = path.split('/').slice(0, -1), ids = slugger();
+  md.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => { h.id = HID + ids(h.textContent); });
   md.querySelectorAll('a[href]').forEach(a => {
     const href = a.getAttribute('href');
     if (/^[a-z][a-z0-9+.-]*:/i.test(href)) { a.target = '_blank'; a.rel = 'noopener'; return; }
@@ -4129,19 +4169,241 @@ function renderMd(path, text, beside) {
     if (!S.byPath.has(p) && S.byPath.has(p + '/README.md')) p += '/README.md';
     if (S.byPath.has(p)) a.href = '#/' + S.root + '/' + encPath(p);
   });
+  const diagrams = [...md.querySelectorAll('pre > code.language-mermaid')];
+  if (diagrams.length) drawDiagrams(path, diagrams, beside);
   md.querySelectorAll('pre > code').forEach(code => {
     const lang = (code.className.match(/language-(\w+)/) || [])[1];
     if (lang && window.monaco) { code.setAttribute('data-lang', LANG[lang] || lang); monaco.editor.colorizeElement(code, { tabSize: 4 }); }
   });
   md.scrollTop = beside ? top : 0;
+  if (S.outline) paintOutline(text);
 }
+
+/* Heading ids as GitHub makes them, so the contents lists in the notes work: lower case, only
+   letters, digits, _, - and spaces kept, each space a hyphen ("Arrays & Hashing" is
+   arrays--hashing: 14 links in 7 notes went nowhere when runs of hyphens were merged, 8 Oct),
+   and a repeat gets -1, -2. The page's own elements have ids too ("output" is the Run pane),
+   so a heading's id starts with HID; a #link is looked up with it. */
+const HID = 'mdh-';
+const slug = s => s.toLowerCase().trim().replace(/[^\p{L}\p{M}\p{N}_\- ]/gu, '').replace(/ /g, '-');
+function slugger() {
+  const seen = new Map();
+  return s => { const b = slug(s), n = seen.get(b) || 0; seen.set(b, n + 1); return n ? `${b}-${n}` : b; };
+}
+
+/* ------------------------------------------------------------ mermaid diagrams */
+/* 8 Oct, Ravi: "mermaid diagrams ... not there via code viewer" - 53 of them in 31 notes showed
+   as their text. A ```mermaid block is now drawn. The library (3.5 MB) loads the first time a
+   page has one. Pictures are kept by theme + text, so the page beside the source, redrawn
+   150 ms after each key, puts the unchanged ones back at once (no flicker, no jump), and the
+   one being typed keeps its last picture until the new text draws. */
+let mermaidLoad = null, mmdGen = 0, mmdSeq = 0, mmdQueue = Promise.resolve();
+let mmdShown = { path: null, svgs: [] };          // the pictures on the page now, by position
+const mmdCache = new Map();                         // theme + text -> { svg } or { err }
+const mmdTheme = () => isDark() ? 'dark' : 'default';
+function initMermaid() { mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: mmdTheme() }); }
+function loadMermaid() {
+  return mermaidLoad || (mermaidLoad = new Promise((ok, bad) => {
+    const s = document.createElement('script');
+    s.src = MERMAID_SRC;
+    s.onload = () => { try { initMermaid(); ok(); } catch (e) { bad(e); } };
+    s.onerror = () => { mermaidLoad = null; s.remove(); bad(new Error('the diagram library did not load (no internet, and no copy on this PC yet)')); };
+    document.head.append(s);
+  }));
+}
+/* -> { svg } or { err }, or null when the theme changed meanwhile. One at a time: mermaid
+   keeps state while it draws. */
+function drawOne(text, theme) {
+  return mmdQueue = mmdQueue.then(async () => {
+    const key = theme + '\n' + text;
+    if (mmdCache.has(key)) return mmdCache.get(key);
+    if (theme !== mmdTheme()) return null;
+    const id = 'cvm' + (++mmdSeq);
+    let r;
+    try {
+      await mermaid.parse(text);                   // first: a failed render leaves its error picture in <body>
+      r = { svg: (await mermaid.render(id, text)).svg };
+    } catch (e) {
+      r = { err: String((e && e.message) || e).trim() };
+      for (const x of [id, 'd' + id]) { const n = document.getElementById(x); if (n && n.parentElement === document.body) n.remove(); }
+    }
+    if (mmdCache.size >= 200) mmdCache.delete(mmdCache.keys().next().value);
+    mmdCache.set(key, r);
+    return r;
+  }, () => null);
+}
+function drawDiagrams(path, codes, beside) {
+  const gen = ++mmdGen, theme = mmdTheme();
+  const before = mmdShown.path === path ? mmdShown.svgs : [];
+  mmdShown = { path, svgs: [] };
+  const todo = [];
+  codes.forEach((code, i) => {
+    const text = code.textContent, box = document.createElement('div');
+    box.className = 'mmd';
+    code.parentElement.replaceWith(box);
+    const hit = mmdCache.get(theme + '\n' + text);
+    if (hit) return showDiagram(box, i, text, hit, beside, before[i]);
+    if (before[i]) { box.innerHTML = before[i]; mmdShown.svgs[i] = before[i]; }   // until the new one is drawn
+    else { const pre = document.createElement('pre'); pre.textContent = text; box.append(pre); }
+    todo.push([box, i, text]);
+  });
+  if (!todo.length) return;
+  loadMermaid().then(async () => {
+    for (const [box, i, text] of todo) {
+      const r = await drawOne(text, theme);
+      if (gen !== mmdGen) return;                   // the page was drawn again meanwhile
+      showDiagram(box, i, text, r, beside, before[i]);
+    }
+  }, e => {
+    if (gen === mmdGen) for (const [box] of todo) box.insertAdjacentHTML('afterbegin', `<div class="mmd-note">Not drawn: ${esc(e.message)}</div>`);
+  });
+}
+function showDiagram(box, i, text, r, beside, prev) {
+  if (!r) return;
+  box.classList.remove('invalid');
+  if (r.svg) { box.innerHTML = r.svg; mmdShown.svgs[i] = r.svg; return; }
+  if (beside && prev) {                             // half typed: the last picture, dimmed, with the reason
+    box.innerHTML = prev; mmdShown.svgs[i] = prev;
+    box.classList.add('invalid');
+    box.insertAdjacentHTML('afterbegin', `<div class="mmd-note" title="${esc(r.err)}">Not a valid diagram yet: ${esc(r.err.split('\n')[0])}</div>`);
+    return;
+  }
+  box.innerHTML = '<div class="mmd-err"><b>Mermaid could not draw this diagram</b><pre class="why"></pre><pre class="src"></pre></div>';
+  box.querySelector('.why').textContent = r.err;
+  box.querySelector('.src').textContent = text;
+}
+/* the theme button, or Windows switching to dark: draw the shown diagrams in the new colours */
+function themeDiagrams() {
+  initMermaid();
+  const c = S.cur, md = $('#md');
+  if (!c || c.kind !== 'md' || md.hidden || !md.querySelector('.mmd')) return;
+  if ($('.stage').classList.contains('split')) return paintSplit();
+  const m = S.models.get(c.key), top = md.scrollTop;
+  renderMd(c.path, m ? m.getValue() : S.originals.get(c.key) || '');
+  md.scrollTop = top;
+}
+
+/* ------------------------------------------------------------ outline */
+/* 8 Oct, Ravi: "content index ... not there". Outline (Alt+O) docks the headings of a .md on
+   the right, with the rendered page, the source, or both side by side (Ravi's choice of the
+   three). A click goes to that heading on each side that shows; the section you are in is
+   marked as you scroll. It opens and closes on click only: Ravi disliked the Markdown Viewer
+   contents that opened on hover (3 Oct). */
+const OL_W = 260;
+let olHeads = [], olSig = '', mdHold = 0, olPick = null;   // olPick: the entry just clicked
+const outlineWanted = () => { const c = S.cur; return S.outline && !!c && c.kind === 'md' && c.mode === 'file' && !S.comparing; };
+/* [{ depth, text, id, line }] from marked's tokens, so a # line inside a code block is not one */
+function headingsOf(text) {
+  if (!window.marked) return [];
+  const src = text.replace(/\r\n?/g, '\n'), ids = slugger(), tmp = document.createElement('div'), out = [];
+  let pos = 0, line = 1;
+  for (const t of marked.lexer(src)) {
+    const at = src.indexOf(t.raw, pos);
+    if (at < 0) continue;
+    for (let i = pos; i < at; i++) if (src.charCodeAt(i) === 10) line++;
+    if (t.type === 'heading') {
+      tmp.innerHTML = marked.parseInline(t.text);
+      out.push({ depth: t.depth, text: tmp.textContent.trim(), id: HID + ids(tmp.textContent), line });
+    }
+    for (let i = at; i < at + t.raw.length; i++) if (src.charCodeAt(i) === 10) line++;
+    pos = at + t.raw.length;
+  }
+  return out;
+}
+function mdText() {
+  const c = S.cur;
+  if (!c) return '';
+  if (!$('#editor').hidden && editor && editor.getModel()) return editor.getModel().getValue();
+  const m = S.models.get(c.key);
+  return m ? m.getValue() : S.originals.get(c.key) || '';
+}
+function paintOutline(text) {
+  const on = outlineWanted(), st = $('.stage'), was = st.classList.contains('ol-on');
+  st.classList.toggle('ol-on', on);
+  $('#outline').hidden = !on;
+  $('#outlineBtn').classList.toggle('on', on);
+  if (on) {
+    const heads = headingsOf(text ?? mdText()), sig = S.cur.key + JSON.stringify(heads);
+    if (sig !== olSig) {
+      olSig = sig; olHeads = heads;
+      const top = Math.min(...heads.map(h => h.depth));
+      $('#olList').innerHTML = heads.length ? heads.map((h, i) =>
+        `<button class="ol-item${h.depth === top ? ' top' : ''}" style="--d:${h.depth - top}" data-i="${i}" title="${esc(h.text)}">${esc(h.text)}</button>`).join('')
+        : '<div class="ol-empty">No headings in this file.</div>';
+    }
+    markOutline();
+  }
+  if (on !== was && editor) editor.layout();
+}
+function toggleOutline() {
+  const c = S.cur;
+  if (!c || c.kind !== 'md') return toast('Outline is for .md files: it lists their headings.');
+  S.outline = !S.outline; store.set('mdOutline', S.outline);
+  paintOutline();
+  paintSplit(true);                                 // the room beside the source changed
+  refreshBar();
+}
+/* the heading you are in: the last one above the top of the page, or of the editor; at the
+   end, the last one in view. A heading just clicked stays marked until you scroll, even when it
+   cannot reach the top (near the end of the file). */
+const scrollSig = () => ($('#md').hidden ? '' : Math.round($('#md').scrollTop)) + '|'
+  + (editor && !$('#editor').hidden ? Math.round(editor.getScrollTop()) : '');
+function markOutline() {
+  if ($('#outline').hidden || !olHeads.length) return;
+  const md = $('#md');
+  let cur = -1;
+  if (olPick && olPick.at === scrollSig()) cur = olPick.i;
+  else if (!md.hidden) {
+    olPick = null;
+    const top = md.getBoundingClientRect().top + 16, end = md.scrollTop + md.clientHeight >= md.scrollHeight - 2;
+    olHeads.forEach((h, i) => {
+      const el = document.getElementById(h.id), y = el && el.getBoundingClientRect().top;
+      if (el && (y <= top || (end && y < md.getBoundingClientRect().bottom))) cur = i;
+    });
+  } else if (editor && editor.getModel()) {
+    olPick = null;
+    const vr = editor.getVisibleRanges(), ln = vr.length ? vr[0].startLineNumber : 1, last = vr.length ? vr[vr.length - 1].endLineNumber : ln;
+    const end = editor.getScrollTop() + editor.getLayoutInfo().height >= editor.getScrollHeight() - 2;
+    olHeads.forEach((h, i) => { if (h.line <= ln || (end && h.line <= last)) cur = i; });
+  }
+  const items = $('#olList').querySelectorAll('.ol-item');
+  items.forEach((b, i) => b.classList.toggle('on', i === cur));
+  const b = items[cur], ol = $('#outline');
+  if (b && (b.offsetTop < ol.scrollTop + 30 || b.offsetTop + b.offsetHeight > ol.scrollTop + ol.clientHeight))
+    ol.scrollTop = b.offsetTop - ol.clientHeight / 3;
+}
+function scrollMdTo(el) {
+  const md = $('#md');
+  md.scrollTop += el.getBoundingClientRect().top - md.getBoundingClientRect().top - 8;
+}
+function goHeading(h) {
+  if (!h) return;
+  const md = $('#md'), el = document.getElementById(h.id);
+  if (!$('#editor').hidden && editor.getModel()) {
+    mdHold = performance.now() + 300;               // the editor's scroll must not drag the page beside it
+    editor.setPosition({ lineNumber: h.line, column: 1 });
+    editor.setScrollTop(editor.getTopForLineNumber(h.line), monaco.editor.ScrollType.Immediate);   // the heading at the very top, as on the page
+    editor.focus();
+  }
+  if (!md.hidden && el) scrollMdTo(el);
+  olPick = { i: olHeads.indexOf(h), at: scrollSig() };
+  markOutline();
+}
+$('#olList').addEventListener('click', e => { const b = e.target.closest('.ol-item'); if (b) goHeading(olHeads[+b.dataset.i]); });
+$('#outlineBtn').onclick = toggleOutline;
+$('#outlineClose').onclick = toggleOutline;
+let olFrame = 0;
+const markSoon = () => { if (!olFrame) olFrame = requestAnimationFrame(() => { olFrame = 0; markOutline(); }); };
+$('#md').addEventListener('scroll', markSoon, { passive: true });
+
 /* 8 Oct, Ravi chose "side by side": a .md's source on the left, its page on the right, redrawn
    150 ms after typing stops and scrolled in step with the editor (by proportion, not by line).
    The Preview button turns it off for every .md; under 760px of room it stays off. */
 const SPLIT_MIN = 760;
 const splitWanted = () => { const c = S.cur; return !!c && c.kind === 'md' && c.source && c.mode === 'file' && !S.comparing; };
 function paintSplit(fresh) {
-  const on = splitWanted() && S.mdPreview && !$('#editor').hidden && !!editor.getModel() && $('.stage').clientWidth >= SPLIT_MIN;
+  const room = $('.stage').clientWidth - ($('.stage').classList.contains('ol-on') ? OL_W : 0);
+  const on = splitWanted() && S.mdPreview && !$('#editor').hidden && !!editor.getModel() && room >= SPLIT_MIN;
   const was = $('.stage').classList.contains('split');
   $('.stage').classList.toggle('split', on);
   if (on) {
@@ -4158,8 +4420,15 @@ function syncSplitScroll() {
   md.scrollTop = (max > 0 ? editor.getScrollTop() / max : 0) * (md.scrollHeight - md.clientHeight);
 }
 function hookSplit() {                  // once, when the editor exists
-  editor.onDidChangeModelContent(debounce(() => { if ($('.stage').classList.contains('split') && splitWanted()) paintSplit(); }, 150));
-  editor.onDidScrollChange(e => { if (e.scrollTopChanged && $('.stage').classList.contains('split')) syncSplitScroll(); });
+  editor.onDidChangeModelContent(debounce(() => {
+    if ($('.stage').classList.contains('split') && splitWanted()) paintSplit();      // redraws the outline too
+    else if (outlineWanted()) paintOutline();
+  }, 150));
+  editor.onDidScrollChange(e => {
+    if (!e.scrollTopChanged) return;
+    if ($('.stage').classList.contains('split') && performance.now() > mdHold) syncSplitScroll();
+    if (!$('#outline').hidden) markSoon();
+  });
   window.addEventListener('resize', debounce(() => { if (splitWanted()) paintSplit(); }, 150));
 }
 function togglePreview() {
@@ -4168,14 +4437,15 @@ function togglePreview() {
   refreshBar();
   if (S.mdPreview && !$('.stage').classList.contains('split')) toast('Not enough room beside the source: hide the file list (Ctrl+B) or widen the window.');
 }
-const slug = s => s.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
 $('#md').addEventListener('click', e => {
   const nb = e.target.closest('.dirview [data-new]');            // an empty folder's New file / folder here
   if (nb && S.cur && S.cur.kind === 'dir') { setSide(false); return openNewPanel(nb.dataset.new, S.cur.path); }
   const a = e.target.closest('a[href^="#"]');
   if (!a || a.getAttribute('href').startsWith('#/')) return;
   e.preventDefault();
-  const t = document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+  let id = a.getAttribute('href').slice(1);
+  try { id = decodeURIComponent(id); } catch {}
+  const t = document.getElementById(HID + id) || document.getElementById(HID + slug(id));
   if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
@@ -4461,6 +4731,7 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyH') { e.preventDefault(); hintButton(); }
   else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
   else if (e.altKey && e.code === 'KeyT') { e.preventDefault(); toggleTry(); }
+  else if (e.altKey && e.code === 'KeyO') { e.preventDefault(); toggleOutline(); }
   else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); toggleVisual(); }
   else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
   else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }

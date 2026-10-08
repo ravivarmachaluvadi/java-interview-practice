@@ -54,7 +54,7 @@ THE PAGE
              tab, Show in File Explorer, Copy path. Shift+right-click keeps the browser's menu
   Full screen  the corners button (Alt+Enter) hides the browser's tabs, address and bookmarks
              bars and the page header, for small screens; hold Esc or Alt+Enter to leave
-  Offline    the editor and markdown libraries are downloaded once (tools/offline.py), so
+  Offline    the editor, markdown and diagram libraries are downloaded once (tools/offline.py), so
              the page works without internet after the first start with it
   Stopped?   an open tab says so at once, with how to start it again
 
@@ -1803,7 +1803,8 @@ class Handler(BaseHTTPRequestHandler):
                 html = PAGE.read_bytes()
                 body = (html.replace(b"__CV_VERSION__", page_version(html).encode())
                         .replace(b"__CV_MONACO__", offline.url_for(offline.MONACO).encode())
-                        .replace(b"__CV_MARKED__", offline.url_for(offline.MARKED).encode()))
+                        .replace(b"__CV_MARKED__", offline.url_for(offline.MARKED).encode())
+                        .replace(b"__CV_MERMAID__", offline.url_for(offline.MERMAID).encode()))
                 return self.send(200, body, "text/html; charset=utf-8")
             if u.path.startswith("/vendor/"):
                 p = offline.path_for(unquote(u.path[len("/vendor/"):]))

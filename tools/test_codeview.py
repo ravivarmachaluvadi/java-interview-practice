@@ -1304,6 +1304,19 @@ class OfflineTest(unittest.TestCase):
         self.assertEqual(offline.path_for("fake-editor@1.2.3/min/vs/loader.js").read_bytes(), b"// loader")
         self.assertFalse((offline.lib_dir(self.lib) / "README.md").exists())
 
+    def test_mermaid_is_kept_as_one_file(self):
+        """8 Oct: the .md pages draw ```mermaid blocks. Only the one bundle is kept from the
+        16 MB package, and cdnjs serves the same version until it is here."""
+        m = offline.MERMAID
+        self.assertIn(m, offline.LIBS)
+        self.assertEqual(m.cdn, f"https://cdnjs.cloudflare.com/ajax/libs/mermaid/{m.version}/mermaid.min.js")
+        self.assertEqual(offline.url_for(m), m.cdn)
+        raw, integrity = fake_tgz({"package/dist/mermaid.min.js": b"globalThis.mermaid = {}",
+                                   "package/dist/mermaid.esm.mjs": b"not needed"})
+        offline.install(m, raw, integrity)
+        self.assertEqual(offline.url_for(m), f"/vendor/mermaid@{m.version}/dist/mermaid.min.js")
+        self.assertFalse((offline.lib_dir(m) / "dist" / "mermaid.esm.mjs").exists())
+
     def test_wrong_checksum_is_refused(self):
         lib = offline.Lib("other", "1.0.0", "min/", "https://cdn.example/other")
         raw, _ = fake_tgz({"package/min/a.js": b"x"})
