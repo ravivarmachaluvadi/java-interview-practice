@@ -339,17 +339,51 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .md th, .md td { border: 1px solid var(--border); padding: 5px 10px; text-align: left; vertical-align: top; }
 .md th { background: var(--panel); font-weight: 600; }
 .md blockquote { margin: 0; padding: 4px 14px; border-left: 3px solid var(--accent); color: var(--muted); }
+/* code blocks (8 Oct): the editor's own colours; on hover a bar with the language, Copy, and Try
+   for Java that can run here. Alt+Z wraps their long lines, as in the editor. */
+.md .cb { position: relative; margin: 1em 0; }
+.md .cb > pre { margin: 0; }
+.md .cb-bar { position: absolute; top: 6px; right: 6px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity .12s; }
+.md .cb:hover > .cb-bar, .md .cb:focus-within > .cb-bar { opacity: 1; }
+.md .cb-lang { font: 11px var(--code); color: var(--muted); padding: 0 4px; }
+.md .cb-bar button, .md .try-bar button { height: 24px; padding: 0 8px; }
+.md .cb-bar button { background: var(--bg); }
+.md .cb.trying > pre, .md .cb.trying > .cb-bar { display: none; }
+.md.wrap .cb pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Try: the block as a small editor in place, its output under it */
+.md .try { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.md .try-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.md .try-bar button.icon { width: 26px; padding: 0; }
+.md .try-note { font-size: 11.5px; color: var(--muted); }
+.md .try-ed { height: 120px; }
+.md .try-out { border-top: 1px solid var(--border); background: var(--out-bg); padding: 6px 12px 10px; max-height: 320px; overflow: auto; font: 12.5px/1.6 var(--code); }
+.md .try-status { font: 600 12.5px/1.8 var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.md .try-status.ok { color: var(--ok); } .md .try-status.bad { color: var(--bad); } .md .try-status.run { color: var(--accent); }
 /* ```mermaid blocks drawn as pictures (8 Oct). While one is typed beside its source and is not
    valid yet, its last picture stays, dimmed, with the reason on top: nothing below it moves. */
-.md .mmd { position: relative; margin: 12px 0; overflow-x: auto; }
+.md .mmd { position: relative; margin: 12px 0; }
+.md .mmd-scroll { overflow-x: auto; }
 .md .mmd svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
 .md .mmd.invalid svg { opacity: .45; }
-.md .mmd-note { position: absolute; top: 0; right: 0; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.md .mmd-note { position: absolute; top: 0; left: 0; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
                 font-size: 11.5px; color: var(--bad); background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
 .md .mmd-err { border: 1px solid color-mix(in srgb, var(--bad) 55%, transparent); border-radius: 8px; padding: 8px 12px;
                background: color-mix(in srgb, var(--bad) 7%, transparent); }
 .md .mmd-err b { color: var(--bad); font-weight: 600; }
 .md .mmd-err pre { margin: 8px 0 0; }
+/* a diagram's zoom bar on hover, and ⤢ its full-window view */
+.md .mmd-bar { position: absolute; top: 4px; right: 4px; display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 8px;
+               background: var(--panel); border: 1px solid var(--border); opacity: 0; transition: opacity .12s; }
+.md .mmd:hover > .mmd-bar, .md .mmd:focus-within > .mmd-bar { opacity: 1; }
+.md .mmd-bar button { height: 24px; padding: 0 8px; } .md .mmd-bar button.icon { width: 26px; padding: 0; }
+.md .mmd-zl, .mv-zl { min-width: 42px; text-align: center; font: 11.5px var(--code); color: var(--muted); }
+.mmd-view { position: fixed; inset: 0; z-index: 60; display: grid; grid-template-rows: 44px minmax(0, 1fr); background: var(--bg); }
+.mv-head { display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.mv-title { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; }
+.mv-canvas.dragging { cursor: grabbing; }
+.mv-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mv-stage svg { display: block; max-width: none !important; }
 
 /* ---- the Outline (Alt+O): a .md's headings, docked on the stage's right (8 Oct) ---- */
 .stage { --ol: 0px; }
@@ -688,7 +722,8 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td>Right-click in the file list</td><td>New file / New folder here (on empty space: at the top level), Rename (the name before the type is selected; unsaved edits, attempts and marks move along), Move to Recycle Bin (files and folders, after a confirm bar), Open in browser, Show in File Explorer, Copy path. Shift+right-click: the browser's own menu</td></tr>
     <tr><td>A .md file</td><td>Opens rendered. Edit (<kbd>Ctrl</kbd>+<kbd>E</kbd>) goes straight to its source, editable, with the rendered page beside it as you type; Preview hides or shows that side (for every .md), Rendered goes back. Each file remembers source or rendered. An unsaved edit shows in Rendered too, with Save</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>O</kbd></td><td>Outline: a .md's headings on the right, with the rendered page, the source, or both. Click one to go there; the section you are in is marked. Stays open for every .md until you close it</td></tr>
-    <tr><td>Diagrams in a .md</td><td>A <code>```mermaid</code> block is drawn as a picture, in the page's light or dark colours. While you type one beside its source, the last picture stays until the new text is a valid diagram; a broken one shows Mermaid's reason and its text</td></tr>
+    <tr><td>Diagrams in a .md</td><td>A <code>```mermaid</code> block is drawn as a picture, in the page's light or dark colours. While you type one beside its source, the last picture stays until the new text is a valid diagram; a broken one shows Mermaid's reason and its text. On hover: − / + resize it, Fit goes back, ⤢ opens it full window (wheel zooms, drag moves it, double-click switches Fit / 1:1, Esc closes)</td></tr>
+    <tr><td>Code blocks in a .md</td><td>In the editor's colours. On hover: the language and Copy; on Java, ▶ Try turns the block into an editor right there: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs it and the output shows under it (loose statements run inside <code>void main()</code>). Never saved to the note; → Scratch pad moves it there. Not on Spring, JUnit or Lombok code: those libraries are not here. <kbd>Alt</kbd>+<kbd>Z</kbd> wraps long lines</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
@@ -717,6 +752,13 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
 </div>
 <div class="menu rowmenu" id="rowMenu" hidden></div>
 <div class="toast" id="toast"></div>
+<div class="mmd-view" id="mmdView" hidden>
+  <div class="mv-head"><span class="mv-title"></span>
+    <button class="icon" data-v="out" title="Smaller (-)">−</button><span class="mv-zl"></span><button class="icon" data-v="in" title="Bigger (+)">+</button>
+    <button data-v="fit" title="Fit the window (0)">Fit</button><button data-v="one" title="As drawn">1:1</button>
+    <button class="icon" data-v="close" title="Close (Esc)">×</button></div>
+  <div class="mv-canvas"><div class="mv-stage"></div></div>
+</div>
 
 <!-- marked must load before Monaco's AMD loader, or it registers as an AMD module instead of a global.
      The server fills in this PC's copy (tools/offline.py) once it has one, else cdnjs. -->
@@ -748,7 +790,7 @@ const LANG = {
   sql: 'sql', xml: 'xml', json: 'json', yml: 'yaml', yaml: 'yaml', toml: 'ini', ini: 'ini', cfg: 'ini',
   properties: 'ini', txt: 'plaintext', csv: 'plaintext', py: 'python', js: 'javascript', mjs: 'javascript',
   ts: 'typescript', tsx: 'typescript', jsx: 'javascript', go: 'go', rs: 'rust', c: 'c', h: 'cpp', cpp: 'cpp',
-  cs: 'csharp', sh: 'shell', ps1: 'powershell', bat: 'bat', cmd: 'bat', html: 'html', css: 'css', ahk: 'plaintext',
+  cs: 'csharp', sh: 'shell', bash: 'shell', zsh: 'shell', shell: 'shell', console: 'shell', ps1: 'powershell', bat: 'bat', cmd: 'bat', html: 'html', css: 'css', ahk: 'plaintext',
 };
 const STATUS_NEXT = { undefined: 'done', done: 'revise', revise: 'none' };
 
@@ -841,10 +883,11 @@ if (store.get('outCollapsed', false)) { $('#main').classList.add('out-collapsed'
 $('#showSel').value = S.show;
 
 function isDark() { return S.theme === 'dark' || (S.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches); }
+function monacoTheme() { return isDark() ? 'idea-dark' : 'idea-light'; }
 function applyTheme() {
   if (S.theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = S.theme;
-  if (window.monaco) monaco.editor.setTheme(isDark() ? 'idea-dark' : 'idea-light');
-  if (window.mermaid) themeDiagrams();        // only once a page had a diagram (it loads then)
+  if (window.monaco) monaco.editor.setTheme(monacoTheme());
+  rethemeMd();                                // a .md showing: its code and diagrams in the new colours
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 applyTheme();
@@ -1857,6 +1900,11 @@ function initEditor() {
     suggest: { showWords: false, showStatusBar: true }, snippetSuggestions: 'inline', hover: { delay: 500 },
   });
   const K = monaco.KeyMod, C = monaco.KeyCode;
+  /* 8 Oct: a shortcut from addCommand works in every editor on the page, so Ctrl+S, Ctrl+D or
+     Alt+J typed in a Try editor on a rendered .md (context key cvTry) would act on the file.
+     The Compare editor still gets them, as before. (The when strings here use only &&.) */
+  const addCmd = editor.addCommand.bind(editor);
+  editor.addCommand = (kb, fn, when) => addCmd(kb, fn, when ? '!cvTry && ' + when : '!cvTry');
   createCmd = editor.addCommand(0, (_, version, r) => applyCreate(version, r));    // the Create method quick fix runs this
   hookSplit();
   editor.addCommand(K.CtrlCmd | C.Enter, run);
@@ -2086,6 +2134,8 @@ async function openPath(path) {
   saveView();
   closeCompare(false);
   closeVisual(false);
+  closeTry();
+  closeMmdView();
   hideBanner();
   $('#hintCard').hidden = true;
   if (path === SCRATCH) {
@@ -4150,7 +4200,7 @@ const setSrc = (k, on) => { if (on) store.set('src:' + k, 1); else store.del('sr
 /* beside: the rendered page next to the source (paintSplit), so the editor stays and the
    scroll is kept while you type */
 function renderMd(path, text, beside) {
-  const md = $('#md'), top = md.scrollTop;
+  const md = $('#md'), top = md.scrollTop, was = closeTry(), again = was && was.path === path ? was : null;
   if (!beside) $('#editor').hidden = true;
   md.hidden = false;
   md.innerHTML = window.marked ? marked.parse(text, { gfm: true }) : '<pre></pre>';
@@ -4171,12 +4221,167 @@ function renderMd(path, text, beside) {
   });
   const diagrams = [...md.querySelectorAll('pre > code.language-mermaid')];
   if (diagrams.length) drawDiagrams(path, diagrams, beside);
-  md.querySelectorAll('pre > code').forEach(code => {
-    const lang = (code.className.match(/language-(\w+)/) || [])[1];
-    if (lang && window.monaco) { code.setAttribute('data-lang', LANG[lang] || lang); monaco.editor.colorizeElement(code, { tabSize: 4 }); }
-  });
+  md.classList.toggle('wrap', S.wrap);
+  md.querySelectorAll('pre > code').forEach((code, i) => dressBlock(code, i));
   md.scrollTop = beside ? top : 0;
+  if (again) {                                // a Try open on this page stays open on the new one
+    const cb = md.querySelector(`.cb[data-i="${again.i}"]`);
+    if (cb && cb._raw === again.raw) openTry(cb, again);
+  }
   if (S.outline) paintOutline(text);
+}
+
+/* ------------------------------------------------------------ code blocks */
+/* 8 Oct, Ravi's dark-mode screenshots: colorizeElement ran with no theme, so Monaco used its
+   light "vs" colours on the dark page, and switched every editor to "vs" too (the source beside
+   a page turned white). A block now takes the editor's theme and loses the blank last line
+   marked leaves; on hover it shows its language, Copy, and Try for Java that can run here. */
+const LIB_JAVA = [/^\s*import\s+(?!(?:static\s+)?java\.|javax\.(?!persistence|validation|annotation))/m,
+  /@(?:SpringBootApplication|RestController|Controller|Service|Component|Repository|Configuration|Bean|Autowired|Value|Transactional|Entity|Table|Id|Column|GeneratedValue|OneToMany|ManyToOne|ManyToMany|OneToOne|GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping|RequestBody|PathVariable|RequestParam|ResponseStatus|ExceptionHandler|ControllerAdvice|RestControllerAdvice|EnableAutoConfiguration|ConditionalOn\w+|KafkaListener|Cacheable|CacheEvict|Scheduled|Async|EventListener|Test|BeforeEach|AfterEach|ParameterizedTest|Mock|InjectMocks|MockBean|SpyBean|Slf4j|Data|Builder|Getter|Setter|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor|Valid|NotNull|NotBlank)\b/];
+const libraryJava = t => LIB_JAVA.some(r => r.test(t));    // Spring, JUnit, Lombok...: no jars here, so no Try
+function dressBlock(code, i) {
+  const pre = code.parentElement, lang = ((code.className.match(/language-([\w+#.-]+)/) || [])[1] || '').toLowerCase();
+  const raw = code.textContent.replace(/\n$/, '');
+  code.textContent = raw;
+  const cb = document.createElement('div');
+  cb.className = 'cb'; cb.dataset.i = i; cb._raw = raw;
+  pre.replaceWith(cb);
+  cb.innerHTML = '<div class="cb-bar">' + (lang ? `<span class="cb-lang">${esc(lang)}</span>` : '')
+    + '<button class="cb-copy" title="Copy the code">Copy</button>'
+    + (lang === 'java' && !libraryJava(raw) ? '<button class="cb-try" title="Edit and run it here. Never saved to the note">▶ Try</button>' : '') + '</div>';
+  cb.prepend(pre);
+  if (!lang || lang === 'text' || !window.monaco) return;
+  code.setAttribute('data-lang', LANG[lang] || lang);
+  monaco.editor.colorizeElement(code, { tabSize: 4, theme: monacoTheme() }).then(() => {
+    // its spaces come as no-break spaces: plain ones let Alt+Z wrap and copy as typed
+    const w = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) w.currentNode.nodeValue = w.currentNode.nodeValue.replace(/\u00a0/g, ' ');
+  });
+}
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => { const n = text.split('\n').length; toast(`Copied ${n} line${n === 1 ? '' : 's'}`); },
+    () => toast('Clipboard blocked by the browser'));
+}
+/* the buttons on a block or a diagram */
+function blockButton(b) {
+  const cb = b.closest('.cb'), box = b.closest('.mmd');
+  if (b.matches('.cb-copy')) copyText(cb._raw);
+  else if (b.matches('.cb-try')) openTry(cb);
+  else if (b.matches('.try-run')) runTry();
+  else if (b.matches('.try-scratch')) tryToScratch();
+  else if (b.matches('.try-close')) closeTry();
+  else if (box && b.dataset.z === 'expand') openMmdView(box);
+  else if (box && b.dataset.z === 'fit') zoomTo(box, 0);
+  else if (box) zoomStep(box, b.dataset.z === 'in' ? 1 : -1);
+}
+
+/* ------------------------------------------------------------ Try a Java block in place */
+/* 8 Oct, Ravi: "in place rendering beautifully". Try turns a Java block into a small editor
+   where it is; Ctrl+Enter runs it through /api/run as the Scratch pad does, and the output
+   shows under it with the usual ticks. Loose statements go inside void main() (a JDK 25
+   compact file, java.base imported). Never saved to the note: Close puts the block back, and
+   the edit is kept for this tab. One open at a time. */
+let tryOpen = null;                               // { key, path, i, raw, cb, ed, model, running }
+const tryEdits = new Map();                       // file + block + its text -> the edited text
+const DECLARES = [/\bvoid\s+main\s*\(/,
+  /^\s*(?:(?:public|private|protected|static|final|abstract|sealed|non-sealed|strictfp)\s+)*(?:class|interface|enum|record|@interface)\s+\w/m,
+  /^\s*(?!(?:else|return|new|throw|case)\b)(?:@\w+\s+)*(?:(?:public|private|protected|static|final|abstract|synchronized|default)\s+)*(?:<[^>]+>\s+)?[\w$.]+(?:<[^;(){}]*>)?(?:\[\])*\s+(?!(?:if|for|while|switch|catch|synchronized)\b)[\w$]+\s*\([^;{}]*\)\s*(?:throws\s+[\w$.,\s]+)?\{/m];
+/* -> { code to send, line(sent line) -> editor line }: when it declares main(), a type or a
+   method, as it is with the common JDK imports on a line above (the notes leave them out, and
+   only a void main() file gets them by itself; a * import never clashes with its own classes);
+   else inside void main() { }, its imports moved above it */
+const JDK_IMPORTS = 'import java.util.*; import java.util.function.*; import java.util.stream.*; import java.io.*; import java.math.*;';
+function runnable(src) {
+  if (DECLARES.some(r => r.test(src)))
+    return /^\s*package\s/m.test(src) ? { code: src, line: n => n } : { code: JDK_IMPORTS + '\n' + src, line: n => Math.max(n - 1, 1) };
+  const lines = src.split('\n'), imports = [];
+  const body = lines.map((l, i) => { if (/^\s*import\s[\w.\s*]+;\s*$/.test(l)) { imports.push(i + 1); return ''; } return l; });
+  const code = [...imports.map(n => lines[n - 1]), 'void main() {', ...body, '}'].join('\n'), k = imports.length + 1;
+  return { code, line: n => n <= imports.length ? imports[n - 1] : clamp(n - k, 1, lines.length) };
+}
+function openTry(cb, again) {
+  closeTry();
+  const c = S.cur, i = +cb.dataset.i, raw = cb._raw, key = `${c.key}#${i}\n${raw}`;
+  const model = monaco.editor.createModel(tryEdits.get(key) ?? raw, 'java');
+  cb.classList.add('trying');
+  cb.insertAdjacentHTML('beforeend', '<div class="try"><div class="try-bar"><span class="cb-lang">java</span>'
+    + '<span class="try-note">Never saved to the note</span><span class="spacer"></span>'
+    + `<button class="primary try-run" title="${kb('Compile and run it (Ctrl+Enter)')}">▶ Run</button>`
+    + '<button class="try-scratch" title="Move it to the Scratch pad. Ctrl+Z there brings back what it had">→ Scratch pad</button>'
+    + '<button class="icon try-close" title="Close: the block as the note has it (your edit stays for this tab)">×</button></div>'
+    + '<div class="try-ed"></div><div class="try-out" hidden></div></div>');
+  const host = cb.querySelector('.try-ed'), O = monaco.editor.EditorOption, lh = editor.getOption(O.lineHeight);
+  const ed = monaco.editor.create(host, {
+    model, automaticLayout: true, fontFamily: editor.getOption(O.fontFamily), fontSize: S.font, lineHeight: lh,
+    minimap: { enabled: false }, scrollBeyondLastLine: false, wordWrap: S.wrap ? 'on' : 'off', tabSize: 4, trimAutoWhitespace: false,
+    padding: { top: 8, bottom: 8 }, overviewRulerLanes: 0, renderLineHighlight: 'none', stickyScroll: { enabled: false },
+    quickSuggestions: false, suggestOnTriggerCharacters: false, wordBasedSuggestions: 'off', parameterHints: { enabled: false },
+    hover: { enabled: false }, scrollbar: { alwaysConsumeMouseWheel: false }, fixedOverflowWidgets: true,
+  });
+  ed.createContextKey('cvTry', true);            // the main editor's shortcuts stand down in here
+  const fit = () => { host.style.height = clamp(model.getLineCount() * lh + 16, 80, 480) + 'px'; };
+  fit();
+  model.onDidChangeContent(() => { tryEdits.set(key, model.getValue()); fit(); });
+  ed.onKeyDown(e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.keyCode === monaco.KeyCode.Enter) { e.preventDefault(); e.stopPropagation(); runTry(); }
+    else if (e.keyCode === monaco.KeyCode.KeyS) {
+      e.preventDefault(); e.stopPropagation();
+      toast(kb('A Try here is never saved to the note. To change the note: Edit (Ctrl+E).'));
+    }
+  });
+  tryOpen = { key, path: c.path, i, raw, cb, ed, model, running: false };
+  if (again && again.out) { const o = cb.querySelector('.try-out'); o.innerHTML = again.out; o.hidden = false; }
+  if (!again) ed.focus();
+}
+/* -> what was open (with its output's HTML), or null */
+function closeTry() {
+  const t = tryOpen;
+  if (!t) return null;
+  tryOpen = null;
+  const out = t.cb.querySelector('.try-out');
+  t.out = out && !out.hidden ? out.innerHTML : '';
+  t.ed.dispose(); t.model.dispose();
+  t.cb.classList.remove('trying');
+  t.cb.querySelector('.try')?.remove();
+  return t;
+}
+async function runTry() {
+  const t = tryOpen;
+  if (!t || t.running) return;
+  t.running = true;
+  const out = t.cb.querySelector('.try-out'), { code, line } = runnable(t.model.getValue());
+  out.hidden = false;
+  out.innerHTML = '<div class="try-status run"><span class="spin"></span>Compiling and running…</div>';
+  monaco.editor.setModelMarkers(t.model, 'javac', []);
+  let res;
+  try { res = await api('/api/run', { root: S.root, path: null, code, stdin: '', timeout: +$('#timeoutSel').value, main: null }); }
+  catch (e) { res = { phase: 'compile', ok: false, output: e.message }; }
+  t.running = false;
+  if (tryOpen !== t) return;
+  if (res.phase === 'compile' && !res.ok) setMarkers(t.model, res.output || '', res.file, line);
+  const [label, cls] = /^Compiled, but no class declares main/.test(res.output || '') ? ['✓ Compiles · no main() to run', 'ok'] : runStatus(res);
+  const meta = runMeta(res);
+  out.innerHTML = `<div class="try-status ${cls}"></div>`;
+  out.firstChild.textContent = label + (meta ? '  ·  ' + meta : '');
+  out.append(outputLines(res, (text, n) => {
+    const a = document.createElement('a'), to = line(n);
+    a.textContent = text; a.title = 'Go to line ' + to;
+    a.addEventListener('click', () => { if (tryOpen !== t) return; t.ed.revealLineInCenter(to); t.ed.setPosition({ lineNumber: to, column: 1 }); t.ed.focus(); });
+    return a;
+  }));
+}
+/* → Scratch pad: one edit there, so Ctrl+Z gives back what it had */
+function tryToScratch() {
+  const t = tryOpen;
+  if (!t) return;
+  const { code } = runnable(t.model.getValue()), m = scratchModel();
+  m.pushStackElement();
+  m.pushEditOperations([], [{ range: m.getFullModelRange(), text: code }], () => null);
+  m.pushStackElement();
+  closeTry();
+  go(SCRATCH);
+  toast(kb('In the Scratch pad: Ctrl+Enter runs it. Ctrl+Z there brings back what it had.'));
 }
 
 /* Heading ids as GitHub makes them, so the contents lists in the notes work: lower case, only
@@ -4198,7 +4403,7 @@ function slugger() {
    150 ms after each key, puts the unchanged ones back at once (no flicker, no jump), and the
    one being typed keeps its last picture until the new text draws. */
 let mermaidLoad = null, mmdGen = 0, mmdSeq = 0, mmdQueue = Promise.resolve();
-let mmdShown = { path: null, svgs: [] };          // the pictures on the page now, by position
+let mmdShown = { path: null, svgs: [], zoom: [] };  // the pictures on the page now, and their zoom, by position
 const mmdCache = new Map();                         // theme + text -> { svg } or { err }
 const mmdTheme = () => isDark() ? 'dark' : 'default';
 function initMermaid() { mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: mmdTheme() }); }
@@ -4233,17 +4438,17 @@ function drawOne(text, theme) {
   }, () => null);
 }
 function drawDiagrams(path, codes, beside) {
-  const gen = ++mmdGen, theme = mmdTheme();
-  const before = mmdShown.path === path ? mmdShown.svgs : [];
-  mmdShown = { path, svgs: [] };
+  const gen = ++mmdGen, theme = mmdTheme(), same = mmdShown.path === path;
+  const before = same ? mmdShown.svgs : [];
+  mmdShown = { path, svgs: [], zoom: same ? mmdShown.zoom : [] };
   const todo = [];
   codes.forEach((code, i) => {
     const text = code.textContent, box = document.createElement('div');
-    box.className = 'mmd';
+    box.className = 'mmd'; box.dataset.i = i;
     code.parentElement.replaceWith(box);
     const hit = mmdCache.get(theme + '\n' + text);
     if (hit) return showDiagram(box, i, text, hit, beside, before[i]);
-    if (before[i]) { box.innerHTML = before[i]; mmdShown.svgs[i] = before[i]; }   // until the new one is drawn
+    if (before[i]) setPicture(box, i, before[i]);   // until the new one is drawn
     else { const pre = document.createElement('pre'); pre.textContent = text; box.append(pre); }
     todo.push([box, i, text]);
   });
@@ -4261,9 +4466,9 @@ function drawDiagrams(path, codes, beside) {
 function showDiagram(box, i, text, r, beside, prev) {
   if (!r) return;
   box.classList.remove('invalid');
-  if (r.svg) { box.innerHTML = r.svg; mmdShown.svgs[i] = r.svg; return; }
+  if (r.svg) return setPicture(box, i, r.svg);
   if (beside && prev) {                             // half typed: the last picture, dimmed, with the reason
-    box.innerHTML = prev; mmdShown.svgs[i] = prev;
+    setPicture(box, i, prev);
     box.classList.add('invalid');
     box.insertAdjacentHTML('afterbegin', `<div class="mmd-note" title="${esc(r.err)}">Not a valid diagram yet: ${esc(r.err.split('\n')[0])}</div>`);
     return;
@@ -4272,11 +4477,112 @@ function showDiagram(box, i, text, r, beside, prev) {
   box.querySelector('.why').textContent = r.err;
   box.querySelector('.src').textContent = text;
 }
-/* the theme button, or Windows switching to dark: draw the shown diagrams in the new colours */
-function themeDiagrams() {
-  initMermaid();
+/* a picture in its box: in a scroller (a zoomed one scrolls sideways), with its zoom bar */
+function setPicture(box, i, svg) {
+  box.innerHTML = `<div class="mmd-scroll">${svg}</div><div class="mmd-bar">`
+    + '<button class="icon" data-z="out" title="Smaller">−</button><span class="mmd-zl"></span>'
+    + '<button class="icon" data-z="in" title="Bigger">+</button><button data-z="fit" title="As drawn, the page width at most">Fit</button>'
+    + '<button class="icon" data-z="expand" title="Full window: the wheel zooms, drag moves it, Esc closes">⤢</button></div>';
+  mmdShown.svgs[i] = svg;
+  zoomTo(box, mmdShown.zoom[i] || 0);
+}
+/* 8 Oct, Ravi: "any control to resize?" z: a factor of the drawn size, 0 = Fit (mermaid's own:
+   the drawn size, shrunk to the page width) */
+const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3];
+function zoomTo(box, z) {
+  const svg = box.querySelector('.mmd-scroll > svg'), lbl = box.querySelector('.mmd-zl'), w = svg && svg.viewBox.baseVal && svg.viewBox.baseVal.width;
+  if (!svg || !lbl) return;
+  if (!('mw' in svg.dataset)) svg.dataset.mw = svg.style.maxWidth;
+  if (!z || !w) { z = 0; svg.style.width = ''; svg.style.maxWidth = svg.dataset.mw; }
+  else { svg.style.maxWidth = 'none'; svg.style.width = Math.round(w * z) + 'px'; }
+  mmdShown.zoom[+box.dataset.i] = z;
+  lbl.textContent = z ? Math.round(z * 100) + '%' : 'Fit';
+}
+function zoomStep(box, dir) {
+  const svg = box.querySelector('.mmd-scroll > svg'), w = svg && svg.viewBox.baseVal && svg.viewBox.baseVal.width;
+  if (!w) return;
+  const now = svg.getBoundingClientRect().width / w;
+  const next = dir > 0 ? ZOOMS.find(z => z > now * 1.01) : [...ZOOMS].reverse().find(z => z < now * 0.99);
+  if (next) zoomTo(box, next);
+}
+/* ⤢: the diagram alone, full window. The wheel zooms at the pointer, a drag moves it, a
+   double-click switches Fit / 1:1, Esc closes. It shows a copy, so the page stays as it was. */
+const MV = { s: 1, x: 0, y: 0, w: 0, h: 0, drag: null };
+function headingAbove(el) {
+  for (let n = el; n && n.id !== 'md'; n = n.parentElement)
+    for (let p = n.previousElementSibling; p; p = p.previousElementSibling) if (/^H[1-6]$/.test(p.tagName)) return p.textContent.trim();
+  return '';
+}
+function openMmdView(box) {
+  const svg = box.querySelector('.mmd-scroll > svg'), vb = svg && svg.viewBox.baseVal;
+  if (!vb || !vb.width) return;
+  const c = svg.cloneNode(true);
+  c.style.maxWidth = 'none'; c.style.width = vb.width + 'px'; c.style.height = vb.height + 'px';
+  MV.w = vb.width; MV.h = vb.height;
+  $('#mmdView .mv-stage').replaceChildren(c);
+  $('#mmdView .mv-title').textContent = headingAbove(box) || 'Diagram';
+  $('#mmdView').hidden = false;
+  mvFit();
+  window.addEventListener('keydown', mvKeys, true);
+}
+function closeMmdView() {
+  if ($('#mmdView').hidden) return;
+  $('#mmdView').hidden = true;
+  $('#mmdView .mv-stage').replaceChildren();
+  window.removeEventListener('keydown', mvKeys, true);
+}
+function mvPaint() {
+  $('#mmdView .mv-stage').style.transform = `translate(${MV.x}px, ${MV.y}px) scale(${MV.s})`;
+  $('#mmdView .mv-zl').textContent = Math.round(MV.s * 100) + '%';
+}
+function mvFit() {
+  const r = $('#mmdView .mv-canvas').getBoundingClientRect();
+  MV.s = clamp(Math.min(r.width / MV.w, r.height / MV.h) * 0.92, 0.05, 8);
+  MV.x = (r.width - MV.w * MV.s) / 2; MV.y = (r.height - MV.h * MV.s) / 2;
+  mvPaint();
+}
+function mvZoom(f, px, py) {                        // around (px, py) in the canvas, else its middle
+  const r = $('#mmdView .mv-canvas').getBoundingClientRect(), s = clamp(MV.s * f, 0.05, 8);
+  px ??= r.width / 2; py ??= r.height / 2;
+  MV.x = px - (px - MV.x) * s / MV.s; MV.y = py - (py - MV.y) * s / MV.s; MV.s = s;
+  mvPaint();
+}
+function mvKeys(e) {                                // while it is open: before the page's own keys
+  if (e.key === 'Escape') closeMmdView();
+  else if (e.key === '+' || e.key === '=') mvZoom(1.25);
+  else if (e.key === '-' || e.key === '_') mvZoom(0.8);
+  else if (e.key === '0') mvFit();
+  else return;
+  e.preventDefault(); e.stopPropagation();
+}
+{
+  const cv = $('#mmdView .mv-canvas'), at = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  cv.addEventListener('wheel', e => { e.preventDefault(); mvZoom(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), ...at(e)); }, { passive: false });
+  cv.addEventListener('pointerdown', e => {
+    if (e.button) return;
+    MV.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    cv.setPointerCapture(e.pointerId); cv.classList.add('dragging');
+  });
+  cv.addEventListener('pointermove', e => {
+    const d = MV.drag;
+    if (!d || d.id !== e.pointerId) return;
+    MV.x += e.clientX - d.x; MV.y += e.clientY - d.y; d.x = e.clientX; d.y = e.clientY;
+    mvPaint();
+  });
+  const up = e => { if (MV.drag && MV.drag.id === e.pointerId) { MV.drag = null; cv.classList.remove('dragging'); } };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('dblclick', e => { if (Math.abs(MV.s - 1) < 0.01) mvFit(); else mvZoom(1 / MV.s, ...at(e)); });
+  $('#mmdView .mv-head').addEventListener('click', e => {
+    const b = e.target.closest('[data-v]');
+    if (b) ({ in: () => mvZoom(1.25), out: () => mvZoom(0.8), fit: mvFit, one: () => mvZoom(1 / MV.s), close: closeMmdView })[b.dataset.v]();
+  });
+}
+/* the theme button, or Windows switching to dark: draw the shown page again, so its code blocks
+   and diagrams take the new colours (at the start no page shows yet) */
+function rethemeMd() {
+  if (window.mermaid) initMermaid();
   const c = S.cur, md = $('#md');
-  if (!c || c.kind !== 'md' || md.hidden || !md.querySelector('.mmd')) return;
+  if (!c || c.kind !== 'md' || md.hidden) return;
   if ($('.stage').classList.contains('split')) return paintSplit();
   const m = S.models.get(c.key), top = md.scrollTop;
   renderMd(c.path, m ? m.getValue() : S.originals.get(c.key) || '');
@@ -4438,6 +4744,8 @@ function togglePreview() {
   if (S.mdPreview && !$('.stage').classList.contains('split')) toast('Not enough room beside the source: hide the file list (Ctrl+B) or widen the window.');
 }
 $('#md').addEventListener('click', e => {
+  const bb = e.target.closest('.cb-bar button, .try-bar button, .mmd-bar button');
+  if (bb) return blockButton(bb);
   const nb = e.target.closest('.dirview [data-new]');            // an empty folder's New file / folder here
   if (nb && S.cur && S.cur.kind === 'dir') { setSide(false); return openNewPanel(nb.dataset.new, S.cur.path); }
   const a = e.target.closest('a[href^="#"]');
@@ -4501,12 +4809,12 @@ async function run() {
     }
   }
 }
-function setMarkers(model, output, file) {
+function setMarkers(model, output, file, line = n => n) {    // line: javac's line -> the model's (a Try)
   const lines = output.replace(/\r\n?/g, '\n').split('\n'), markers = [];
   lines.forEach((l, i) => {
     const m = l.match(/^(.+?\.java):(\d+): error: (.*)$/);
     if (!m || m[1] !== file) return;
-    const n = +m[2];
+    const n = line(+m[2]);
     if (n < 1 || n > model.getLineCount()) return;
     const caret = (lines[i + 2] || '').indexOf('^');
     const col = caret >= 0 ? caret + 1 : model.getLineFirstNonWhitespaceColumn(n) || 1;
@@ -4530,18 +4838,32 @@ function renderOutput(res) {
       : '<div class="hint">Only .java files run. Open one on the left, or the Scratch pad.</div>';
     return;
   }
-  const secs = ms => (ms / 1000).toFixed(1) + ' s';
-  if (res.phase === 'compile' && !res.ok) { status.textContent = '✗ Did not compile'; status.className = 'status bad'; }
-  else if (res.timedOut) { status.textContent = '⏱ Stopped: timed out'; status.className = 'status bad'; }
-  else if (res.exitCode !== 0) { status.textContent = '✗ Exit code ' + res.exitCode; status.className = 'status bad'; }
-  else { status.textContent = '✓ Ran'; status.className = 'status ok'; }
-  const bits = [];
+  const [label, cls] = runStatus(res);
+  status.textContent = label; status.className = 'status ' + cls;
+  meta.textContent = runMeta(res);
+  out.append(outputLines(res, lineLink));
+  const { pass = 0, fail = 0, unchecked = 0 } = res.checks || {};
+  if (pass + fail) {
+    verdict.hidden = false;
+    verdict.className = 'verdict ' + (fail ? 'bad' : 'ok');
+    verdict.textContent = (fail ? `✗ ${fail} of ${pass + fail} differ from expected` : `✓ ${pass}/${pass} match expected`)
+      + (unchecked ? ` · ${unchecked} not checked` : '');
+    verdict.title = unchecked ? 'Lines with no mark state their expectation in words, or in a shape the checker will not guess at.' : '';
+  }
+}
+const runStatus = res => res.phase === 'compile' && !res.ok ? ['✗ Did not compile', 'bad'] : res.timedOut ? ['⏱ Stopped: timed out', 'bad']
+  : res.exitCode !== 0 ? ['✗ Exit code ' + res.exitCode, 'bad'] : ['✓ Ran', 'ok'];
+function runMeta(res) {
+  const secs = ms => (ms / 1000).toFixed(1) + ' s', bits = [];
   if (res.ran) bits.push('main in ' + res.ran);
   if (res.compileMs != null) bits.push('compile ' + secs(res.compileMs));
   if (res.runMs != null) bits.push('run ' + secs(res.runMs));
   if (res.at) bits.push(res.at.toLocaleTimeString());
-  meta.textContent = bits.join(' · ');
-
+  return bits.join(' · ');
+}
+/* a run's output lines: javac errors and stack frames linked (link(text, line)), results
+   ticked or crossed by the server's verdicts */
+function outputLines(res, link) {
   const lines = (res.output || '').replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
   const frag = document.createDocumentFragment(), verdicts = res.verdicts || [];
   lines.forEach((line, i) => {
@@ -4550,11 +4872,11 @@ function renderOutput(res) {
     let m;
     if ((m = line.match(/^(.+?\.java):(\d+): (error|warning): (.*)$/))) {
       div.classList.add(m[3] === 'error' ? 'err' : 'warn');
-      if (m[1] === res.file) div.append(lineLink(m[1] + ':' + m[2], +m[2]), ': ' + m[3] + ': ' + m[4]);
+      if (m[1] === res.file) div.append(link(m[1] + ':' + m[2], +m[2]), ': ' + m[3] + ': ' + m[4]);
       else div.textContent = line;
     } else if ((m = line.match(/^(\s+at .*\()(.+?\.java):(\d+)(\).*)$/))) {
       div.classList.add('err');
-      if (m[2] === res.file) div.append(m[1], lineLink(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
+      if (m[2] === res.file) div.append(m[1], link(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
     } else if (isErrorLine(line)) {
       div.classList.add('err'); div.textContent = line;
     } else if (verdicts[i] === true || verdicts[i] === false) {
@@ -4569,15 +4891,7 @@ function renderOutput(res) {
   if (!res.output && res.phase === 'run' && !res.timedOut) note('(no output)');
   if (res.truncated) note('… output cut at 256 KB.');
   if (res.timedOut) note(`Stopped after ${$('#timeoutSel').value} s. An infinite loop, or a program waiting for input? (stdin button above)`);
-  out.append(frag);
-  const { pass = 0, fail = 0, unchecked = 0 } = res.checks || {};
-  if (pass + fail) {
-    verdict.hidden = false;
-    verdict.className = 'verdict ' + (fail ? 'bad' : 'ok');
-    verdict.textContent = (fail ? `✗ ${fail} of ${pass + fail} differ from expected` : `✓ ${pass}/${pass} match expected`)
-      + (unchecked ? ` · ${unchecked} not checked` : '');
-    verdict.title = unchecked ? 'Lines with no mark state their expectation in words, or in a shape the checker will not guess at.' : '';
-  }
+  return frag;
 }
 function lineLink(text, n) {
   const a = document.createElement('a');
@@ -4597,6 +4911,8 @@ function toggleWrap() {
   S.wrap = !S.wrap; store.set('wrap', S.wrap);
   editor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
   if (diffEditor) diffEditor.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
+  if (tryOpen) tryOpen.ed.updateOptions({ wordWrap: S.wrap ? 'on' : 'off' });
+  $('#md').classList.toggle('wrap', S.wrap);          // a page's code blocks wrap too (8 Oct)
 }
 function toggleMinimap() {
   S.minimap = !S.minimap; store.set('minimap', S.minimap);
@@ -4732,6 +5048,7 @@ document.addEventListener('keydown', e => {
   else if (e.altKey && e.code === 'KeyC') { e.preventDefault(); toggleCompare(); }
   else if (e.altKey && e.code === 'KeyT') { e.preventDefault(); toggleTry(); }
   else if (e.altKey && e.code === 'KeyO') { e.preventDefault(); toggleOutline(); }
+  else if (e.altKey && e.code === 'KeyZ') { e.preventDefault(); toggleWrap(); }     // a rendered page has no editor focused
   else if (e.altKey && e.code === 'KeyV') { e.preventDefault(); toggleVisual(); }
   else if (e.altKey && e.code === 'KeyJ') { e.preventDefault(); step(1); }
   else if (e.altKey && e.code === 'KeyK') { e.preventDefault(); step(-1); }
