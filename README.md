@@ -16,8 +16,13 @@ and names the canonical problems still missing from that topic.
 | Low-Level Design | 31 | [AAScratches/03-LLD](AAScratches/03-LLD/README.md) |
 | HLD and System Design | 4 | [AAScratches/04-HLD-System-Design](AAScratches/04-HLD-System-Design/README.md) |
 | Spring and Microservices | 8 | [AAScratches/05-Spring-Microservices](AAScratches/05-Spring-Microservices/README.md) |
+| Python | 3 | [AAScratches/09-Python](AAScratches/09-Python/README.md) |
+| JavaScript | 3 | [AAScratches/10-JavaScript](AAScratches/10-JavaScript/README.md) |
+| UI practice (HTML, CSS, JavaScript) | 3 | [AAScratches/11-UI-Practice](AAScratches/11-UI-Practice/README.md) |
 
 Written revision material lives in `06-SQL`, `07-Interview-QA-Memory` and `08-Reference`.
+The Python, JavaScript and UI files use the same header and `expected` lines as the Java ones;
+Code Viewer (below) runs and practises all four kinds.
 
 ## What a file looks like
 
@@ -80,8 +85,9 @@ It opens http://127.0.0.1:8025:
 | Feature | How |
 |---|---|
 | Read | every file in a tree, coloured as in IntelliJ; `↑` / `↓` in the tree open the previous / next file; `Ctrl+P` finds a file by name; `Ctrl+B` hides the tree |
-| Run | `Ctrl+Enter` compiles like `runjava` and ticks each `expected` line that matches |
-| Practice | hides the solution bodies and approach notes; all cases passing marks the file done |
+| Run | `Ctrl+Enter` compiles like `runjava` and ticks each `expected` line that matches; `.py` runs with Python, `.js` with Node.js |
+| UI pages | a `.html` file shows beside its code as you type; `Ctrl+Enter` runs its `<script type="test">` block and ticks each check |
+| Practice | hides the solution bodies and approach notes (Java, Python, JavaScript, a UI page's functions); all cases passing marks the file done |
 | Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* |
 | Search | `Ctrl+Shift+F` searches inside every file |
 | Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; a bar beside the line numbers marks what you changed since opening the file, saved or not, and **Reset** or **Try** puts the file back; **+** creates a file from the template |

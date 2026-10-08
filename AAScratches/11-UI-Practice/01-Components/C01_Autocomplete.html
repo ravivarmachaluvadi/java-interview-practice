@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Autocomplete                                Machine coding | Hard   MUST-KNOW
+=====================================================================
+
+PROBLEM
+  Build a search box with suggestions from a list. When typing pauses for 200 ms, show
+  up to 5 matches, ignoring case: names that start with the text first, then names that
+  contain it, with the matching part in bold. ArrowDown / ArrowUp move a highlight (and wrap
+  around), Enter puts the highlighted name in the box and closes the list, Escape closes it,
+  and an empty box shows nothing.
+
+EXAMPLE
+  type "ap", wait   ->  Apple, Apricot (start with it), Grape, Grapefruit, Pineapple
+  type "berry"      ->  Blackberry, Blueberry, Strawberry
+  Down, Down, Enter ->  the box says "Blueberry", the list is closed
+
+APPROACH  (debounce the input, keep the state, render from it)
+  1. On input: clear the timer and start a new 200 ms one (debounce), which searches.
+  2. search(q): starts-with matches, then contains-only matches, at most 5.
+  3. State: the names shown and the highlighted index (-1: none). render() draws the
+     list from them, splitting each name around the match to bold it.
+  4. keydown: arrows move the index with wrap-around, Enter picks, Escape clears.
+
+KEY INSIGHT
+  Debounce the expensive part (here the search; on a real site the request), not the
+  typing, and keep the highlight as an index into the state rather than as a CSS class
+  to hunt for: arrows, Enter and render then all agree on which name is active.
+
+COMPLEXITY
+  Time  O(n) per search over n names; rendering O(5)
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Fetch the names from a server: cancel the stale request (AbortController), cache by query.
+  - Answers arriving out of order: drop any answer that is not for the latest query.
+  - Accessibility: role="combobox", aria-activedescendant, aria-expanded.
+  - Click on a suggestion: listen for mousedown, not click, which comes after the box blurs.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Autocomplete</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    .ac { position: relative; width: 280px; }
+    #search { width: 100%; box-sizing: border-box; font: inherit; padding: 6px 8px; }
+    #suggestions { position: absolute; left: 0; right: 0; margin: 2px 0 0; padding: 0;
+                   list-style: none; border: 1px solid #bbb; background: #fff; }
+    #suggestions li { padding: 6px 8px; cursor: pointer; }
+    #suggestions li.active { background: #dbe9ff; }
+  </style>
+</head>
+<body>
+  <div class="ac">
+    <input id="search" placeholder="Search fruit" autocomplete="off">
+    <ul id="suggestions" hidden></ul>
+  </div>
+
+  <script>
+    const FRUITS = ['Apple', 'Apricot', 'Avocado', 'Banana', 'Blackberry', 'Blueberry', 'Cherry',
+                    'Grape', 'Grapefruit', 'Mango', 'Pineapple', 'Strawberry'];
+    const input = document.querySelector('#search');
+    const box = document.querySelector('#suggestions');
+    let shown = [];
+    let active = -1;
+    let timer = null;
+
+    function search(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const starts = FRUITS.filter((f) => f.toLowerCase().startsWith(q));
+      const contains = FRUITS.filter((f) => !f.toLowerCase().startsWith(q)
+                                          && f.toLowerCase().includes(q));
+      return starts.concat(contains).slice(0, 5);
+    }
+
+    function render() {
+      const q = input.value.trim().toLowerCase();
+      box.replaceChildren(...shown.map((name, i) => {
+        const li = document.createElement('li');
+        const at = name.toLowerCase().indexOf(q);
+        const bold = document.createElement('b');
+        bold.textContent = name.slice(at, at + q.length);
+        li.append(name.slice(0, at), bold, name.slice(at + q.length));
+        li.className = i === active ? 'active' : '';
+        return li;
+      }));
+      box.hidden = shown.length === 0;
+    }
+
+    function close() {
+      shown = [];
+      active = -1;
+      render();
+    }
+
+    function onInput() {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        shown = search(input.value);
+        active = -1;
+        render();
+      }, 200);
+    }
+
+    function onKey(e) {
+      if (box.hidden) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const n = shown.length;
+        active = active === -1 && step < 0 ? n - 1 : (active + step + n) % n;   // wraps around
+        render();
+      } else if (e.key === 'Enter' && active >= 0) {
+        input.value = shown[active];
+        close();
+      } else if (e.key === 'Escape') {
+        close();
+      }
+    }
+
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', onKey);
+    box.addEventListener('mousedown', (e) => {
+      const li = e.target.closest('li');
+      if (!li) return;
+      input.value = li.textContent;
+      close();
+    });
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const names = () => [...document.querySelectorAll('#suggestions li')]
+      .map((li) => li.textContent);
+    function type(sel, text) {
+      const el = $(sel);
+      el.value = text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function key(name) {
+      $('#search').dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }));
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    type('#search', 'ap');
+    check('case 1 nothing before the pause', names().length, 0);
+    await sleep(300);
+    check('case 2 starts-with first      ', names().join(' '),
+          'Apple Apricot Grape Grapefruit Pineapple');
+    check('case 3 match in bold          ', $('#suggestions li:nth-child(3) b').textContent, 'ap');
+    type('#search', 'berry');
+    await sleep(300);
+    check('case 4 contains               ', names().join(' '), 'Blackberry Blueberry Strawberry');
+    key('ArrowDown');
+    key('ArrowDown');
+    check('case 5 two downs              ', $('#suggestions li.active').textContent, 'Blueberry');
+    key('ArrowUp');
+    key('ArrowUp');
+    check('case 6 up wraps around        ', $('#suggestions li.active').textContent, 'Strawberry');
+    key('ArrowDown');
+    key('ArrowDown');
+    key('Enter');
+    check('case 7 Enter picks it         ', $('#search').value, 'Blueberry');
+    check('case 8 and closes the list    ', $('#suggestions').hidden, true);
+    type('#search', '   ');
+    await sleep(300);
+    check('case 9 blank shows nothing    ', names().length, 0);
+  </script>
+</body>
+</html>

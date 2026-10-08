@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Todo List                                   Machine coding | Medium   MUST-KNOW
+=====================================================================
+
+PROBLEM
+  Build a todo list: type a task and press Enter (or Add) to add it; a checkbox marks it
+  done; x deletes it; "N left" counts the tasks not done. Blank input adds nothing.
+
+EXAMPLE
+  add "Buy milk", add "Write tests", add "   "   ->  2 tasks, "2 left"
+  tick "Buy milk"                               ->  "1 left", its row marked done
+  delete "Buy milk"                             ->  only "Write tests" remains
+
+APPROACH  (an array of tasks, one render, one listener for the list)
+  1. State: an array of { id, text, done }, plus the next id.
+  2. render() rebuilds the list from the array and updates "N left".
+  3. The form's submit event adds (Enter in the input submits the form too).
+  4. ONE click listener on the list handles every row's checkbox and x: it finds the row
+     with closest('li') and acts on its id (event delegation).
+
+KEY INSIGHT
+  Event delegation: rows come and go with every render, so listeners on each row would
+  have to be added again each time. One listener on the parent catches every click as it
+  bubbles up, and the row's data-id says which task it was for.
+
+COMPLEXITY
+  Time  O(n) per render, n tasks
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Filters: All / Active / Done, kept in the URL hash.
+  - Edit a task in place on double-click; Escape cancels.
+  - Persist to localStorage; render only the changed row instead of the whole list.
+  - Why textContent and not innerHTML for the task text: a task named <img onerror=...>.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Todo list</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; max-width: 420px; }
+    form { display: flex; gap: 8px; }
+    #new-todo { flex: 1; font: inherit; padding: 6px 8px; }
+    button { font: inherit; padding: 4px 12px; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    li + li { border-top: 1px solid #ddd; }
+    li label { flex: 1; }
+    li.done span { text-decoration: line-through; color: #888; }
+    .del { border: 0; background: none; color: #c33; font-size: 18px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <form id="add-form">
+    <input id="new-todo" placeholder="What needs doing?" autocomplete="off">
+    <button>Add</button>
+  </form>
+  <ul id="list"></ul>
+  <p id="left"></p>
+
+  <script>
+    const todos = [];
+    let nextId = 1;
+    const input = document.querySelector('#new-todo');
+    const list = document.querySelector('#list');
+
+    function render() {
+      list.replaceChildren(...todos.map((todo) => {
+        const li = document.createElement('li');
+        li.dataset.id = todo.id;
+        li.className = todo.done ? 'done' : '';
+        li.innerHTML = '<label><input type="checkbox"> <span></span></label>'
+          + '<button class="del" title="Delete">&times;</button>';
+        li.querySelector('input').checked = todo.done;
+        li.querySelector('span').textContent = todo.text;
+        return li;
+      }));
+      const left = todos.filter((todo) => !todo.done).length;
+      document.querySelector('#left').textContent = `${left} left`;
+    }
+
+    function addTodo(text) {
+      const clean = text.trim();
+      if (!clean) return;
+      todos.push({ id: nextId++, text: clean, done: false });
+      render();
+    }
+
+    function toggleTodo(id) {
+      const todo = todos.find((t) => t.id === id);
+      todo.done = !todo.done;
+      render();
+    }
+
+    function deleteTodo(id) {
+      todos.splice(todos.findIndex((t) => t.id === id), 1);
+      render();
+    }
+
+    document.querySelector('#add-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      addTodo(input.value);
+      input.value = '';
+    });
+    list.addEventListener('click', (e) => {
+      const row = e.target.closest('li');
+      if (!row) return;
+      if (e.target.matches('.del')) deleteTodo(Number(row.dataset.id));
+      else if (e.target.matches('input[type="checkbox"]')) toggleTodo(Number(row.dataset.id));
+    });
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const tasks = () => [...document.querySelectorAll('#list li span')].map((s) => s.textContent);
+    function add(text) {
+      $('#new-todo').value = text;
+      $('#add-form').requestSubmit();
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    add('Buy milk');
+    add('Write tests');
+    add('   ');
+    check('case 1 blank ignored ', tasks().join(' / '), 'Buy milk / Write tests');
+    check('case 2 counter       ', $('#left').textContent, '2 left');
+    $('#list li:first-child input').click();
+    check('case 3 ticked one    ', $('#left').textContent, '1 left');
+    check('case 4 row marked    ', $('#list li:first-child').className, 'done');
+    $('#list li:first-child .del').click();
+    check('case 5 deleted       ', tasks().join(' / '), 'Write tests');
+    check('case 6 input cleared ', $('#new-todo').value === '', true);
+  </script>
+</body>
+</html>

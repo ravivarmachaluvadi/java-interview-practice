@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Counter                                     Machine coding | Easy
+=====================================================================
+
+PROBLEM
+  Build a counter: a number with -, + and Reset buttons. It starts at 0 and never goes
+  below 0; the - button is disabled while the count is 0.
+
+EXAMPLE
+  start            ->  0, "-" disabled
+  +, +, +          ->  3
+  -                ->  2
+  Reset            ->  0, "-" disabled again
+
+APPROACH  (state, then one render function)
+  1. Keep the count in one variable: the single source of truth.
+  2. render() copies the state into the page: the number, and whether "-" is disabled.
+  3. Each button changes the state, then calls render(). Nothing else touches the DOM.
+
+KEY INSIGHT
+  Change the state, then redraw from it. When every handler goes through render(), the
+  screen can never disagree with the count - the idea React and every UI framework build on.
+
+COMPLEXITY
+  Time  O(1) per click
+  Space O(1)
+
+INTERVIEW FOLLOW-UPS
+  - A step input (add 5 at a time), or a maximum as well as the minimum.
+  - Keep the count across reloads: localStorage on every change, read it at start.
+  - Several counters on one page: a makeCounter(element) function, state per instance.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Counter</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    .counter { display: inline-flex; align-items: center; gap: 12px; }
+    #count { min-width: 3ch; text-align: center; font-size: 28px; font-weight: 600; }
+    button { font: inherit; padding: 4px 14px; border-radius: 6px; border: 1px solid #999; }
+    button:disabled { opacity: 0.4; }
+  </style>
+</head>
+<body>
+  <div class="counter">
+    <button id="minus" aria-label="Decrease">-</button>
+    <span id="count" aria-live="polite">0</span>
+    <button id="plus" aria-label="Increase">+</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <script>
+    let count = 0;
+    const countEl = document.querySelector('#count');
+    const minusBtn = document.querySelector('#minus');
+
+    function render() {
+      countEl.textContent = count;
+      minusBtn.disabled = count === 0;
+    }
+
+    function change(by) {
+      count = Math.max(0, count + by);
+      render();
+    }
+
+    function reset() {
+      count = 0;
+      render();
+    }
+
+    document.querySelector('#plus').addEventListener('click', () => change(1));
+    minusBtn.addEventListener('click', () => change(-1));
+    document.querySelector('#reset').addEventListener('click', reset);
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const click = (sel) => $(sel).click();
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 starts at     ', $('#count').textContent, '0');
+    check('case 2 minus disabled', $('#minus').disabled, true);
+    click('#plus');
+    click('#plus');
+    click('#plus');
+    check('case 3 three plus    ', $('#count').textContent, '3');
+    click('#minus');
+    check('case 4 one minus     ', $('#count').textContent, '2');
+    click('#reset');
+    check('case 5 reset         ', $('#count').textContent, '0');
+    click('#minus');
+    check('case 6 never below 0 ', $('#count').textContent, '0');
+  </script>
+</body>
+</html>
