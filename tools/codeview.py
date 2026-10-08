@@ -368,6 +368,17 @@ class State:
             self.save()
             return entry
 
+    def move_progress(self, rid, old, new):
+        """Rename (8 Oct): old's entry, or every entry under folder old, moves to new."""
+        key = self.root(rid)["path"]
+        with self.lock:
+            files = self.data["progress"].get(key) or {}
+            moved = [k for k in files if k == old or k.startswith(old + "/")]
+            for k in moved:
+                files[new + k[len(old):]] = files.pop(k)
+            if moved:
+                self.save()
+
     def restore_progress(self, rid, rel, entry):
         """Put an entry back exactly as /api/progress returned it: the page's Undo after a
         peek, since marking revise drops r and t and marking done again cannot restore them."""
@@ -465,10 +476,13 @@ def locate(path):
     return {"root": r["id"], "path": "" if p.is_dir() else p.name, "added": True}
 
 
-def walk(base):
-    """Yield text files under base, skipping build/VCS folders, at most MAX_FILES."""
+def walk(base, empty=None):
+    """Yield text files under base, skipping build/VCS folders, at most MAX_FILES. empty: a list
+    that gets every folder with nothing in it at all - a folder just made with + (8 Oct)."""
     skip, count = skip_dirs(base), 0
     for dirpath, dirnames, filenames in os.walk(base):
+        if empty is not None and not dirnames and not filenames and pathlib.Path(dirpath) != pathlib.Path(base):
+            empty.append(pathlib.Path(dirpath))
         dirnames[:] = sorted(d for d in dirnames if d not in skip and not d.startswith("."))
         for f in sorted(filenames, key=str.lower):
             if pathlib.Path(f).suffix.lower() in TEXT_EXT:
@@ -480,16 +494,21 @@ def walk(base):
 
 def build_tree(rid):
     base = root_path(rid)
-    root = {"name": base.name, "dirs": {}, "files": []}
-    for p in walk(base):
-        rel = p.relative_to(base)
+    root, empty = {"name": base.name, "dirs": {}, "files": []}, []
+
+    def folder(parts):
         node = root
-        for part in rel.parts[:-1]:
+        for part in parts:
             node = node["dirs"].setdefault(part, {"name": part, "dirs": {}, "files": []})
+        return node
+    for p in walk(base, empty):
+        rel = p.relative_to(base)
         f = {"name": p.name, "path": rel.as_posix()}
         if p.suffix == ".java" and "MUST-KNOW" in read_head(p):
             f["must"] = True
-        node["files"].append(f)
+        folder(rel.parts[:-1])["files"].append(f)
+    for d in empty:                      # shown, so a new folder can be opened and filled
+        folder(d.relative_to(base).parts)
 
     def finish(n):
         n["dirs"] = [finish(d) for _, d in sorted(n["dirs"].items(), key=lambda kv: kv[0].lower())]
@@ -811,30 +830,115 @@ def java_template(name, title=None, meta="LeetCode ? | ?", must=False, method=No
 """)
 
 
-def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False, method=None):
+WIN_BAD = re.compile(r'[<>:"|?*\x00-\x1f]')
+WIN_DEVICES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+
+
+def check_path(rid, rel, folder=False):
+    """A path typed in the page -> 'a/b/c', or a ValueError in words (8 Oct). Before this,
+    'a:b.md' said "outside the folder", a folder named build said "excluded folder", and
+    CON.md was made - a name that breaks a git checkout on Windows. folder: the last name is
+    a folder too, so the list's hidden folder names (build, target, ...) are refused for it."""
     rel = rel.strip().replace("\\", "/").strip("/")
-    if not rel or ".." in rel.split("/"):
-        raise ValueError("give a file name such as 01-Arrays/C16_MyProblem.java")
-    p = resolve(rid, rel)
-    if p.suffix.lower() not in TEXT_EXT:
-        raise ValueError(f"'{p.suffix or 'no extension'}' is not a text file type this viewer shows")
-    if p.exists():
-        raise ValueError(f"{rel} already exists")
+    if not rel:
+        raise ValueError("Type a name")
+    parts = rel.split("/")
+    skip = skip_dirs(root_path(rid))
+    for i, part in enumerate(parts):
+        if part in ("", ".", ".."):
+            raise ValueError(f"'{part or '//'}' can't be part of a name: give names inside this folder")
+        bad = WIN_BAD.search(part)
+        if bad:
+            raise ValueError(f'Windows does not allow {bad[0] if bad[0] > " " else "control characters"} in a name ("{part}")')
+        if part[-1] in ". ":
+            raise ValueError(f'"{part}" ends with a dot or a space, which Windows drops; remove it')
+        if part.split(".")[0].rstrip().upper() in WIN_DEVICES:
+            raise ValueError(f"{part.split('.')[0]} is a name Windows keeps for itself (like CON, NUL, COM1); pick another")
+        if part.startswith("."):
+            raise ValueError(f'"{part}" starts with a dot: the list hides those, so it would never show')
+        if (folder or i < len(parts) - 1) and part in skip:
+            raise ValueError(f"The list hides folders named {part} (also {', '.join(sorted(skip - {part})[:4])}, ...); pick another name")
+    return "/".join(parts)
+
+
+def tier_clash(p, keep=None):
+    """B11_X.java when its folder already has a B11_ file (other than keep, a file being renamed):
+    file names give the practice order, so a number is used once."""
     tier = re.match(r"([A-D])\d\d_", p.name)
     if tier and p.parent.is_dir():
-        taken = next((q.name for q in sorted(p.parent.iterdir()) if q.name.startswith(p.name[:4])), None)
+        taken = next((q.name for q in sorted(p.parent.iterdir()) if q.name.startswith(p.name[:4]) and q != keep), None)
         if taken:
             raise ValueError(f"{p.name[:3]} is already {taken} in this folder; "
                              f"the next free {tier[1]} number is {next_tier(p.parent, tier[1])}")
+
+
+def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False, method=None):
+    if rel.rstrip().endswith(("/", "\\")):
+        raise ValueError(f"{rel.strip()} ends with /, so it is a folder: make it with New folder")
+    rel = check_path(rid, rel)
+    p = resolve(rid, rel)
+    if not p.suffix:
+        raise ValueError(f"Add a file type to {p.name}, such as {p.name}.md")
+    if p.suffix.lower() not in TEXT_EXT:
+        raise ValueError(f"'{p.suffix}' is not a text file type this viewer shows")
+    if p.exists():
+        raise ValueError(f"{rel} already exists")
+    tier_clash(p)
     text = java_template(p.name, title, meta, must, method) if p.suffix == ".java" else (
-        f"# {p.stem}\n" if p.suffix == ".md" else "")
+        f"# {p.stem}\n\n" if p.suffix == ".md" else "")
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(text.encode("utf-8"))                # LF like the repo's files (write_text gives CRLF on Windows)
     res = {"path": p.relative_to(root_path(rid)).as_posix()}
     blank = re.search(r"^( \*\s+)\.\.\.$", text, re.M)          # the page selects the first ... to type over
     if blank:
         res["select"] = {"line": text.count("\n", 0, blank.start()) + 1, "col": len(blank[1]) + 1, "len": 3}
+    elif p.suffix == ".md":                            # the caret under the heading; the page opens it as source
+        res["select"] = {"line": 3, "col": 1, "len": 0}
     return res
+
+
+def new_folder(rid, rel):
+    """+ → Folder, or right-click → New folder here (8 Oct). build_tree lists it while empty."""
+    rel = check_path(rid, rel, folder=True)
+    p = resolve(rid, rel)
+    if p.exists():
+        raise ValueError(f"{rel} already exists")
+    p.mkdir(parents=True)
+    return {"path": p.relative_to(root_path(rid)).as_posix()}
+
+
+def rename_path(rid, rel, name):
+    """Right-click → Rename (8 Oct): a file or folder the list shows gets a new name in the same
+    folder, and its progress entries move with it. The page moves its own drafts and attempts."""
+    rel = rel.strip().replace("\\", "/").strip("/")
+    if not rel:
+        raise ValueError("The folder itself can't be renamed here")
+    base, p = root_path(rid), resolve(rid, rel)
+    if not p.exists():
+        raise ValueError(f"{rel} was not found (renamed or deleted meanwhile?)")
+    is_dir = p.is_dir()
+    if not shows(base, p) or (not is_dir and p.suffix.lower() not in TEXT_EXT):
+        raise ValueError(f"{rel} is not a file or folder this viewer shows")
+    name = name.strip()
+    if "/" in name or "\\" in name:
+        raise ValueError("Type one name only: Rename keeps it in the same folder")
+    check_path(rid, name, folder=is_dir)
+    target = p.with_name(name)
+    if name == p.name:
+        raise ValueError(f"{p.name} already has that name")
+    if target.exists() and not os.path.samefile(target, p):     # same file: only the case changes
+        raise ValueError(f"{target.relative_to(base).as_posix()} already exists")
+    if not is_dir:
+        if target.suffix.lower() not in TEXT_EXT:
+            raise ValueError(f"{name} would not show in the list (it shows .java, .md and other text files)")
+        tier_clash(target, keep=p)
+    try:
+        os.rename(p, target)
+    except PermissionError:
+        raise ValueError(f"Windows would not rename {p.name}: is it open in another program?") from None
+    new = target.relative_to(base).as_posix()
+    STATE.move_progress(rid, rel, new)
+    return {"path": new, "dir": is_dir}
 
 
 def next_tier(folder, letter):
@@ -912,6 +1016,19 @@ def delete_file(rid, rel, trash=to_recycle_bin):
     p = resolve(rid, rel)
     if not p.is_file() or p.suffix.lower() not in TEXT_EXT:
         raise ValueError(f"{rel or 'that'} is not a file this viewer shows")
+    trash(p)
+    return {"ok": True}
+
+
+def delete_folder(rid, rel, trash=to_recycle_bin):
+    """Right-click a folder → Move to Recycle Bin (8 Oct), so a mistyped folder needs no File
+    Explorer. Only a folder the list shows, never the opened folder itself."""
+    rel = rel.strip().replace("\\", "/").strip("/")
+    if not rel:
+        raise ValueError("The folder itself can't be deleted here")
+    p = resolve(rid, rel)
+    if not p.is_dir() or not shows(root_path(rid), p):
+        raise ValueError(f"{rel} is not a folder this viewer shows")
     trash(p)
     return {"ok": True}
 
@@ -1695,7 +1812,8 @@ class Handler(BaseHTTPRequestHandler):
                                  "public, max-age=31536000, immutable")
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
-                                       "autostart": autostart_on(), "platform": sys.platform, "git": True, "stub": True})
+                                       "autostart": autostart_on(), "platform": sys.platform, "git": True, "stub": True,
+                                       "files": True})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":
@@ -1749,8 +1867,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(new_file(rid, req.get("path", "")))
             if path == "/api/git/push":
                 return self.send_json(git_push(rid, req.get("paths") or [], req.get("message", "")))
+            if path == "/api/delete" and req.get("folder"):
+                return self.send_json(delete_folder(rid, req.get("path", "")))
             if path == "/api/delete":
                 return self.send_json(delete_file(rid, req.get("path", "")))
+            if path == "/api/mkdir":
+                return self.send_json(new_folder(rid, req.get("path", "")))
+            if path == "/api/rename":
+                return self.send_json(rename_path(rid, req.get("path", ""), req.get("name", "")))
             if path == "/api/progress" and "restore" in req:
                 return self.send_json(STATE.restore_progress(rid, req["path"], req["restore"]))
             if path == "/api/progress":

@@ -102,6 +102,8 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .np-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; justify-self: start; }
 .np-preview { font: 12px var(--code); overflow-wrap: anywhere; white-space: pre-line; }
 .np-preview.bad { color: var(--warn); font-family: var(--ui); }
+.np-kinds { display: flex; }
+.np-kinds button { flex: 1; }
 /* Push */
 #pushBtn { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 7px; color: var(--muted); }
 #pushBtn.has { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
@@ -350,6 +352,10 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .dirview .row.dir .ico { color: var(--accent); }
 .dirview .row.dir .nm { font-weight: 500; }
 .dirview .empty { padding: 12px; color: var(--muted); }
+.dirview .empty button { margin: 8px 6px 0 0; }
+/* ---- a .md in source with its rendered page beside it (8 Oct) ---- */
+.stage.split #editor { right: 50%; }
+.stage.split #md { left: 50%; border-left: 1px solid var(--border); padding: 16px 24px 60px; }
 
 /* ---- output ---- */
 .out { display: flex; flex-direction: column; min-height: 0; background: var(--out-bg); }
@@ -423,7 +429,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   <div class="side-head">
     <select id="rootSel" title="Which folder to show"></select>
     <button id="pushBtn" hidden><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5V3M3.5 7.5 8 3l4.5 4.5"/></svg><span id="pushCnt"></span></button>
-    <button class="icon" id="newBtn" title="New problem (or any file) in this folder">+</button>
+    <button class="icon" id="newBtn" title="New problem, file or folder here">+</button>
   </div>
   <div class="panel" id="rootPanel" hidden>
     <input id="rootPath" placeholder="Paste a folder path, or Browse" spellcheck="false">
@@ -435,23 +441,26 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     </div>
   </div>
   <div class="panel" id="newPanel" hidden>
+    <span class="seg np-kinds" id="npKind"><button data-k="problem" title="A Java problem file, numbered after the folder's last file of its level">Problem</button><button data-k="file" title="Any file, such as notes.md">File</button><button data-k="folder" title="An empty folder">Folder</button></span>
+    <label class="np-row"><span>Folder</span><input id="npFolder" list="npFolders" spellcheck="false" autocomplete="off" placeholder="(top level)"></label>
+    <datalist id="npFolders"></datalist>
     <div class="np" id="npForm">
-      <div class="np-title"><b>New problem</b><small>numbered after the folder's last file of its level</small></div>
-      <label class="np-row"><span>Folder</span><input id="npFolder" list="npFolders" spellcheck="false" autocomplete="off" placeholder="(top level)"></label>
-      <datalist id="npFolders"></datalist>
       <div class="np-row"><span>Level</span><span class="seg" id="npLevel"><button data-l="A" title="A: building block">A</button><button data-l="B" title="B: easy">B</button><button data-l="C" title="C: medium">C</button><button data-l="D" title="D: hard">D</button><button data-l="" title="No level letter and number in the file name">none</button></span></div>
       <label class="np-row"><span>Name</span><input id="npName" placeholder="Two Sum" spellcheck="false" autocomplete="off"></label>
       <label class="np-row" title="Type the method, or paste LeetCode's starter code (class Solution { ... } is fine). The file gets that method and a main() that calls it. Empty: solve(int[] nums)"><span>Method</span><input id="npMethod" placeholder="int[] twoSum(int[] nums, int target)" spellcheck="false" autocomplete="off"></label>
       <div class="np-row"><span>Source</span><span class="np-pair"><input id="npSource" placeholder="LeetCode no., or GfG" spellcheck="false" autocomplete="off"><select id="npDiff" title="Difficulty, as the source rates it"><option>Easy</option><option>Medium</option><option>Hard</option></select></span></div>
       <label class="np-check"><input type="checkbox" id="npMust"> ★ Must-know</label>
-      <div class="np-preview" id="npPreview"></div>
-      <div class="row-btns"><button id="npPathBtn" title="Any name and file type, such as notes.md">Type a path…</button><span class="spacer"></span><button id="npCancel">Cancel</button><button class="primary" id="npCreate">Create</button></div>
     </div>
-    <div class="np" id="npPath" hidden>
-      <input id="newPath" placeholder="folder/C16_MyProblem.java" spellcheck="false">
-      <small>Enter creates it (Java files get the usual template). Esc cancels. A new folder name in the path is created too.</small>
-      <div class="row-btns"><button id="npFormBtn">← New problem form</button></div>
-    </div>
+    <label class="np-row" id="npFile" hidden title="Any text file type; with none, .md is added. sub/name.md makes the folder sub too."><span>Name</span><input id="nfName" placeholder="notes.md" spellcheck="false" autocomplete="off"></label>
+    <label class="np-row" id="npDir" hidden><span>Name</span><input id="ndName" placeholder="Spring" spellcheck="false" autocomplete="off"></label>
+    <div class="np-preview" id="npPreview"></div>
+    <div class="row-btns"><span class="spacer"></span><button id="npCancel">Cancel</button><button class="primary" id="npCreate">Create</button></div>
+  </div>
+  <div class="panel" id="renamePanel" hidden>
+    <div class="np-title"><b>Rename</b><small id="rnWhere"></small></div>
+    <input id="rnName" spellcheck="false" autocomplete="off">
+    <div class="np-preview" id="rnNote"></div>
+    <div class="row-btns"><span class="spacer"></span><button id="rnCancel">Cancel</button><button class="primary" id="rnGo">Rename</button></div>
   </div>
   <div class="panel" id="pushPanel" hidden>
     <div class="push-head"><b>Push to GitHub</b><span class="push-where" id="pushWhere"></span></div>
@@ -524,6 +533,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <div class="tools">
       <button id="backBtn" hidden></button>
       <button id="srcBtn" hidden title="Show the markdown source">Source</button>
+      <button id="previewBtn" hidden>Preview</button>
       <button id="practiceBtn" hidden title="Hide the solution and write it yourself (Alt+P)">Practice</button>
       <button id="timerBtn" class="timer" hidden></button>
       <button id="hintBtn" hidden title="Show the hidden notes one at a time, gentlest first (Alt+H)">Hint</button>
@@ -643,7 +653,9 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td>Bar beside the line numbers</td><td>Lines you changed since opening the file in this tab, saved or not: green added, blue changed, red where lines were removed. Forgotten on reload. Edit pressed instead of Try? Compare (<kbd>Alt</kbd>+<kbd>C</kbd>) shows the changes, Reset puts the file back as you opened it (<kbd>Ctrl</kbd>+<kbd>S</kbd> saves that), and Try (<kbd>Alt</kbd>+<kbd>T</kbd>) offers to move them into a Try copy</td></tr>
-    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. "Type a path…" makes any other file</td></tr>
+    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. File: any file, such as notes.md (with no type, .md is added). Folder: an empty folder, which the list shows until it has files</td></tr>
+    <tr><td>Right-click in the file list</td><td>New file / New folder here (on empty space: at the top level), Rename (the name before the type is selected; unsaved edits, attempts and marks move along), Move to Recycle Bin (files and folders, after a confirm bar), Open in browser, Show in File Explorer, Copy path. Shift+right-click: the browser's own menu</td></tr>
+    <tr><td>A .md file</td><td>Opens rendered. Edit (<kbd>Ctrl</kbd>+<kbd>E</kbd>) goes straight to its source, editable, with the rendered page beside it as you type; Preview hides or shows that side (for every .md), Rendered goes back. Each file remembers source or rendered. An unsaved edit shows in Rendered too, with Save</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
@@ -740,7 +752,8 @@ const S = {
   originals: new Map(), hashes: new Map(), models: new Map(), pmodels: new Map(), tmodels: new Map(), skeletons: new Map(),
   opened: new Map(),                // each file's text as this tab first read it: what the change bars compare with
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
-  openDirs: new Set(), mdSource: false, running: false, hits: [], hitIdx: 0, pendingReveal: null,
+  openDirs: new Set(), running: false, hits: [], hitIdx: 0, pendingReveal: null,
+  mdPreview: store.get('mdPreview', true),   // a .md's source with its rendered page beside it
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
 };
@@ -1141,20 +1154,27 @@ function rowTarget(row) {          // {path, dir} of a list row, or null (Scratc
   const p = decodeURIComponent(m[2]);
   return S.byPath.has(p) ? { path: p, dir: false } : S.dirs.has(p) || p === '' ? { path: p, dir: true } : null;
 }
+/* 8 Oct: New file / New folder here at the top (empty space in the list: at the top level), and
+   Rename / Move to Recycle Bin at the bottom, for files and folders alike. */
 function showRowMenu(e) {
   if (e.shiftKey) return;
   const row = e.target.closest('#tree .row.file, #tree .row.dir, #md .dirview a.row');
-  const t = rowTarget(row);
+  const t = row ? rowTarget(row) : e.target.closest('#tree') && S.root ? { path: '', dir: true } : null;
   if (!t) return;
   e.preventDefault();
   const menu = $('#rowMenu'), folder = t.path.includes('/') ? t.path.slice(0, t.path.lastIndexOf('/')) : '';
-  const items = t.dir ? [['Open in browser', () => openLocal(t.path)], null]
-    : [['Open in browser', () => openLocal(t.path)], ['Open its folder in browser', () => openLocal(folder)], null,
+  const files = !!(S.info && S.info.files), here = t.dir ? t.path : folder;
+  const newHere = () => { setSide(false); openNewPanel('file', here); };
+  const items = t.dir ? [['New file here…', newHere], files && ['New folder here…', () => { setSide(false); openNewPanel('folder', here); }], null,
+                         ['Open in browser', () => openLocal(t.path)], null]
+    : [['New file in this folder…', newHere], null,
+       ['Open in browser', () => openLocal(t.path)], ['Open its folder in browser', () => openLocal(folder)], null,
        ['Open in a new Code Viewer tab', () => window.open(location.pathname + '#/' + S.root + '/' + encPath(t.path), '_blank')]];
   items.push(['Show in File Explorer', async () => { try { await api('/api/reveal', { root: S.root, path: t.path }); } catch (err) { toast(err.message); } }],
              ['Copy path', async () => { try { await navigator.clipboard.writeText(winPath(t.path)); toast('Copied ' + winPath(t.path)); } catch { toast('Clipboard blocked by the browser'); } }]);
+  if (files && t.path) items.push(null, ['Rename…', () => openRename(t)], ['Move to Recycle Bin…', () => deletePath(t.path, t.dir)]);
   menu.textContent = '';
-  for (const it of items) {
+  for (const it of items.filter(x => x !== false)) {     // false: not on this server; null: a line
     if (!it) { menu.append(document.createElement('hr')); continue; }
     const b = document.createElement('button');
     b.textContent = it[0];
@@ -1355,9 +1375,15 @@ $('#sRegex').addEventListener('change', runSearch);
 /* 6 Oct: "how about creating new files of dsa?" + opens a form for a problem: folder, level,
    name, source. The server numbers the file after the folder's last one of that level (B11 ->
    B12), fills in the header's first line and the page opens it with PROBLEM's ... selected to
-   type over. "Type a path…" is the old box, for any other file. */
+   type over.
+   8 Oct, Ravi: "what if i wanted to create new folder and .md files and edit and save?" The
+   panel now makes a Problem, a File (no type typed: .md) or a Folder, in the Folder field's
+   folder. It replaced the "Type a path…" box, which was the only way to a .md, and a folder
+   could only come with a file in it. A new .md opens as source, editable, beside its page. */
 const NP_DIFF = { A: 'Easy', B: 'Easy', C: 'Medium', D: 'Hard', '': 'Medium' };
-const np = { level: 'B', diffTouched: false, folders: [] };
+const np = { kind: 'problem', level: 'B', diffTouched: false, folders: [] };
+const NP_INPUT = { problem: '#npName', file: '#nfName', folder: '#ndName' };
+const npFileName = name => /\.[^./]+$/.test(name.split('/').pop()) ? name : name + '.md';
 const npFolder = () => $('#npFolder').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 const levelOf = name => (name.match(/^([A-D])\d\d_/) || [])[1] || '';
 function npClass(name) {               // the server's class_name(): 'LRU cache' -> LRUCache
@@ -1386,6 +1412,7 @@ function npMethod() {                  // null: none given; false: not readable
     ? { ret: m[1].replace(/\s+/g, ''), name: m[2], params: m[3].trim().replace(/\s+/g, ' ') } : false;
 }
 function npUpdate() {
+  if (np.kind !== 'problem') return npUpdatePlain();
   const folder = npFolder(), meth = npMethod(), pv = $('#npPreview');
   const fromMethod = meth ? (meth.name[0].toUpperCase() + meth.name.slice(1)).replace(/(?<=[a-z0-9])(?=[A-Z])/g, ' ') : '';
   $('#npName').placeholder = fromMethod || 'Two Sum';
@@ -1399,65 +1426,100 @@ function npUpdate() {
     + (meth ? `\n  with ${meth.ret} ${meth.name}(${meth.params}) and a main() that calls it` : '');
   $('#npCreate').disabled = !!bad;
 }
-function showNewForm(form) {
-  $('#npForm').hidden = !form; $('#npPath').hidden = form;
-  const inp = form ? $('#npName') : $('#newPath');
-  if (!form) inp.value = npFolder() ? npFolder() + '/' : '';
+function npUpdatePlain() {                 // the File and Folder tabs: what Create will make
+  const folder = npFolder(), dir = folder ? folder + '/' : '', pv = $('#npPreview');
+  const file = np.kind === 'file', name = $(NP_INPUT[np.kind]).value.trim().replace(/\\/g, '/');
+  const bare = name.replace(/^\/+|\/+$/g, '');
+  const bad = !bare ? (file ? 'Type a name, such as notes.md.' : "Type the folder's name.")
+    : file && name.endsWith('/') ? 'A name ending in / is a folder: use the Folder tab.'
+    : file ? (S.byPath.has(dir + npFileName(bare)) ? dir + npFileName(bare) + ' already exists.' : '')
+    : S.dirs.has(dir + bare) ? dir + bare + ' already exists.' : '';
+  pv.classList.toggle('bad', !!bad);
+  pv.textContent = bad || '→ ' + dir + (file ? npFileName(bare) + (folder && !np.folders.includes(folder) ? '   (new folder)' : '')
+    : bare + '/   (new folder)');
+  $('#npCreate').disabled = !!bad;
+}
+function npSetKind(k, focus = true) {
+  if ($(`#npKind [data-k="${k}"]`).hidden) k = 'file';      // an older server: no problem form or no folders
+  np.kind = k;
+  document.querySelectorAll('#npKind button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  $('#npForm').hidden = k !== 'problem'; $('#npFile').hidden = k !== 'file'; $('#npDir').hidden = k !== 'folder';
+  npUpdate();
+  if (!focus) return;
+  const inp = $(NP_INPUT[k]);
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 }
-function openNewPanel() {
+/* kind: problem / file / folder (none: the last one made); at: the folder (none: where you are) */
+function openNewPanel(kind, at) {
   if (!S.root) return;
-  $('#pushPanel').hidden = true;
+  $('#pushPanel').hidden = true; closeRename();
   const inDir = S.cur && S.cur.kind === 'dir';            // a folder's listing: new files go in it
-  const here = inDir ? null : S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
-  const dir = inDir ? S.cur.path : here ? dirOf(here).slice(0, -1) : '';
+  const here = at !== undefined || inDir ? null : S.cur && S.cur.path !== SCRATCH ? S.cur.path : backFile();
+  const dir = at !== undefined ? at : inDir ? S.cur.path : here ? dirOf(here).slice(0, -1) : '';
   np.folders = [];
   (function walk(n) { for (const d of n.dirs) { np.folders.push(d.path); walk(d); } })(S.tree);
   $('#npFolders').replaceChildren(...np.folders.map(p => Object.assign(document.createElement('option'), { value: p })));
   $('#npFolder').value = dir;
   $('#npName').value = ''; $('#npMethod').value = ''; $('#npSource').value = ''; $('#npMust').checked = false;
+  $('#nfName').value = ''; $('#ndName').value = '';
   $('#npMethod').closest('label').hidden = !(S.info && S.info.stub);     // a server from before it would ignore it
+  $('#npKind [data-k="problem"]').hidden = !(S.info && S.info.git);     // started before 6 Oct: files only
+  $('#npKind [data-k="folder"]').hidden = !(S.info && S.info.files);    // started before 8 Oct: no folders
   np.diffTouched = false;
   const tiered = S.files.some(f => dirOf(f.path) === (dir ? dir + '/' : '') && levelOf(f.name));
+  np.kind = 'problem';
   npSetLevel(here && levelOf(here.split('/').pop()) || (tiered ? 'B' : ''));
   $('#newPanel').hidden = false;
-  showNewForm(!!(S.info && S.info.git));      // a server started before 6 Oct only knows the path box
+  npSetKind(kind || store.get('newKind', 'problem'));
 }
 const closeNew = () => { $('#newPanel').hidden = true; };
 async function created(r) {
   closeNew();
   S.treeSig = ''; await loadTree(); renderTree();
-  S.editing.add(keyOf(r.path));
-  if (r.select) S.pendingReveal = { key: keyOf(r.path), ...r.select };
+  const k = keyOf(r.path), md = /\.md$/i.test(r.path);
+  S.editing.add(k);
+  if (md) setSrc(k, true);                  // a new .md opens as source, beside its page
+  if (r.select) S.pendingReveal = { key: k, ...r.select, focus: true };
   go(r.path);
-  toast('Created ' + r.path + (r.select ? '. Type over the selected ... to fill in the header; Ctrl+S saves.' : '. Write it, then Ctrl+S to save.'));
+  toast('Created ' + r.path + (md ? '. Write it here; Ctrl+S saves.' : r.select ? '. Type over the selected ... to fill in the header; Ctrl+S saves.' : '. Write it, then Ctrl+S to save.'));
   refreshGit();
+}
+async function createdFolder(r) {
+  closeNew();
+  S.treeSig = ''; await loadTree();
+  const parts = r.path.split('/');               // open it and the folders above it in the list
+  parts.forEach((_, i) => S.openDirs.add(parts.slice(0, i + 1).join('/')));
+  store.set('openDirs:' + S.root, [...S.openDirs]);
+  renderTree();
+  go(r.path);
+  toast(`Created folder ${r.path}. New file here (or + → File) puts a file in it.`);
 }
 async function npCreate() {
   if ($('#npCreate').disabled) return;
+  const folder = npFolder(), dir = folder ? folder + '/' : '', kind = np.kind;
+  const name = $(NP_INPUT[kind]).value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   try {
-    await created(await api('/api/new', { root: S.root, folder: npFolder(), level: np.level, name: $('#npName').value,
-      source: $('#npSource').value, difficulty: $('#npDiff').value, must: $('#npMust').checked, method: $('#npMethod').value }));
-  } catch (err) { toast(err.message); }
+    if (kind === 'folder') await createdFolder(await api('/api/mkdir', { root: S.root, path: dir + name }));
+    else await created(await api('/api/new', kind === 'file' ? { root: S.root, path: dir + npFileName(name) }
+      : { root: S.root, folder, level: np.level, name: $('#npName').value, source: $('#npSource').value,
+          difficulty: $('#npDiff').value, must: $('#npMust').checked, method: $('#npMethod').value }));
+    store.set('newKind', kind);
+  } catch (err) {                            // the reason next to what was typed; the panel stays open
+    const pv = $('#npPreview');
+    pv.textContent = err.message; pv.classList.add('bad');
+  }
 }
 $('#newBtn').onclick = () => { setSide(false); if ($('#newPanel').hidden) openNewPanel(); else closeNew(); };
+$('#npKind').onclick = e => { const b = e.target.closest('button'); if (b) npSetKind(b.dataset.k); };
 $('#npLevel').onclick = e => { const b = e.target.closest('button'); if (b) { npSetLevel(b.dataset.l); $('#npName').focus(); } };
 $('#npDiff').onchange = () => { np.diffTouched = true; };
-for (const id of ['#npFolder', '#npName', '#npMethod']) $(id).addEventListener('input', npUpdate);
+for (const id of ['#npFolder', '#npName', '#npMethod', '#nfName', '#ndName']) $(id).addEventListener('input', npUpdate);
 $('#npCreate').onclick = npCreate;
 $('#npCancel').onclick = closeNew;
-$('#npPathBtn').onclick = () => showNewForm(false);
-$('#npFormBtn').onclick = () => showNewForm(true);
-$('#npForm').addEventListener('keydown', e => {
+$('#newPanel').addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.preventDefault(); closeNew(); }
   else if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); npCreate(); }
-});
-$('#newPath').addEventListener('keydown', async e => {
-  if (e.key === 'Escape') { closeNew(); return; }
-  if (e.key !== 'Enter') return;
-  try { await created(await api('/api/new', { root: S.root, path: $('#newPath').value })); }
-  catch (err) { toast(err.message); }
 });
 
 /* ------------------------------------------------------------ push (git) */
@@ -1493,7 +1555,7 @@ const closePush = () => { $('#pushPanel').hidden = true; };
 function pushError(msg) { $('#pushErr').textContent = msg; $('#pushErr').hidden = false; }
 async function openPush() {
   if (!$('#pushPanel').hidden) return closePush();
-  closeNew(); $('#rootPanel').hidden = true; setSide(false);
+  closeNew(); closeRename(); $('#rootPanel').hidden = true; setSide(false);
   $('#pushPanel').hidden = false;
   $('#pushErr').hidden = true;
   $('#pushList').innerHTML = '<div class="note">Looking for changes…</div>';
@@ -1581,25 +1643,126 @@ $('#pushPanel').addEventListener('keydown', e => {
 /* 5 Oct: a stray New file left a blank DecodeWays.java that only File Explorer could remove.
    One file goes to the Recycle Bin after a confirm bar; drafts and attempts stay in the
    browser, so restoring the file brings them back. Opening another file cancels the bar. */
-function deleteFile() {
+/* 8 Oct: also from the right-click menu, so for any file in the list (path), and for a folder
+   (folder: true) - the bar counts its files and the unsaved edits kept for them in this browser.
+   When the open file goes, the next one in its folder opens. */
+const under = (p, top) => p === top || p.startsWith(top + '/');
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function deleteFile(path) {
   const c = S.cur;
-  if (!c || c.path === SCRATCH) return toast('The Scratch pad lives in the browser, not in a file.');
-  if (c.kind === 'dir') return toast('Delete moves one file to the Recycle Bin, not a folder.');
-  const dir = c.path.split('/').slice(0, -1).join('/');
-  showBanner(`Move ${c.path} to the Recycle Bin? You can restore it from there.`, [
+  path = path ?? (c && c.path);
+  if (!c && path == null || path === SCRATCH) return toast('The Scratch pad lives in the browser, not in a file.');
+  if (c && path === c.path && c.kind === 'dir') return path ? deletePath(path, true) : toast('This is the opened folder itself: remove it from the folder list instead.');
+  const dir = path.split('/').slice(0, -1).join('/'), name = path.split('/').pop();
+  showBanner(`Move ${path} to the Recycle Bin? You can restore it from there.`, [
     ['Move to Recycle Bin', async () => {
       hideBanner();
-      try { await api('/api/delete', { root: S.root, path: c.path }); } catch (err) { return toast(err.message); }
+      try { await api('/api/delete', { root: S.root, path }); } catch (err) { return toast(err.message); }
       S.treeSig = ''; await loadTree(); renderTree();
-      const same = S.files.filter(f => f.path.split('/').slice(0, -1).join('/') === dir);
-      const next = same.find(f => f.path.toLowerCase() > c.path.toLowerCase()) || same[same.length - 1];
-      go(next ? next.path : S.byPath.has('README.md') ? 'README.md' : SCRATCH);
+      if (S.cur && S.cur.path === path) {
+        const same = S.files.filter(f => f.path.split('/').slice(0, -1).join('/') === dir);
+        const next = same.find(f => f.path.toLowerCase() > path.toLowerCase()) || same[same.length - 1];
+        go(next ? next.path : S.byPath.has('README.md') ? 'README.md' : SCRATCH);
+      }
       refreshGit();
-      toast(`Moved ${c.name} to the Recycle Bin.`);
+      toast(`Moved ${name} to the Recycle Bin.`);
     }],
     ['Cancel', () => hideBanner()],
   ], 'delete');
 }
+function deletePath(path, folder) {
+  if (!folder) return deleteFile(path);
+  const files = S.files.filter(f => under(f.path, path)), drafts = files.filter(f => hasDraftStored(f.path)).length;
+  const parent = path.split('/').slice(0, -1).join('/');
+  showBanner(`Move folder ${path} (${plural(files.length, 'file')}${drafts ? `; ${plural(drafts, 'unsaved edit')} in this browser` : ''}) to the Recycle Bin? You can restore it from there.`, [
+    ['Move to Recycle Bin', async () => {
+      hideBanner();
+      try { await api('/api/delete', { root: S.root, path, folder: true }); } catch (err) { return toast(err.message); }
+      S.treeSig = ''; await loadTree(); renderTree();
+      if (S.cur && under(S.cur.path, path)) go(parent || (S.byPath.has('README.md') ? 'README.md' : SCRATCH));
+      refreshGit();
+      toast(`Moved folder ${path} to the Recycle Bin.`);
+    }],
+    ['Cancel', () => hideBanner()],
+  ], 'delete');
+}
+
+/* ------------------------------------------------------------ rename */
+/* 8 Oct: right-click → Rename, a file or a folder, in the same folder. The server moves the
+   progress marks; the page moves everything it keeps per file - unsaved edits, practice
+   attempts, Try copies, timers, the source/rendered choice (localStorage cv:<kind>:<root>/<path>)
+   and its own copies in S - so nothing is left behind under the old name. */
+let rnTarget = null;
+function openRename(t) {
+  closeNew(); closePush(); $('#rootPanel').hidden = true; setSide(false);
+  rnTarget = t;
+  const name = t.path.split('/').pop(), dot = t.dir ? -1 : name.lastIndexOf('.');
+  $('#rnWhere').textContent = (t.dir ? 'folder ' : '') + t.path;
+  $('#rnNote').textContent = /\.java$/.test(name) ? 'The class inside keeps its name.' : '';
+  $('#rnNote').classList.remove('bad');
+  const inp = $('#rnName');
+  inp.value = name;
+  $('#renamePanel').hidden = false;
+  inp.focus();
+  inp.setSelectionRange(0, dot > 0 ? dot : name.length);     // the name, not its type, as IntelliJ does
+}
+function closeRename() { $('#renamePanel').hidden = true; rnTarget = null; }
+function flushModels(isOld) {          // what the 250 ms saves have not written yet
+  for (const [k, m] of S.models) if (isOld(k) && !m.isDisposed()) saveDraft(k, m);
+  for (const [k, m] of S.pmodels) if (isOld(k) && !m.isDisposed())
+    m.getValue() === S.skeletons.get(k) ? store.del('practice:' + k) : store.set('practice:' + k, m.getValue());
+  for (const [k, m] of S.tmodels) if (isOld(k) && !m.isDisposed()) store.set('try:' + k, m.getValue());
+}
+function moveKept(old, neu) {
+  const from = S.root + '/' + old, to = S.root + '/' + neu;
+  const moved = x => typeof x === 'string' && (under(x, from) || x.startsWith(from + ':')) ? to + x.slice(from.length) : null;
+  try {                                  // localStorage: cv:draft:<root>/<path> and the like
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    for (const key of keys) {
+      const m = key.match(/^(cv:[^:]+:)(.*)$/), n = m && moved(m[2]);
+      if (n) { localStorage.setItem(m[1] + n, localStorage.getItem(key)); localStorage.removeItem(key); }
+    }
+  } catch {}
+  const rel = x => typeof x === 'string' && under(x, old) ? neu + x.slice(old.length) : x;
+  for (const k of ['last:', 'backFile:']) { const v = store.get(k + S.root, null); if (v !== null) store.set(k + S.root, rel(v)); }
+  S.openDirs = new Set([...S.openDirs].map(rel)); store.set('openDirs:' + S.root, [...S.openDirs]);
+  // S: editors' models listen under their old key, so they go (their text is stored); the rest is re-keyed
+  if (S.comparing) closeCompare(false);
+  const models = [S.models, S.pmodels, S.tmodels];
+  if (models.some(ms => [...ms].some(([k, m]) => moved(k) && m === editor.getModel()))) editor.setModel(null);
+  for (const ms of models) for (const [k, m] of [...ms]) if (moved(k)) { m.dispose(); ms.delete(k); }
+  for (const v of Object.values(S)) {
+    if (v instanceof Map) for (const [k, x] of [...v]) { const n = moved(k); if (n) { v.delete(k); v.set(n, x); } }
+    else if (v instanceof Set && v !== S.openDirs) for (const k of [...v]) { const n = moved(k); if (n) { v.delete(k); v.add(n); } }
+  }
+}
+async function doRename() {
+  const t = rnTarget, note = $('#rnNote');
+  if (!t) return;
+  const name = $('#rnName').value.trim(), old = t.path, from = S.root + '/' + old;
+  if (!name || name === old.split('/').pop()) return closeRename();
+  flushModels(k => under(k, from));
+  let r;
+  try { r = await api('/api/rename', { root: S.root, path: old, name }); }
+  catch (err) { note.textContent = err.message; note.classList.add('bad'); return; }
+  closeRename();
+  const open = S.cur && S.cur.path !== SCRATCH && under(S.cur.path, old) ? r.path + S.cur.path.slice(old.length) : null;
+  moveKept(old, r.path);
+  S.treeSig = '';
+  await Promise.all([loadTree(), loadProgress()]);
+  renderTree();
+  if (open) go(open); else if (S.cur && S.cur.kind === 'dir') openPath(S.cur.path); else refreshBar();
+  refreshGit();
+  toast(`Renamed ${old.split('/').pop()} to ${r.path.split('/').pop()}` + (/\.java$/.test(name) ? '. The class inside keeps its name.' : '.'));
+}
+$('#rnGo').onclick = doRename;
+$('#rnCancel').onclick = closeRename;
+$('#renamePanel').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeRename(); }
+  else if (e.key === 'Enter') { e.preventDefault(); doRename(); }
+});
+$('#rnName').addEventListener('input', () => { $('#rnNote').classList.remove('bad'); $('#rnNote').textContent = /\.java$/.test($('#rnName').value) ? 'The class inside keeps its name.' : ''; });
 
 /* ------------------------------------------------------------ editor */
 function initEditor() {
@@ -1659,6 +1822,7 @@ function initEditor() {
   });
   const K = monaco.KeyMod, C = monaco.KeyCode;
   createCmd = editor.addCommand(0, (_, version, r) => applyCreate(version, r));    // the Create method quick fix runs this
+  hookSplit();
   editor.addCommand(K.CtrlCmd | C.Enter, run);
   editor.addCommand(K.CtrlCmd | C.KeyE, toggleEdit);
   editor.addCommand(K.CtrlCmd | C.KeyS, save);
@@ -1903,7 +2067,7 @@ async function openPath(path) {
   S.originals.set(k, d.text); S.hashes.set(k, d.hash);
   const ext = ((path.match(/\.([^./]+)$/) || [])[1] || '').toLowerCase();
   const kind = ext === 'md' ? 'md' : ext === 'java' ? 'java' : 'text';
-  const source = kind === 'md' && (S.mdSource || !!(S.pendingReveal && S.pendingReveal.key === k));
+  const source = kind === 'md' && (isSrc(k) || !!(S.pendingReveal && S.pendingReveal.key === k));
   S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
   if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
   if (S.pending !== token) return;
@@ -1917,8 +2081,10 @@ async function openPath(path) {
     }
   }
   if (S.cur.mode === 'file') {
-    if (kind === 'md' && !source) renderMd(path, d.text);
-    else showEditor(modelFor(k, d.text, LANG[ext] || 'plaintext'));
+    if (kind === 'md' && !source) {          // an unsaved edit is what shows (8 Oct), and Save can write it
+      const m = store.has('draft:' + k) || S.models.has(k) ? modelFor(k, d.text, 'markdown') : null;
+      renderMd(path, m ? m.getValue() : d.text);
+    } else showEditor(modelFor(k, d.text, LANG[ext] || 'plaintext'));
   }
   afterOpen();
 }
@@ -1959,7 +2125,8 @@ function renderDir(dir) {
   md.innerHTML = `<div class="dirview">${dir ? `<div class="dv-path">${crumbs.join(' / ')} /</div>` : ''}<h1></h1>`
     + `<p class="dv-sum">${plural(node.dirs.length, 'folder')} · ${plural(node.files.length, 'file')} here`
     + (s.java ? ` · ${s.done} of ${s.java} Java files done${node.dirs.length ? ', subfolders included' : ''}` : '') + '</p>'
-    + `<div class="dv-list">${rows || '<div class="empty">No files here that Code Viewer opens.</div>'}</div></div>`;
+    + `<div class="dv-list">${rows}${node.dirs.length || node.files.length ? '' : '<div class="empty">No files here yet.<br><button data-new="file">New file here</button>'
+      + (S.info && S.info.files ? '<button data-new="folder">New folder here</button>' : '') + '</div>'}</div></div>`;
   md.querySelector('h1').textContent = dir ? parts[parts.length - 1] : r.name;
   md.scrollTop = top;
 }
@@ -2227,6 +2394,7 @@ function afterOpen() {
   if (S.cur.path !== SCRATCH && S.cur.kind !== 'dir') store.set('backFile:' + S.root, S.cur.path);
   document.title = S.cur.name + ' · Code Viewer';
   markActive();
+  paintSplit(true);                           // before refreshBar: it shows whether the page is beside
   refreshBar();
   if (!$('#attemptsPane').hidden) renderAttempts(); else paintAttTab();
   renderOutput(S.outputs.get(viewKey()));
@@ -2236,6 +2404,7 @@ function afterOpen() {
     const range = new monaco.Range(pr.line, pr.col, pr.line, pr.col + pr.len);
     editor.setSelection(range);
     editor.revealRangeInCenter(range);
+    if (pr.focus) editor.focus();               // a file + just made: ready to type
   }
 }
 
@@ -2258,6 +2427,7 @@ function refreshBar() {
   const [label, cls] = folder ? ['Folder', ''] : isScratch ? ['Scratch · kept in this browser', 'scratch']
     : trying ? ['Try copy · never saved to the file', 'try']
     : practice ? [drafted ? 'Practice · your attempt' : 'Practice · solution hidden', 'practice']
+    : rendered && drafted && !folder ? ['Rendered · not saved', 'draft']
     : rendered ? ['Rendered markdown', '']
     : drafted ? ['Edited · not saved', 'draft']
     : editing ? ['Editing', 'draft'] : ['Read-only', ''];
@@ -2272,6 +2442,11 @@ function refreshBar() {
   }
   $('#srcBtn').hidden = c.kind !== 'md';
   $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
+  const pv = $('#previewBtn'), split = $('.stage').classList.contains('split');
+  pv.hidden = c.kind !== 'md' || !c.source;
+  pv.classList.toggle('on', split);
+  pv.title = S.mdPreview && !split && !S.comparing ? `On, but there is no room beside the source (under ${SPLIT_MIN}px): hide the file list with Ctrl+B`
+    : split ? 'Hide the rendered page beside the source' : 'Show the rendered page beside the source, as you type';
   const pb = $('#practiceBtn');
   pb.hidden = c.kind !== 'java' || isScratch;
   pb.innerHTML = practice ? wideNarrow('Show solution', 'Solution') : 'Practice';
@@ -2282,16 +2457,16 @@ function refreshBar() {
   $('#menu [data-act="delete"]').hidden = folder;
   gb.innerHTML = st === 'done' ? '✓ Done' : st === 'revise' ? '↻ Revise' : '○ ' + wideNarrow('Mark done', 'Done');
   gb.className = st === 'done' ? 'good' : st === 'revise' ? 'warnb' : '';
-  $('#editBtn').hidden = isScratch || practice || rendered || trying;
-  $('#editBtn').textContent = S.editing.has(c.key) ? 'Lock' : 'Edit';
-  $('#editBtn').classList.toggle('on', S.editing.has(c.key));
+  $('#editBtn').hidden = isScratch || practice || folder || trying;      // on a rendered .md: one click to its source
+  $('#editBtn').textContent = S.editing.has(c.key) && !rendered ? 'Lock' : 'Edit';
+  $('#editBtn').classList.toggle('on', S.editing.has(c.key) && !rendered);
   const tb = $('#tryBtn');
   tb.hidden = c.kind !== 'java' || isScratch || practice;
   tb.textContent = trying ? 'Discard copy' : 'Try';     // full label even on a narrow bar: the badge is hidden there
   tb.title = trying ? 'Throw this try copy away and go back to the file, which was never changed (Alt+T)'
     : 'Change and run a throwaway copy of this file; the file itself is never changed (Alt+T)';
   tb.classList.toggle('on', trying);
-  $('#saveBtn').hidden = isScratch || practice || rendered || trying || !drafted;
+  $('#saveBtn').hidden = isScratch || practice || folder || trying || !drafted;
   const sinceOpen = savedSinceOpen(c);           // saved changes since this tab opened the file
   $('#resetBtn').hidden = rendered || trying || !(drafted || sinceOpen);
   $('#resetBtn').title = !drafted && sinceOpen ? 'Put the file back as you opened it (Ctrl+S then saves that)' : 'Throw away your edit';
@@ -2328,7 +2503,11 @@ const TRY_NO_SAVE = 'A Try copy is never saved: the copy button beside ⋯ takes
 function toggleEdit() {
   const c = S.cur;
   if (c && c.mode === 'try') return toast(TRY_NO_SAVE);
-  if (!c || c.path === SCRATCH || c.mode === 'practice' || (c.kind === 'md' && !c.source) || c.kind === 'dir') return;
+  if (c && c.kind === 'md' && !c.source && c.mode === 'file') {      // rendered: straight to its source, editable
+    setSrc(c.key, true); S.editing.add(c.key);
+    return openPath(c.path).then(() => editor.focus());
+  }
+  if (!c || c.path === SCRATCH || c.mode === 'practice' || c.kind === 'dir') return;
   if (S.editing.has(c.key)) S.editing.delete(c.key); else S.editing.add(c.key);
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
@@ -3455,6 +3634,7 @@ function openCompare() {
   diffEditor.getModifiedEditor().updateOptions({ readOnly: !isEditable() });   // a locked edit stays locked here too
   S.comparing = true;
   applyAssist();
+  paintSplit();                              // the page beside a .md's source would cover the diff
   $('#editor').hidden = true; $('#diffWrap').hidden = false;
   refreshBar();
   diffEditor.getModifiedEditor().focus();
@@ -3465,7 +3645,7 @@ function closeCompare(restore = true) {
   $('#diffWrap').hidden = true;
   diffEditor.setModel(null);                 // detach first: the attempt model must outlive the view
   if (diffOrig) { diffOrig.dispose(); diffOrig = null; }
-  if (restore) { $('#editor').hidden = false; editor.layout(); editor.focus(); }
+  if (restore) { $('#editor').hidden = false; editor.layout(); paintSplit(true); editor.focus(); }
   refreshBar();
 }
 $('#compareBtn').onclick = toggleCompare;
@@ -3922,9 +4102,16 @@ function showBanner(text, actions, kind = '') {
 function hideBanner() { if (!['update', 'down'].includes($('#banner').dataset.kind)) $('#banner').hidden = true; }
 
 /* ------------------------------------------------------------ markdown */
-function renderMd(path, text) {
-  const md = $('#md');
-  $('#editor').hidden = true;
+/* A .md opens rendered. Source (or Edit, or + making it) switches that one file to its source,
+   remembered per file like a Java file's mode; Rendered switches it back (8 Oct: this was one
+   switch for every .md, and Edit took Source + Edit). */
+const isSrc = k => store.has('src:' + k);
+const setSrc = (k, on) => { if (on) store.set('src:' + k, 1); else store.del('src:' + k); };
+/* beside: the rendered page next to the source (paintSplit), so the editor stays and the
+   scroll is kept while you type */
+function renderMd(path, text, beside) {
+  const md = $('#md'), top = md.scrollTop;
+  if (!beside) $('#editor').hidden = true;
   md.hidden = false;
   md.innerHTML = window.marked ? marked.parse(text, { gfm: true }) : '<pre></pre>';
   if (!window.marked) md.firstChild.textContent = text;
@@ -3946,10 +4133,45 @@ function renderMd(path, text) {
     const lang = (code.className.match(/language-(\w+)/) || [])[1];
     if (lang && window.monaco) { code.setAttribute('data-lang', LANG[lang] || lang); monaco.editor.colorizeElement(code, { tabSize: 4 }); }
   });
-  md.scrollTop = 0;
+  md.scrollTop = beside ? top : 0;
+}
+/* 8 Oct, Ravi chose "side by side": a .md's source on the left, its page on the right, redrawn
+   150 ms after typing stops and scrolled in step with the editor (by proportion, not by line).
+   The Preview button turns it off for every .md; under 760px of room it stays off. */
+const SPLIT_MIN = 760;
+const splitWanted = () => { const c = S.cur; return !!c && c.kind === 'md' && c.source && c.mode === 'file' && !S.comparing; };
+function paintSplit(fresh) {
+  const on = splitWanted() && S.mdPreview && !$('#editor').hidden && !!editor.getModel() && $('.stage').clientWidth >= SPLIT_MIN;
+  const was = $('.stage').classList.contains('split');
+  $('.stage').classList.toggle('split', on);
+  if (on) {
+    renderMd(S.cur.path, editor.getModel().getValue(), true);
+    if (fresh || !was) syncSplitScroll();
+  } else if (was && !$('#editor').hidden) $('#md').hidden = true;
+  if (on !== was) {                       // half the width: no room for the minimap there
+    editor.updateOptions({ minimap: { enabled: S.minimap && !on, renderCharacters: false } });
+    editor.layout();
+  }
+}
+function syncSplitScroll() {
+  const md = $('#md'), max = editor.getScrollHeight() - editor.getLayoutInfo().height;
+  md.scrollTop = (max > 0 ? editor.getScrollTop() / max : 0) * (md.scrollHeight - md.clientHeight);
+}
+function hookSplit() {                  // once, when the editor exists
+  editor.onDidChangeModelContent(debounce(() => { if ($('.stage').classList.contains('split') && splitWanted()) paintSplit(); }, 150));
+  editor.onDidScrollChange(e => { if (e.scrollTopChanged && $('.stage').classList.contains('split')) syncSplitScroll(); });
+  window.addEventListener('resize', debounce(() => { if (splitWanted()) paintSplit(); }, 150));
+}
+function togglePreview() {
+  S.mdPreview = !S.mdPreview; store.set('mdPreview', S.mdPreview);
+  paintSplit(true);
+  refreshBar();
+  if (S.mdPreview && !$('.stage').classList.contains('split')) toast('Not enough room beside the source: hide the file list (Ctrl+B) or widen the window.');
 }
 const slug = s => s.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
 $('#md').addEventListener('click', e => {
+  const nb = e.target.closest('.dirview [data-new]');            // an empty folder's New file / folder here
+  if (nb && S.cur && S.cur.kind === 'dir') { setSide(false); return openNewPanel(nb.dataset.new, S.cur.path); }
   const a = e.target.closest('a[href^="#"]');
   if (!a || a.getAttribute('href').startsWith('#/')) return;
   e.preventDefault();
@@ -4125,7 +4347,8 @@ $('#practiceBtn').onclick = togglePractice;
 $('#progBtn').onclick = cycleProgress;
 $('#runBtn').onclick = run;
 $('#mainSel').onchange = e => S.mainChoice.set(viewKey(), e.target.value);
-$('#srcBtn').onclick = () => { if (!S.cur) return; S.mdSource = !S.cur.source; openPath(S.cur.path); };
+$('#srcBtn').onclick = () => { if (!S.cur) return; setSrc(S.cur.key, !S.cur.source); openPath(S.cur.path); };
+$('#previewBtn').onclick = togglePreview;
 /* its own button since 5 Oct (was ⋯ → Copy whole file): what the editor shows - your draft,
    attempt or Try copy - or the file itself when rendered markdown is showing */
 $('#copyBtn').onclick = async () => {

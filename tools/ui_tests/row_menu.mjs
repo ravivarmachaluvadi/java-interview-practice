@@ -8,8 +8,9 @@ import { pathToFileURL } from 'node:url';
 import { suite } from './harness.mjs';
 
 const JAVA = 'class A01_First {\n    static int f(int x) { return x + 1; }\n\n    public static void main(String[] a) {\n        System.out.println(f(1) + "   expected 2");\n    }\n}\n';
-const FILE_ITEMS = ['Open in browser', 'Open its folder in browser', 'Open in a new Code Viewer tab', 'Show in File Explorer', 'Copy path'];
-const DIR_ITEMS = ['Open in browser', 'Show in File Explorer', 'Copy path'];
+// 8 Oct: new here at the top, Rename and Recycle Bin at the bottom (files_and_md.mjs tests those)
+const FILE_ITEMS = ['New file in this folder…', 'Open in browser', 'Open its folder in browser', 'Open in a new Code Viewer tab', 'Show in File Explorer', 'Copy path', 'Rename…', 'Move to Recycle Bin…'];
+const DIR_ITEMS = ['New file here…', 'New folder here…', 'Open in browser', 'Show in File Explorer', 'Copy path', 'Rename…', 'Move to Recycle Bin…'];
 
 await suite(async t => {
   const { ev, check, sleep, send, press, BASE } = t;

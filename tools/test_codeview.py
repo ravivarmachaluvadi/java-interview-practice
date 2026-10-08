@@ -684,6 +684,133 @@ class DeleteTest(unittest.TestCase):
         self.assertTrue(outside.exists())
 
 
+class FilesTest(unittest.TestCase):
+    """8 Oct: Ravi asked for an easy way to make a folder and a .md file in it, then edit and
+    save it. + now makes a problem, a file or a folder; right-click renames, and a folder can
+    go to the Recycle Bin. Names Windows or the list would choke on are refused up front."""
+
+    def setUp(self):
+        self.base = TMP / "files_root"
+        for rel, text in (("Topic/A01_First.java", "class First {}"), ("Topic/B12_Two.java", "class Two {}"),
+                          ("Topic/notes.md", "# Notes\n"), ("README.md", "# R\n")):
+            (self.base / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.base / rel).write_bytes(text.encode())
+        (self.base / "img").mkdir(exist_ok=True)
+        (self.base / "img" / "pic.png").write_bytes(b"\x89PNG")
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+        self.trashed = []
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        codeview.STATE.data["progress"].pop(str(self.base.resolve()), None)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def trash(self, p):
+        self.trashed.append(p)
+        shutil.rmtree(p)
+
+    def dirs(self, node=None, prefix=""):
+        node = node or codeview.build_tree(self.rid)
+        out = []
+        for d in node["dirs"]:
+            out.append(prefix + d["name"])
+            out += self.dirs(d, prefix + d["name"] + "/")
+        return out
+
+    # ---- new folder
+    def test_makes_a_folder_and_a_nested_one(self):
+        self.assertEqual(codeview.new_folder(self.rid, "Spring"), {"path": "Spring"})
+        self.assertEqual(codeview.new_folder(self.rid, "Spring\\Core/Beans/"), {"path": "Spring/Core/Beans"})
+        self.assertTrue((self.base / "Spring" / "Core" / "Beans").is_dir())
+
+    def test_an_empty_folder_shows_in_the_tree_but_an_images_only_one_does_not(self):
+        codeview.new_folder(self.rid, "Spring/Core")
+        codeview.new_folder(self.rid, "Empty")
+        self.assertEqual(self.dirs(), ["Empty", "Spring", "Spring/Core", "Topic"])
+
+    def test_refuses_names_windows_or_the_list_would_choke_on(self):
+        for rel, why in (("", "name"), ("../out", "outside|\\.\\."), ("a:b", "does not allow :"),
+                         ("x.", "dot or a space"), ("Topic /y", "dot or a space"), ("CON", "Windows keeps"),
+                         ("Topic/nul", "Windows keeps"), ("com1.d", "Windows keeps"), (".hidden", "starts with a dot"),
+                         ("build", "hides folders named build"), ("Topic/target", "hides folders named target"),
+                         ("Topic", "already exists"), ("Topic/notes.md", "already exists")):
+            with self.subTest(rel=rel), self.assertRaisesRegex(ValueError, why):
+                codeview.new_folder(self.rid, rel)
+        self.assertEqual(self.dirs(), ["Topic"])
+
+    # ---- new file
+    def test_a_new_md_starts_with_its_heading_and_the_caret_below(self):
+        res = codeview.new_file(self.rid, "Topic/fresh.md")
+        self.assertEqual((self.base / "Topic" / "fresh.md").read_bytes(), b"# fresh\n\n")
+        self.assertEqual(res, {"path": "Topic/fresh.md", "select": {"line": 3, "col": 1, "len": 0}})
+
+    def test_file_names_get_plain_messages(self):
+        for rel, why in (("Topic/notes", "file type.*notes\\.md"), ("Topic/Sub/", "folder"),
+                         ("Topic/a:b.md", "does not allow :"), ("Topic/CON.md", "Windows keeps"),
+                         ("build/x.md", "hides folders named build"), ("Topic/.x.md", "starts with a dot")):
+            with self.subTest(rel=rel), self.assertRaisesRegex(ValueError, why):
+                codeview.new_file(self.rid, rel)
+
+    # ---- rename
+    def test_renames_a_file_and_its_progress_goes_with_it(self):
+        codeview.STATE.set_progress(self.rid, "Topic/A01_First.java", "done")
+        res = codeview.rename_path(self.rid, "Topic/A01_First.java", "A01_Renamed.java")
+        self.assertEqual(res, {"path": "Topic/A01_Renamed.java", "dir": False})
+        self.assertFalse((self.base / "Topic" / "A01_First.java").exists())
+        self.assertEqual((self.base / "Topic" / "A01_Renamed.java").read_bytes(), b"class First {}")
+        prog = codeview.STATE.progress(self.rid)
+        self.assertEqual(prog["Topic/A01_Renamed.java"]["s"], "done")
+        self.assertNotIn("Topic/A01_First.java", prog)
+
+    def test_renames_a_folder_and_the_progress_inside_it(self):
+        codeview.STATE.set_progress(self.rid, "Topic/A01_First.java", "done")
+        codeview.STATE.set_progress(self.rid, "README.md", "revise")
+        self.assertEqual(codeview.rename_path(self.rid, "Topic", "Arrays"), {"path": "Arrays", "dir": True})
+        prog = codeview.STATE.progress(self.rid)
+        self.assertEqual(sorted(prog), ["Arrays/A01_First.java", "README.md"])
+        self.assertTrue((self.base / "Arrays" / "notes.md").is_file())
+
+    def test_a_change_of_case_only(self):
+        self.assertEqual(codeview.rename_path(self.rid, "Topic/notes.md", "Notes.md")["path"], "Topic/Notes.md")
+        self.assertIn("Notes.md", os.listdir(self.base / "Topic"))
+
+    def test_the_same_level_number_may_stay(self):
+        self.assertEqual(codeview.rename_path(self.rid, "Topic/B12_Two.java", "B12_TwoSum.java")["path"],
+                         "Topic/B12_TwoSum.java")
+
+    def test_rename_refusals(self):
+        for rel, name, why in (("", "x", "folder itself"), ("Topic/notes.md", "B12_Two.java", "already exists"),
+                               ("Topic/notes.md", "pic.png", "would not show"), ("Topic/notes.md", "sub/x.md", "one name"),
+                               ("Topic/notes.md", "a:b.md", "does not allow :"), ("Topic/notes.md", "notes.md", "already has"),
+                               ("Topic/notes.md", "B12_Other.java", "B12 is already B12_Two.java"),
+                               ("Topic", "build", "hides folders named build"), ("Topic/missing.md", "x.md", "not found"),
+                               ("img/pic.png", "x.png", "not a file or folder"), ("../x", "y", "outside")):
+            with self.subTest(rel=rel, name=name), self.assertRaisesRegex(ValueError, why):
+                codeview.rename_path(self.rid, rel, name)
+        self.assertTrue((self.base / "Topic" / "notes.md").is_file())
+
+    def test_a_file_open_in_another_program(self):
+        with mock.patch.object(codeview.os, "rename", side_effect=PermissionError(13, "in use")), \
+                self.assertRaisesRegex(ValueError, "open in another program"):
+            codeview.rename_path(self.rid, "Topic/notes.md", "other.md")
+
+    # ---- delete a folder
+    def test_a_folder_goes_to_the_bin(self):
+        self.assertEqual(codeview.delete_folder(self.rid, "Topic", trash=self.trash), {"ok": True})
+        self.assertEqual(self.trashed, [(self.base / "Topic").resolve()])
+        self.assertFalse((self.base / "Topic").exists())
+
+    def test_delete_folder_refusals(self):
+        (self.base / ".hidden").mkdir()
+        for rel, why in (("", "folder itself"), ("Topic/notes.md", "not a folder"), ("missing", "not a folder"),
+                         ("../x", "outside"), (".hidden", "not a folder")):
+            with self.subTest(rel=rel), self.assertRaisesRegex(ValueError, why):
+                codeview.delete_folder(self.rid, rel, trash=self.trash)
+        self.assertEqual(self.trashed, [])
+        with self.assertRaises(ValueError):            # the file route never takes a folder
+            codeview.delete_file(self.rid, "Topic", trash=self.trash)
+
+
 class BrowserTest(unittest.TestCase):
     """4 Oct: the tray opened Edge, the Windows default, but every attempt was saved in
     Chrome's storage, so reopening from the tray looked like the work was gone. The tray's
@@ -1264,6 +1391,30 @@ class HttpTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             self.post("/api/delete", body, page_header=False)
         self.assertEqual(cm.exception.code, 403)
+
+    def test_file_routes_are_wired_and_guarded(self):
+        """mkdir, rename and a folder's delete reach their functions; /api/info tells the page
+        they exist, so a tray started before 8 Oct shows none of them."""
+        self.assertTrue(json.load(self.get("/api/info"))["files"])
+        base = TMP / "http_files"
+        base.mkdir(exist_ok=True)
+        rid = codeview.STATE.add_root(str(base))["id"]
+        try:
+            self.assertEqual(json.load(self.post("/api/mkdir", {"root": rid, "path": "Sub"})), {"path": "Sub"})
+            self.assertEqual(json.load(self.post("/api/rename", {"root": rid, "path": "Sub", "name": "Sub2"})),
+                             {"path": "Sub2", "dir": True})
+            with self.assertRaises(urllib.error.HTTPError) as cm:       # the root: refused, nothing trashed
+                self.post("/api/delete", {"root": rid, "path": "", "folder": True})
+            self.assertEqual(cm.exception.code, 400)
+            self.assertIn("folder itself", json.load(cm.exception)["error"])
+            for path, body in (("/api/mkdir", {"root": rid, "path": "X"}), ("/api/rename", {"root": rid, "path": "Sub2", "name": "Y"})):
+                with self.assertRaises(urllib.error.HTTPError) as cm:
+                    self.post(path, body, page_header=False)
+                self.assertEqual(cm.exception.code, 403)
+            self.assertEqual(sorted(os.listdir(base)), ["Sub2"])
+        finally:
+            codeview.STATE.remove_root(rid)
+            shutil.rmtree(base, ignore_errors=True)
 
     def test_locate_is_wired_and_guarded(self):
         """A web page cannot use it to add folders: it needs the page's own header."""
