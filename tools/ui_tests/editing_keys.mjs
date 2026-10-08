@@ -81,8 +81,8 @@ await suite(async t => {
   await ws.open('Notes.md');
   await ev(`document.activeElement && document.activeElement.blur()`);
   await press('Ctrl+Alt+l');
-  ok = await waitFor(`/formats Java files/.test(document.querySelector('#toast').textContent)`, 4000);
-  check('Ctrl+Alt+L in a Markdown file says it is for Java files', ok, await ev(`document.querySelector('#toast').textContent`));
+  ok = await waitFor(`/formats Java, JavaScript and HTML files/.test(document.querySelector('#toast').textContent)`, 4000);
+  check('Ctrl+Alt+L in a Markdown file says which files it formats', ok, await ev(`document.querySelector('#toast').textContent`));
 
   // ---- with nothing selected Alt+J is still Next file
   await ws.open('A01_Main.java');

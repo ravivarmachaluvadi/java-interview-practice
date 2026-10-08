@@ -2128,6 +2128,475 @@ class AssistTest(unittest.TestCase):
         self.assertIn("push", self.labels(self.complete(method=f"waiting.{CUR}")))
 
 
+# ---------------------------------------------------------------- Python, JavaScript, UI (8 Oct)
+# Ravi: "enabling code viewer for UI practice and development practice for python too, like java
+# capabilities". Run + Practice for .py (python) and .js (node); .html runs in the page.
+
+PY_SAMPLE = '''"""
+=====================================================================
+ Two Sum                                        LeetCode 1 | Easy
+=====================================================================
+
+PROBLEM
+  Find two indices whose numbers add up to target.
+
+EXAMPLE
+  [2, 7, 11, 15], 9  ->  [0, 1]
+
+APPROACH  (hash map)
+  1. Walk once, remembering each number's index.
+
+KEY INSIGHT
+  Look up the complement.
+
+COMPLEXITY
+  Time  O(n)
+
+RUN
+  main() prints actual vs expected.
+"""
+
+
+class ListNode:
+    def __init__(self, val):
+        self.val = val
+
+    def total(self):
+        return self.val
+
+
+def two_sum(nums, target):
+    """Indices of the two numbers that add up to target."""
+    # the index each number was seen at
+    seen = {}
+    for i, x in enumerate(nums):
+        if target - x in seen:
+            return [seen[target - x], i]
+        seen[x] = i
+    return []
+
+
+class Cache:
+    def __init__(self, cap):
+        self.cap = cap
+
+    def get(self, key):
+        return -1
+
+    def __repr__(self):
+        return f"Cache({self.cap})"
+
+
+def check(label, actual, expected):
+    print(f"{label}: {actual}   expected {expected}")
+
+
+def print_board(b):
+    return sum(b)
+
+
+def main():
+    check("case 1", two_sum([2, 7, 11, 15], 9), [0, 1])
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+JS_SAMPLE = r'''/*
+ * =====================================================================
+ *  Debounce                                     JavaScript | Easy
+ * =====================================================================
+ *
+ * PROBLEM
+ *   Delay calls until the caller is quiet.
+ *
+ * APPROACH
+ *   1. Clear the timer on each call.
+ *
+ * KEY INSIGHT
+ *   The last call wins.
+ *
+ * RUN
+ *   main() prints actual vs expected.
+ */
+function debounce(fn, ms) {
+  let timer = null;
+  const re = /[{]/;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+const sum = ({ a, b }) => {
+  return `${a + b}`;
+};
+
+const double = x => {
+  return x * 2;
+};
+
+async function fetchAll(urls) {
+  return Promise.all(urls);
+}
+
+class Emitter {
+  constructor() {
+    this.events = {};
+  }
+
+  on(name, fn) {
+    (this.events[name] ||= []).push(fn);
+    return this;
+  }
+
+  static create() {
+    return new Emitter();
+  }
+
+  toString() {
+    return 'Emitter';
+  }
+}
+
+function check(label, actual, expected) {
+  console.log(`${label}: ${JSON.stringify(actual)}   expected ${JSON.stringify(expected)}`);
+}
+
+function main() {
+  check('case 1', sum({ a: 1, b: 2 }), '3');
+}
+
+main();
+'''
+
+HTML_SAMPLE = '''<!DOCTYPE html>
+<!--
+=====================================================================
+ Counter                                      Machine coding | Easy
+=====================================================================
+
+PROBLEM
+  A number with + and - buttons; it never goes below 0.
+
+APPROACH
+  1. Keep the count in a variable and re-render.
+
+KEY INSIGHT
+  State first, then render.
+
+RUN
+  Ctrl+Enter runs the test block at the bottom.
+-->
+<html>
+<head>
+  <style>
+    button { padding: 4px; }
+  </style>
+</head>
+<body>
+  <span id="count">0</span>
+  <button id="inc">+</button>
+  <script>
+    let count = 0;
+    function render() {
+      document.getElementById('count').textContent = count;
+    }
+    function increment() {
+      count += 1;
+      render();
+    }
+    document.getElementById('inc').onclick = increment;
+  </script>
+  <script type="test">
+    const $ = s => document.querySelector(s);
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+    $('#inc').click();
+    check('after one click', $('#count').textContent, '1');
+  </script>
+</body>
+</html>
+'''
+
+
+@unittest.skipUnless(codeview.PYTHON, "no python.exe beside this interpreter")
+class PythonRunTest(unittest.TestCase):
+    def setUp(self):
+        self.base = TMP / "py_root"
+        (self.base / "09-Python").mkdir(parents=True, exist_ok=True)
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def run_py(self, code, rel="09-Python/B01_TwoSum.py", stdin="", timeout=10):
+        p = self.base / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(code.encode())
+        return codeview.run_code(code, self.rid, rel, stdin, timeout, None)
+
+    def test_runs_and_ticks_the_expected_lines(self):
+        res = self.run_py(PY_SAMPLE)
+        self.assertEqual((res["phase"], res["ok"], res["file"]), ("run", True, "B01_TwoSum.py"), res["output"])
+        self.assertEqual(res["output"].strip(), "case 1: [0, 1]   expected [0, 1]")
+        self.assertEqual(res["checks"], {"pass": 1, "fail": 0, "unchecked": 0})
+        self.assertEqual(res["verdicts"], [True])
+
+    def test_a_syntax_error_is_the_compile_phase_in_pythons_words(self):
+        res = self.run_py("x = 1\ndef f(:\n    pass\n")
+        self.assertEqual((res["phase"], res["ok"]), ("compile", False))
+        self.assertIn('File "B01_TwoSum.py", line 2', res["output"])
+        self.assertIn("SyntaxError", res["output"])
+
+    def test_a_traceback_names_the_file_not_the_temp_folder(self):
+        res = self.run_py("print('a')\nraise ValueError('boom')\n")
+        self.assertEqual((res["phase"], res["ok"], res["exitCode"]), ("run", False, 1))
+        self.assertIn('File "B01_TwoSum.py", line 2', res["output"])
+        self.assertIn("ValueError: boom", res["output"])
+        self.assertNotIn("codeview_", res["output"])
+
+    def test_stdin_unicode_and_timeout(self):
+        res = self.run_py("import sys\nprint(sys.stdin.read().upper(), '→')\n", stdin="abc")
+        self.assertEqual(res["output"].strip(), "ABC →")
+        res = self.run_py("while True: pass\n", timeout=1)
+        self.assertTrue(res["timedOut"])
+
+    def test_imports_a_module_beside_it_and_leaves_no_pycache(self):
+        (self.base / "09-Python" / "helper.py").write_bytes(b"def twice(x):\n    return 2 * x\n")
+        res = self.run_py("from helper import twice\nprint(twice(4), '  expected 8')\n")
+        self.assertTrue(res["ok"], res["output"])
+        self.assertEqual(sorted(os.listdir(self.base / "09-Python")), ["B01_TwoSum.py", "helper.py"])
+
+    def test_scratch_takes_the_language_from_the_request(self):
+        res = codeview.run_code("print('hi')\n", "", None, "", 10, None, lang="py")
+        self.assertEqual((res["ok"], res["file"], res["output"].strip()), (True, "Scratch.py", "hi"))
+
+
+@unittest.skipUnless(codeview.NODE, "Node.js not installed")
+class NodeRunTest(unittest.TestCase):
+    def run_js(self, code, lang="js", timeout=10):
+        return codeview.run_code(code, "", None, "", timeout, None, lang=lang)
+
+    def test_runs_and_ticks_the_expected_lines(self):
+        res = self.run_js(JS_SAMPLE)
+        self.assertEqual((res["phase"], res["ok"], res["file"]), ("run", True, "Scratch.js"), res["output"])
+        self.assertEqual(res["output"].strip(), 'case 1: "3"   expected "3"')
+        self.assertEqual(res["checks"]["pass"], 1)
+
+    def test_a_syntax_error_is_the_compile_phase_with_its_line(self):
+        res = self.run_js("const a = 1;\nconst b = ;\n")
+        self.assertEqual((res["phase"], res["ok"]), ("compile", False))
+        self.assertTrue(res["output"].startswith("Scratch.js:2"), res["output"])
+        self.assertIn("SyntaxError", res["output"])
+
+    def test_a_stack_names_the_file_not_the_temp_folder(self):
+        res = self.run_js("function f() {\n  throw new Error('boom');\n}\nf();\n")
+        self.assertEqual((res["phase"], res["ok"]), ("run", False))
+        self.assertIn("Scratch.js:2", res["output"])
+        self.assertNotIn("codeview_", res["output"])
+
+    def test_an_es_module_and_a_timer(self):
+        res = self.run_js("import { sep } from 'node:path';\nawait new Promise(r => setTimeout(r, 30));\n"
+                          "console.log(typeof sep, '  expected string');\n", lang="mjs")
+        self.assertTrue(res["ok"], res["output"])
+        self.assertEqual(res["file"], "Scratch.mjs")
+        res = self.run_js("setInterval(() => {}, 1000);\n", timeout=1)
+        self.assertTrue(res["timedOut"])
+
+    def test_no_node_says_how_to_get_it(self):
+        with mock.patch.object(codeview, "NODE", None):
+            res = self.run_js("console.log(1)\n")
+        self.assertEqual((res["phase"], res["ok"]), ("compile", False))
+        self.assertIn("nodejs.org", res["output"])
+
+
+class LangSkeletonTest(unittest.TestCase):
+    def test_python_hides_answers_and_keeps_the_harness(self):
+        import langsrc
+        text, hidden = langsrc.practice_skeleton(PY_SAMPLE, "py")
+        self.assertEqual(hidden, ["two_sum", "get", "print_board"])
+        self.assertNotIn("seen = {}", text)
+        self.assertNotIn("the index each number", text)              # its comments go with it
+        self.assertIn('"""Indices of the two numbers that add up to target."""\n'
+                      "    # TODO: your solution. (Practice mode - Solution shows the original.)\n    pass\n", text)
+        for kept in ("self.val = val", "return self.val", "self.cap = cap", 'f"Cache({self.cap})"',
+                     "expected {expected}", 'if __name__ == "__main__":'):
+            self.assertIn(kept, text)
+        self.assertNotIn("Look up the complement", text)
+        self.assertIn("The Hint button", text)
+        compile(text, "skeleton.py", "exec")                           # still runs
+
+    def test_python_hints_are_the_hidden_sections_gentlest_first(self):
+        import langsrc
+        hints = langsrc.practice_hints(PY_SAMPLE, "py")
+        self.assertEqual([h["title"] for h in hints], ["KEY INSIGHT", "APPROACH (hash map)", "COMPLEXITY"])
+        self.assertEqual(hints[0]["text"], "Look up the complement.")
+
+    def test_python_that_does_not_parse_hides_nothing(self):
+        import langsrc
+        self.assertEqual(langsrc.practice_skeleton("def f(:\n", "py")[1], [])
+
+    def test_javascript_hides_answers_and_keeps_the_harness(self):
+        import langsrc
+        text, hidden = langsrc.practice_skeleton(JS_SAMPLE, "js")
+        self.assertEqual(hidden, ["debounce", "sum", "double", "fetchAll", "on", "create"])
+        for gone in ("clearTimeout", "a + b", "x * 2", "Promise.all", ".push(fn)", "new Emitter()"):
+            self.assertNotIn(gone, text)
+        for kept in ("this.events = {};", "return 'Emitter';", "JSON.stringify(expected)",
+                     "check('case 1'", "main();", "function debounce(fn, ms) {", "const sum = ({ a, b }) => {"):
+            self.assertIn(kept, text)
+        self.assertIn("  // TODO: your solution. (Practice mode - Solution shows the original.)", text)
+        self.assertNotIn("The last call wins", text)
+        if codeview.NODE:
+            res = codeview.run_code(text, "", None, "", 10, None, lang="js")
+            self.assertEqual(res["phase"], "run", res["output"])
+
+    def test_javascript_hints(self):
+        import langsrc
+        self.assertEqual([h["title"] for h in langsrc.practice_hints(JS_SAMPLE, "js")], ["KEY INSIGHT", "APPROACH"])
+
+    def test_html_hides_script_answers_but_not_markup_css_or_tests(self):
+        import langsrc
+        text, hidden = langsrc.practice_skeleton(HTML_SAMPLE, "html")
+        self.assertEqual(hidden, ["render", "increment"])
+        self.assertNotIn("count += 1", text)
+        for kept in ("button { padding: 4px; }", '<span id="count">0</span>', "let count = 0;",
+                     "document.getElementById('inc').onclick = increment;", "$('#inc').click();",
+                     "function check(label, actual, expected) {\n      console.log"):
+            self.assertIn(kept, text)
+        self.assertNotIn("State first", text)
+        self.assertEqual([h["title"] for h in langsrc.practice_hints(HTML_SAMPLE, "html")], ["KEY INSIGHT", "APPROACH"])
+
+    def test_java_goes_through_javasrc_unchanged(self):
+        import langsrc
+        self.assertEqual(langsrc.practice_skeleton(SAMPLE, "java"), javasrc.practice_skeleton(SAMPLE))
+        self.assertEqual(langsrc.practice_hints(SAMPLE, "java"), javasrc.practice_hints(SAMPLE))
+
+    def test_language_of_a_file_name(self):
+        import langsrc
+        self.assertEqual([langsrc.lang_of(n) for n in ("A.java", "b.PY", "c.js", "d.mjs", "e.html", "f.md", "g")],
+                         ["java", "py", "js", "js", "html", None, None])
+
+
+class LangNewProblemTest(unittest.TestCase):
+    def setUp(self):
+        self.base = TMP / "lang_new_root"
+        self.base.mkdir(parents=True, exist_ok=True)
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def make(self, lang, **kw):
+        args = dict(folder="Practice", level="B", name="Two Sum", source="1", difficulty="Easy", lang=lang)
+        res = codeview.new_problem(self.rid, **(args | kw))
+        return res, (self.base / res["path"]).read_text(encoding="utf-8")
+
+    def test_each_language_gets_its_extension_header_and_harness(self):
+        import langsrc
+        for lang, ext in (("py", ".py"), ("js", ".js"), ("html", ".html")):
+            with self.subTest(lang=lang):
+                res, text = self.make(lang, level="", name=f"Two Sum {lang}")
+                self.assertTrue(res["path"].endswith(ext), res["path"])
+                h = check_headers.parse_header(text)
+                self.assertEqual((h["title"], h["meta"]), (f"Two Sum {lang}", "LeetCode 1 | Easy"))
+                for s in check_headers.SECTIONS_DSA:
+                    self.assertIn(s, h["sections"])
+                lines = text.split("\n")
+                sel = res["select"]                       # PROBLEM's ... selected to type over
+                self.assertEqual(lines[sel["line"] - 2].strip(" *"), "PROBLEM")
+                self.assertEqual(lines[sel["line"] - 1][sel["col"] - 1:sel["col"] - 1 + sel["len"]], "...")
+                self.assertTrue(langsrc.practice_skeleton(text, lang)[1], "Practice would find nothing to hide")
+                self.assertLessEqual(max(map(len, lines)), 100)
+                if lang != "html" and (codeview.NODE if lang == "js" else codeview.PYTHON):
+                    run = codeview.run_code(text, self.rid, res["path"], "", 10, None)
+                    self.assertEqual(run["phase"], "run", run["output"])
+                    self.assertIn("expected", run["output"])
+
+    def test_numbering_counts_every_language_in_the_folder(self):
+        self.assertEqual(self.make("py")[0]["path"], "Practice/B01_TwoSum.py")
+        self.assertEqual(self.make("js", name="Debounce")[0]["path"], "Practice/B02_Debounce.js")
+        self.assertEqual(self.make("java", name="Three Sum")[0]["path"], "Practice/B03_ThreeSum.java")
+
+    def test_a_new_file_by_extension_gets_the_template_too(self):
+        res = codeview.new_file(self.rid, "Other/scratch_idea.py")
+        self.assertIn("PROBLEM", (self.base / res["path"]).read_text(encoding="utf-8"))
+        self.assertIn("select", res)
+
+    def test_must_know_shows_in_the_tree_for_every_language(self):
+        self.make("html", must=True)
+        files = codeview.build_tree(self.rid)["dirs"][0]["files"]
+        self.assertEqual([(f["name"], f.get("must")) for f in files], [("B01_TwoSum.html", True)])
+
+    def test_refuses_an_unknown_language(self):
+        with self.assertRaises(ValueError):
+            self.make("rust")
+
+
+class LangHttpTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = codeview.make_server(0)
+        cls.port = cls.server.server_address[1]
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def post(self, path, body, page_header=True):
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", json.dumps(body).encode(),
+                                     {"Content-Type": "application/json", **({"X-CodeView": "1"} if page_header else {})})
+        return json.load(urllib.request.urlopen(req, timeout=30))
+
+    def test_info_names_the_languages(self):
+        info = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/info", timeout=10))
+        self.assertEqual(info["langs"][:2], ["java", "html"])
+        self.assertEqual("py" in info["langs"], bool(codeview.PYTHON))
+        self.assertEqual("js" in info["langs"], bool(codeview.NODE))
+
+    def test_check_ticks_output_from_the_page(self):
+        res = self.post("/api/check", {"output": "a: 1   expected 1\nb: 2   expected 3\nplain\n"})
+        self.assertEqual(res, {"verdicts": [True, False, None], "checks": {"pass": 1, "fail": 1, "unchecked": 0}})
+
+    def test_syntax_finds_the_first_python_error(self):
+        self.assertEqual(self.post("/api/syntax", {"lang": "py", "code": "x = 1\n"}), {"errors": []})
+        e = self.post("/api/syntax", {"lang": "py", "code": "x = 1\nif x\n    pass\n"})["errors"]
+        self.assertEqual((len(e), e[0]["line"]), (1, 2))
+        self.assertIn("expected ':'", e[0]["message"])
+
+    def test_run_uses_the_language_sent(self):
+        if not codeview.PYTHON:
+            self.skipTest("no python")
+        res = self.post("/api/run", {"root": "", "path": None, "code": "print(6 * 7)\n", "lang": "py"})
+        self.assertEqual(res["output"].strip(), "42")
+
+    def test_practice_of_a_python_file(self):
+        rel = "AAScratches/_codeview_test/B01_TwoSum.py"
+        p = codeview.REPO / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            p.write_bytes(PY_SAMPLE.encode())
+            rid = codeview.STATE.roots()[0]["id"]
+            d = json.load(urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/practice?root={rid}&path={rel}", timeout=10))
+            self.assertEqual(d["hidden"], ["two_sum", "get", "print_board"])
+            self.assertEqual(d["hints"][0]["title"], "KEY INSIGHT")
+        finally:
+            p.unlink()
+            p.parent.rmdir()
+
+    def test_new_routes_are_guarded(self):
+        for path in ("/api/check", "/api/syntax"):
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                self.post(path, {"output": "", "lang": "py", "code": ""}, page_header=False)
+            self.assertEqual(cm.exception.code, 403)
+
+
 def tearDownModule():
     codeview.ASSIST.stop()
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file

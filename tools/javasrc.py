@@ -6,6 +6,9 @@ javasrc - just enough Java source analysis for runjava and codeview.
     practice_skeleton(src)  -> the file with every solution method body replaced by a stub
     practice_hints(src)     -> the header notes practice mode hides, gentlest first
 
+Both header functions also take style "py" or "html" (a docstring or <!-- --> header);
+tools/langsrc.py uses them for Python, JavaScript and UI files.
+
 No parser: comments and literals are blanked out first, then braces are counted.
 That is reliable on this repo's 580 files (see tools/codeview's practice check)
 but is not a general Java parser.
@@ -134,12 +137,30 @@ HELPER_CLASS = re.compile(r"(Node|Pair|Edge|Point|Interval|Cell|Entry|Tuple)$")
 # Header sections that give the answer away, and the ones that only state the task.
 # Counted across the repo's headers on 3 Oct 2026; a section in neither list keeps
 # whatever state the previous one set.
-HIDDEN_SECTIONS = re.compile(r"^\s*\*\s*(APPROACH|KEY INSIGHT|COMPLEXITY|INTERVIEW FOLLOW-UPS|FOLLOW-UPS|"
-                             r"SOLUTION|INTUITION|GOTCHAS|KEY DECISIONS|HOW IT WORKS|DESIGN|ANSWER|"
-                             r"HOW TO REASON ABOUT IT|FIXES APPLIED|FIXED|ROLES IN THIS CODE|WHAT TO NOTICE|"
-                             r"RECOGNIZE WHEN|TEMPLATE|VARIATIONS|PITFALLS|DEEP DIVE)\b")
-SHOWN_SECTIONS = re.compile(r"^\s*\*\s*(PROBLEM|EXAMPLES?|RUN|CONSTRAINTS|INPUT|OUTPUT|QUESTION|OPTIONS|"
-                            r"INTENT|WHEN TO USE|WHAT YOU WILL SEE|ROLE IN THE PROJECT|PATTERN)\b")
+HIDDEN_TITLES = (r"(APPROACH|KEY INSIGHT|COMPLEXITY|INTERVIEW FOLLOW-UPS|FOLLOW-UPS|"
+                 r"SOLUTION|INTUITION|GOTCHAS|KEY DECISIONS|HOW IT WORKS|DESIGN|ANSWER|"
+                 r"HOW TO REASON ABOUT IT|FIXES APPLIED|FIXED|ROLES IN THIS CODE|WHAT TO NOTICE|"
+                 r"RECOGNIZE WHEN|TEMPLATE|VARIATIONS|PITFALLS|DEEP DIVE)")
+SHOWN_TITLES = (r"(PROBLEM|EXAMPLES?|RUN|CONSTRAINTS|INPUT|OUTPUT|QUESTION|OPTIONS|"
+                r"INTENT|WHEN TO USE|WHAT YOU WILL SEE|ROLE IN THE PROJECT|PATTERN)")
+HIDDEN_SECTIONS = re.compile(r"^\s*\*\s*" + HIDDEN_TITLES + r"\b")
+SHOWN_SECTIONS = re.compile(r"^\s*\*\s*" + SHOWN_TITLES + r"\b")
+# 8 Oct: Python headers are a """ docstring and UI (.html) headers an <!-- --> comment, with no
+# " * " in front of each line. There a title must stand alone on its line (a note in brackets
+# allowed), so a sentence that starts with "DESIGN" or "ANSWER" is not taken for one.
+PLAIN_HIDDEN = re.compile(r"^\s*" + HIDDEN_TITLES + r"(?:\s+\(.*\))?\s*$")
+PLAIN_SHOWN = re.compile(r"^\s*" + SHOWN_TITLES + r"(?:\s+\(.*\))?\s*$")
+# style -> (header opens, closes, hidden title, shown title, a line's text without its " * ",
+# the lines that stand where the hidden notes were). JavaScript headers use the Java style.
+STYLES = {
+    "java": ("/*", "*/", HIDDEN_SECTIONS, SHOWN_SECTIONS, lambda line: re.sub(r"^\s*\*", "", line),
+             [" *  The approach notes (APPROACH, KEY INSIGHT, COMPLEXITY, ...) are hidden in practice mode.",
+              " *  The Hint button shows them one at a time.", " *"]),
+    "py": ('"""', '"""', PLAIN_HIDDEN, PLAIN_SHOWN, lambda line: line,
+           ["The approach notes (APPROACH, KEY INSIGHT, COMPLEXITY, ...) are hidden in practice mode.",
+            "The Hint button shows them one at a time.", ""]),
+}
+STYLES["html"] = ("<!--", "-->") + STYLES["py"][2:]
 
 
 def brace_owners(s):
@@ -232,29 +253,30 @@ def practice_skeleton(src):
     return hide_hints(out), hidden
 
 
-def header_lines(src):
+def header_lines(src, style="java"):
     """-> (start, end, [(line, section title or None)]) for the first block comment, where
     the title names the hidden section the line belongs to; (None, None, []) if no header."""
-    start = src.find("/*")
-    end = src.find("*/", start + 2) if start != -1 else -1
+    opens, closes, hidden, shown, text, _ = STYLES[style]
+    start = src.find(opens)
+    end = src.find(closes, start + len(opens)) if start != -1 else -1
     if start == -1 or end == -1 or start > 400:
         return None, None, []
     out, title = [], None
     for line in src[start:end].split("\n"):
-        if HIDDEN_SECTIONS.match(line):
-            title = " ".join(line.split("*", 1)[1].split())
+        if hidden.match(line):
+            title = " ".join(text(line).split())
             out.append((line, title))
             continue
-        if SHOWN_SECTIONS.match(line):
+        if shown.match(line):
             title = None
         out.append((line, title))
     return start, end, out
 
 
-def hide_hints(src):
+def hide_hints(src, style="java"):
     """Drop the APPROACH / KEY INSIGHT / COMPLEXITY / FOLLOW-UPS sections of the first
     block comment, keeping PROBLEM, EXAMPLE and RUN."""
-    start, end, lines = header_lines(src)
+    start, end, lines = header_lines(src, style)
     if start is None:
         return src
     kept, noted = [], False
@@ -262,9 +284,7 @@ def hide_hints(src):
         if title is None:
             kept.append(line)
         elif not noted:
-            kept.append(" *  The approach notes (APPROACH, KEY INSIGHT, COMPLEXITY, ...) are hidden in practice mode.")
-            kept.append(" *  The Hint button shows them one at a time.")
-            kept.append(" *")
+            kept += STYLES[style][5]
             noted = True
     return src[:start] + "\n".join(kept) + src[end:]
 
@@ -279,16 +299,17 @@ HINT_ORDER = (("RECOGNIZE WHEN",),
               ("COMPLEXITY",))
 
 
-def practice_hints(src):
+def practice_hints(src, style="java"):
     """-> [{"title", "text"}]: exactly the header sections hide_hints drops, gentlest first."""
+    _, _, hidden, _, text, _ = STYLES[style]
     sections = []
-    for line, title in header_lines(src)[2]:
+    for line, title in header_lines(src, style)[2]:
         if title is None:
             continue
-        if HIDDEN_SECTIONS.match(line):
+        if hidden.match(line):
             sections.append({"title": title, "lines": []})
         else:
-            sections[-1]["lines"].append(re.sub(r"^\s*\*", "", line).rstrip())
+            sections[-1]["lines"].append(text(line).rstrip())
 
     def rank(s):
         key = HIDDEN_SECTIONS.match(" * " + s["title"]).group(1)

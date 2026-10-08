@@ -6,21 +6,26 @@ import re, sys, pathlib, subprocess, json
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "AAScratches"
 PACKAGED = ("orders-springboot-project", "WorkFlowExecutor")
 SECTIONS_DSA = ["PROBLEM", "EXAMPLE", "APPROACH", "KEY INSIGHT", "COMPLEXITY", "INTERVIEW FOLLOW-UPS", "RUN"]
+# 8 Oct: practice files in Python (a """ docstring header), JavaScript (/* * */ like Java) and
+# UI pages (an <!-- --> comment after <!DOCTYPE html>) carry the same header.
+EXTS = (".java", ".py", ".js", ".html")
+HEADER = re.compile(r'\s*(?:<!DOCTYPE[^>]*>\s*)?(?:/\*(.*?)\*/|"""(.*?)"""|<!--(.*?)-->)', re.S | re.I)
 
 def files():
     if "--modified-only" in sys.argv:
         out = subprocess.run(["git", "status", "--short", "--", "."], capture_output=True, text=True, cwd=str(ROOT)).stdout
         for line in out.splitlines():
-            if line[:2].strip() in ("M", "A", "AM", "MM") and line.endswith(".java"):
+            if line[:2].strip() in ("M", "A", "AM", "MM") and line.endswith(EXTS):
                 yield ROOT / line[3:].strip().strip('"')
     else:
-        yield from sorted(p for p in ROOT.rglob("*.java") if not str(p.relative_to(ROOT)).startswith("_"))
+        yield from sorted(p for ext in EXTS for p in ROOT.rglob("*" + ext) if not str(p.relative_to(ROOT)).startswith("_"))
 
 def parse_header(text):
-    m = re.match(r"\s*/\*(.*?)\*/", text, re.S)
+    m = HEADER.match(text)
     if not m: return None
-    body = m.group(1)
-    lines = [re.sub(r"^\s*\*\s?", "", l) for l in body.splitlines()]
+    star = m.group(1) is not None
+    body = next(g for g in m.groups() if g is not None)
+    lines = [re.sub(r"^\s*\*\s?", "", l) for l in body.splitlines()] if star else body.splitlines()
     title = meta = ""; must = False
     for i, l in enumerate(lines):
         if re.match(r"=+\s*$", l.strip()):
@@ -52,10 +57,10 @@ def parse_header(text):
 # What Code Viewer's New file (+) template leaves to fill in (5 Oct: a blank one passed this check).
 # 6 Oct: the New problem form leaves "LeetCode ? | Easy" when no source is given.
 PLACEHOLDERS = [("LeetCode ?", re.compile(r"LeetCode \?")), ("O(?)", re.compile(r"O\(\?\)")),
-                ("...", re.compile(r"^\s*\*\s+\.\.\.\s*$", re.M))]
+                ("...", re.compile(r"^\s*(?:\*\s+)?\.\.\.\s*$", re.M))]
 
 def placeholders(text):
-    m = re.match(r"\s*/\*.*?\*/", text, re.S)
+    m = HEADER.match(text)
     return [name for name, pat in PLACEHOLDERS if m and pat.search(m.group(0))]
 
 def check(p):
@@ -63,6 +68,8 @@ def check(p):
     text = p.read_text(encoding="utf-8", errors="replace")
     issues = []
     packaged = any(k in rel for k in PACKAGED)
+    if p.suffix != ".java":
+        return rel, *check_other(p, text)
     if not re.match(r"\s*/\*", text): issues.append("header-not-first")
     h = parse_header(text)
     if not h: issues.append("no-header")
@@ -89,6 +96,30 @@ def check(p):
         if re.search(r"^\s*package\s", text, re.M): issues.append("package-line")
         if "Tricky-MCQ" not in rel and not re.search(r"public\s+static\s+void\s+main\s*\(", text): issues.append("no-public-main")
     return rel, h, issues
+
+# what makes each kind of file runnable by Code Viewer
+RUNS = {".py": ("no-main-guard", re.compile(r'^if __name__ == ["\']__main__["\']:', re.M)),
+        ".js": ("no-main-call", re.compile(r"^main\(\);?\s*$", re.M)),
+        ".html": ("no-test-block", re.compile(r"<script[^>]*\btype\s*=\s*[\"']?test\b", re.I))}
+
+def check_other(p, text):
+    """A Python, JavaScript or UI file: the header rules, plus its own way of running."""
+    issues = []
+    h = parse_header(text)
+    if not h: issues.append("no-header")
+    else:
+        if not h["title"]: issues.append("no-title-line")
+        left = placeholders(text)
+        if left: issues.append(f"unfilled-template:{left}")
+        if not ({"KEY INSIGHT", "KEY DECISIONS"} & set(h["sections"])):
+            issues.append("missing:KEY INSIGHT/DECISIONS")
+    nonascii = [i + 1 for i, l in enumerate(text.splitlines()) if any(ord(c) > 127 for c in l)]
+    if nonascii: issues.append(f"non-ascii-lines:{nonascii[:5]}")
+    longl = [i + 1 for i, l in enumerate(text.splitlines()) if len(l) > 100]
+    if longl: issues.append(f"lines>100:{longl[:5]}")
+    name, rx = RUNS[p.suffix]
+    if not rx.search(text): issues.append(name)
+    return h, issues
 
 if __name__ == "__main__":
     rows = []; bad = 0

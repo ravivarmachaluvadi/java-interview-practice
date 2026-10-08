@@ -62,6 +62,9 @@ DESC = {
     "03-LLD/Data-Structure-Implementations": "HashMap and a dynamic array deque built from primitives.",
     "03-LLD/WorkFlowExecutor": "A small workflow executor with a bounded queue (needs Guava; read, do not run).",
     "04-HLD-System-Design/code": "Building blocks you can be asked to sketch: ID generator, wide-column store, Merkle tree, erasure coding.",
+    "09-Python/01-Essentials": "Python as interviews use it: collections (Counter, OrderedDict), sorting with keys, decorators and closures.",
+    "10-JavaScript/01-Essentials": "The classic JavaScript questions: timers (debounce), promises (Promise.all), events (an emitter class).",
+    "11-UI-Practice/01-Components": "Machine-coding screens: a counter, a todo list, an autocomplete with debounce and arrow keys.",
 }
 NOTES = {
     "01-DSA": [("Pattern recognition map (start here)", "notes/Pattern_Recognition_Map.md"),
@@ -73,26 +76,46 @@ NOTES = {
     "03-LLD": [],
     "04-HLD-System-Design": [("HLD keypoints", "notes/HLD_System_Design_Keypoints.md"), ("Payment system design", "notes/Payment_System_Design.md"),
                              ("Distributed transactions and Saga Q&A", "notes/Distributed_Transactions_Saga_QA.md")],
+    "09-Python": [], "10-JavaScript": [], "11-UI-Practice": [],
 }
-TITLES = {"01-DSA": "DSA practice", "02-Java-Core": "Java Core", "03-LLD": "Low-Level Design", "04-HLD-System-Design": "HLD and System Design"}
+TITLES = {"01-DSA": "DSA practice", "02-Java-Core": "Java Core", "03-LLD": "Low-Level Design", "04-HLD-System-Design": "HLD and System Design",
+          "09-Python": "Python practice", "10-JavaScript": "JavaScript practice", "11-UI-Practice": "UI practice (HTML, CSS, JavaScript)"}
+# 8 Oct: the practice files Code Viewer runs; a README lists each of them by its header
+EXTS = (".java", ".py", ".js", ".html")
+HOW_TO_RUN = {
+    "09-Python": "Open any file in Code Viewer (`tools/codeview`): Ctrl+Enter runs it with Python and ticks each expected line; "
+                 "Practice hides the solution. Or run `python <file>`.",
+    "10-JavaScript": "Open any file in Code Viewer (`tools/codeview`): Ctrl+Enter runs it with Node.js and ticks each expected "
+                     "line; Practice hides the solution. Or run `node <file>`.",
+    "11-UI-Practice": "Open any file in Code Viewer (`tools/codeview`): the page shows beside its code as you type, and "
+                      "Ctrl+Enter runs the test block at the bottom and ticks each check. Practice hides the page's functions.",
+}
 INTRO = {
     "01-DSA": "Start with `00-Patterns`: 110 files, one per pattern, each saying how to recognise the pattern, giving its template, solving one classic problem and coding its variants beside it. The [pattern recognition map](notes/Pattern_Recognition_Map.md) maps problem wording to the right file. The numbered topic folders hold every other solved problem, grouped by technique; inside them the filename order **is** the practice order: `A` building blocks, `B` easy, `C` medium, `D` hard, numbered by dependency. Open any file: the header tells you the problem, the approach, the one insight to remember, and the follow-ups; `main()` runs the cases.",
     "02-Java-Core": "Language and JVM demos, one runnable file each, plus interview Q&A notes.",
     "03-LLD": "The GoF patterns, classic LLD interview problems, and data structures built from scratch. Each pattern file maps every class to its pattern role in the header.",
     "04-HLD-System-Design": "System design notes and a few building blocks in code.",
+    "09-Python": "Python practice, one runnable file each, with the same header as the Java files: problem, example, approach, "
+                 "key insight, complexity, follow-ups. `main()` prints each actual result next to the expected one.",
+    "10-JavaScript": "JavaScript practice for Node.js, one runnable file each, with the same header as the Java files. `main()` "
+                     "prints each actual result next to the expected one.",
+    "11-UI-Practice": "Small screens to build in HTML, CSS and JavaScript, as frontend machine-coding rounds ask. Each page is "
+                      "one file: the header states the task, the page works, and a `<script type=\"test\">` block at the bottom "
+                      "clicks and types through it and checks the result. Browsers skip that block, so opening the file shows the "
+                      "plain page.",
 }
 
 def link(rel):
     return rel.replace(" ", "%20")
 
 def tracked_java(top, root=ROOT):
-    """The .java files git knows about (committed or staged) under top, so untracked work in
-    progress never reaches a committed README. None if git is unavailable."""
+    """The practice files (.java, .py, .js, .html) git knows about (committed or staged) under
+    top, so untracked work in progress never reaches a committed README. None if git is unavailable."""
     r = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "--", top], capture_output=True, text=True,
                        encoding="utf-8", cwd=str(root), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:
         return None
-    return {line for line in r.stdout.splitlines() if line.endswith(".java")}
+    return {line for line in r.stdout.splitlines() if line.endswith(EXTS)}
 
 def gen(top):
     text, total, total_mk, nfolders = render(top)
@@ -109,7 +132,7 @@ def render(top, root=ROOT, extra=()):
         print(f"{top}: git ls-files failed; listing every file on disk, tracked or not")
     else:
         known |= set(extra)
-    for p in sorted(topdir.rglob("*.java")):
+    for p in sorted(p for ext in EXTS for p in topdir.rglob("*" + ext)):
         if known is not None and p.relative_to(root).as_posix() not in known:
             continue
         f = p.relative_to(root).as_posix().rsplit("/", 1)[0]
@@ -153,7 +176,7 @@ def render(top, root=ROOT, extra=()):
         if hi:
             lines += ["", "**Worth adding next:**", ""] + [f"- {g['problem']}: {g['technique']}" for g in hi]
         lines.append("")
-    lines += ["`*` = must-know. Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch.", ""]
+    lines += ["`*` = must-know. " + HOW_TO_RUN.get(top, "Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch."), ""]
     return "\n".join(lines), total, total_mk, len(folders)
 
 if __name__ == "__main__":

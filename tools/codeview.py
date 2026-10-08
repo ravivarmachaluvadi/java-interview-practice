@@ -21,7 +21,13 @@ THE PAGE
   Files      every file as a tree; Ctrl+P filters by name, "Show" narrows to must-know,
              not-done or to-revise; new files appear by themselves (the tree refreshes)
   Search     Ctrl+Shift+F searches inside every file
-  Run        Ctrl+Enter compiles what is in the editor and ticks each "expected" line
+  Run        Ctrl+Enter runs what is in the editor and ticks each "expected" line: Java
+             compiled first, Python (.py) with the python.exe beside this server's Python,
+             JavaScript (.js, .mjs) with Node.js. Practice, Try, Compare and Next work the
+             same for all three
+  UI pages   a .html shows beside its code, live, in a locked frame (no access to this page
+             or the server); Ctrl+Enter runs its <script type="test"> block there and ticks
+             its checks. Practice hides the page's function bodies, not its markup or CSS
   Assist     Java autocomplete like IntelliJ's while editing (Edit, Try, Scratch; Practice
              only if switched on in the menu): members after a dot with real parameter
              names, JDK classes with their import, live and postfix templates, parameter
@@ -30,7 +36,7 @@ THE PAGE
   Edit/Save  Edit (Ctrl+E) changes a draft kept in the browser; Save (Ctrl+S) writes it
              to the file. New file (+) creates one from a template; ⋯ → Delete this file
              moves one to the Recycle Bin (Windows)
-  Try        Alt+T opens a throwaway copy of the .java file to change and run; the file is
+  Try        Alt+T opens a throwaway copy of the file to change and run; the file is
              never touched and Save is off. The copy stays in the browser until Discard copy,
              one at a time (Try on another file deletes it); Compare (Alt+C) puts it next to
              the file with every change marked
@@ -41,8 +47,9 @@ THE PAGE
              matches, the file is marked done. While practising: a timer (limit in the
              menu), Hint (Alt+H) shows the hidden notes one at a time, gentlest first, and
              Compare (Alt+C) puts your attempt next to the original solution
-  Scratch    a pad kept in the browser for any code; its timer starts stopped (click
-             ⏱ Start) and ⋯ → Restart the timer zeroes it for the next problem
+  Scratch    a pad kept in the browser for any code, in Java, Python, JavaScript or HTML (one
+             text each); its timer starts stopped (click ⏱ Start) and ⋯ → Restart the timer
+             zeroes it for the next problem
   Progress   mark each file Done or Revise; counts per folder and overall. A done file
              comes back for review after 3, 7, 21 and 60 days (◷ in the list); Next (Alt+J)
              opens due reviews first, then to-revise, then must-know not done
@@ -60,6 +67,8 @@ THE PAGE
 
 Runs Java the same way as runjava: compile to a temp folder, then run whichever class
 declares main(), so the filename never matters. Newest installed JDK, not JAVA_HOME.
+Python and Node run a copy in a temp folder too; a .py's own folder is on PYTHONPATH (so
+`import helper` works) and python -B leaves no __pycache__ there.
 
 STATE: progress, the folder list and the tray's browser choice live in
 tools/codeview-state.json (git-ignored, backed up by OneDrive). Drafts, practice attempts,
@@ -89,6 +98,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 import javasrc  # noqa: E402  main()/package detection and practice skeletons
+import langsrc  # noqa: E402  practice skeletons for Python, JavaScript and UI (.html) files
 import offline  # noqa: E402  local copy of the page's editor + markdown libraries
 import outcheck  # noqa: E402  ticks and crosses for "actual   expected X" output lines
 from runjava import JAVA, JAVAC  # noqa: E402  same newest-JDK pick as the CLI runner
@@ -106,7 +116,7 @@ NO_PUSH = bool(os.environ.get("CODEVIEW_NO_PUSH"))
 SERVER_CODE = hashlib.sha1(b"".join((HERE / n).read_bytes() for n in
                                     ("codeview.py", "outcheck.py", "javasrc.py", "runjava.py",
                                      "offline.py", "CvAssist.java", "gen_readmes.py",
-                                     "check_headers.py"))).hexdigest()
+                                     "check_headers.py", "langsrc.py"))).hexdigest()
 
 
 def page_version(html):
@@ -127,6 +137,28 @@ MAX_VIEW = 2 * 1024 * 1024       # bytes; bigger files are not opened
 OUTPUT_CAP = 256 * 1024          # bytes of program output sent back to the page
 MAX_TIMEOUT = 60                 # seconds; the page offers 5 / 10 / 30 / 60
 IS_WIN, IS_MAC = os.name == "nt", sys.platform == "darwin"
+
+
+def find_python():
+    """python.exe beside this interpreter: the tray runs under pythonw.exe, whose print() goes
+    nowhere. Elsewhere this interpreter itself."""
+    if not IS_WIN:
+        return sys.executable
+    p = pathlib.Path(sys.executable).with_name("python.exe")
+    return str(p) if p.exists() else shutil.which("python")
+
+
+def find_node():
+    """node on PATH, else its usual Windows home (a tray started at login may have an older PATH)."""
+    found = shutil.which("node")
+    if found or not IS_WIN:
+        return found
+    p = pathlib.Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "nodejs" / "node.exe"
+    return str(p) if p.exists() else None
+
+
+# 8 Oct: .py files run with this Python, .js with Node (None: that language cannot run here)
+PYTHON, NODE = find_python(), find_node()
 # Tray icon, shortcuts and start-at-login are Windows extras; everything else is portable.
 STARTUP_LNK = pathlib.Path(os.environ.get("APPDATA", "")) / \
     "Microsoft/Windows/Start Menu/Programs/Startup/Code Viewer.lnk" if IS_WIN else None
@@ -504,7 +536,7 @@ def build_tree(rid):
     for p in walk(base, empty):
         rel = p.relative_to(base)
         f = {"name": p.name, "path": rel.as_posix()}
-        if p.suffix == ".java" and "MUST-KNOW" in read_head(p):
+        if langsrc.lang_of(p.name) and "MUST-KNOW" in read_head(p):
             f["must"] = True
         folder(rel.parts[:-1])["files"].append(f)
     for d in empty:                      # shown, so a new folder can be opened and filled
@@ -830,6 +862,147 @@ def java_template(name, title=None, meta="LeetCode ? | ?", must=False, method=No
 """)
 
 
+# 8 Oct: the same header and blanks for Python, JavaScript and UI files. JavaScript keeps Java's
+# " * " lines; a Python docstring and an HTML comment have none (tools/javasrc.py STYLES).
+HEADER_SECTIONS = (("PROBLEM", "..."), ("EXAMPLE", "..."), ("APPROACH", "..."), ("KEY INSIGHT", "..."),
+                   ("COMPLEXITY", "Time  O(?)\nSpace O(?)"), ("INTERVIEW FOLLOW-UPS", "..."))
+
+
+def header_for(name, title, meta, must, style, run):
+    """-> (title, the header comment) of a new practice file. style: 'star' (/* * */), 'py'
+    (a docstring) or 'html' (<!-- -->)."""
+    title = title or re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", re.sub(r"^[A-D]\d\d_", "", pathlib.Path(name).stem))
+    lead = " *  " if style == "star" else " "
+    # as java_template: the source starts in column 45, two spaces at least after the title
+    line = f"{lead}{title}{' ' * max(2, 45 - len(lead) - len(title))}{meta}{'   MUST-KNOW' if must else ''}"
+    if len(line) > 100:
+        raise ValueError("The name is too long for the header's first line (100 characters); shorten it")
+    rule = "=" * 69
+    rows = [rule, line, rule, ""]
+    for head, body in HEADER_SECTIONS + (("RUN", run),):
+        rows += [head] + ["  " + b for b in body.split("\n")] + [""]
+    rows.pop()
+    if style == "star":
+        rows = [r if r is line else (" * " + r).rstrip() for r in rows]
+        return title, "/*\n" + "\n".join(rows) + "\n */\n"
+    opens, closes = ('"""', '"""') if style == "py" else ("<!--", "-->")
+    return title, opens + "\n" + "\n".join(rows) + "\n" + closes + "\n"
+
+
+PY_BODY = '''
+
+def solve(nums):
+    return 0
+
+
+def check(label, actual, expected):
+    print(f"{label}: {actual}   expected {expected}")
+
+
+def main():
+    check("case 1 typical", solve([1, 2, 3]), 6)
+    check("case 2 empty  ", solve([]), 0)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+JS_BODY = '''
+function solve(nums) {
+  return 0;
+}
+
+function check(label, actual, expected) {
+  const show = (v) => JSON.stringify(v);
+  console.log(`${label}: ${show(actual)}   expected ${show(expected)}`);
+}
+
+function main() {
+  check('case 1 typical', solve([1, 2, 3]), 6);
+  check('case 2 empty  ', solve([]), 0);
+}
+
+main();
+'''
+
+# A small working screen to change, and the tests Ctrl+Enter runs. Browsers skip a
+# <script type="test">, so the page alone (the preview, or the file opened in Chrome) never runs it.
+HTML_BODY = '''<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>__TITLE__</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 24px; }
+    button { font: inherit; padding: 4px 12px; }
+  </style>
+</head>
+<body>
+  <p>Count: <span id="count">0</span></p>
+  <button id="add">Add one</button>
+
+  <script>
+    let count = 0;
+
+    function render() {
+      document.querySelector('#count').textContent = count;
+    }
+
+    function addOne() {
+      count += 1;
+      render();
+    }
+
+    document.querySelector('#add').addEventListener('click', addOne);
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       await works here, and every check() line is ticked or crossed. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const click = (sel) => $(sel).click();
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    function type(sel, text) {
+      const el = $(sel);
+      el.value = text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 starts at', $('#count').textContent, '0');
+    click('#add');
+    click('#add');
+    check('case 2 two clicks', $('#count').textContent, '2');
+  </script>
+</body>
+</html>
+'''
+
+
+def python_template(name, title=None, meta="LeetCode ? | ?", must=False):
+    _, head = header_for(name, title, meta, must, "py", "main() runs the cases below and prints actual vs expected.")
+    return head + PY_BODY
+
+
+def js_template(name, title=None, meta="LeetCode ? | ?", must=False):
+    _, head = header_for(name, title, meta, must, "star", "main() runs the cases below and prints actual vs expected.")
+    return head + JS_BODY
+
+
+def html_template(name, title=None, meta="Machine coding | ?", must=False):
+    title, head = header_for(name, title, meta, must, "html",
+                             "The preview beside the code shows the page as you type.\n"
+                             "Ctrl+Enter runs the test block at the bottom and ticks each check.")
+    return "<!DOCTYPE html>\n" + head + HTML_BODY.replace("__TITLE__", title.replace("&", "&amp;").replace("<", "&lt;"))
+
+
+TEMPLATES = {".py": python_template, ".js": js_template, ".mjs": js_template, ".html": html_template}
+NEW_LANGS = {"java": ".java", "py": ".py", "js": ".js", "html": ".html"}
+
+
 WIN_BAD = re.compile(r'[<>:"|?*\x00-\x1f]')
 WIN_DEVICES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 
@@ -884,12 +1057,14 @@ def new_file(rid, rel, title=None, meta="LeetCode ? | ?", must=False, method=Non
     if p.exists():
         raise ValueError(f"{rel} already exists")
     tier_clash(p)
-    text = java_template(p.name, title, meta, must, method) if p.suffix == ".java" else (
-        f"# {p.stem}\n\n" if p.suffix == ".md" else "")
+    suffix = p.suffix.lower()
+    text = (java_template(p.name, title, meta, must, method) if suffix == ".java"
+            else TEMPLATES[suffix](p.name, title, meta, must) if suffix in TEMPLATES
+            else f"# {p.stem}\n\n" if suffix == ".md" else "")
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(text.encode("utf-8"))                # LF like the repo's files (write_text gives CRLF on Windows)
     res = {"path": p.relative_to(root_path(rid)).as_posix()}
-    blank = re.search(r"^( \*\s+)\.\.\.$", text, re.M)          # the page selects the first ... to type over
+    blank = re.search(r"^((?: \*)?[ \t]+)\.\.\.$", text, re.M)   # the page selects the first ... to type over
     if blank:
         res["select"] = {"line": text.count("\n", 0, blank.start()) + 1, "col": len(blank[1]) + 1, "len": 3}
     elif p.suffix == ".md":                            # the caret under the heading; the page opens it as source
@@ -965,10 +1140,15 @@ def class_name(name):
     return cls
 
 
-def new_problem(rid, folder, level, name, source, difficulty, must=False, method=""):
+def new_problem(rid, folder, level, name, source, difficulty, must=False, method="", lang="java"):
     """The New problem form (6 Oct): 01-Arrays + B + "Two Sum" -> 01-Arrays/B12_TwoSum.java,
     numbered after the folder's last B file, with the header's first line filled in. method: a
-    signature the class starts with; with no name, the name comes from it (twoSum -> Two Sum)."""
+    signature the class starts with; with no name, the name comes from it (twoSum -> Two Sum).
+    lang (8 Oct): java, py, js or html - the same form makes a Python, JavaScript or UI file."""
+    if lang not in NEW_LANGS:
+        raise ValueError("The language is Java, Python, JavaScript or UI (HTML)")
+    if method and method.strip() and lang != "java":
+        raise ValueError("The method field is for Java problems")
     sig = parse_signature(method) if method and method.strip() else None
     if sig and not name.strip():
         name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", sig[1])
@@ -983,12 +1163,13 @@ def new_problem(rid, folder, level, name, source, difficulty, must=False, method
     cls = class_name(name)
     title = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", name) if re.fullmatch(r"\w+", name) else name
     source = " ".join(source.split())
-    source = f"LeetCode {source}" if source.isdigit() else source or "LeetCode ?"
+    source = f"LeetCode {source}" if source.isdigit() else source or ("Machine coding" if lang == "html" else "LeetCode ?")
     where = resolve(rid, folder) if folder else root_path(rid)
     if where.exists() and not where.is_dir():
         raise ValueError(f"{folder} is a file, not a folder")
     prefix = next_tier(where, level) + "_" if level else ""
-    return new_file(rid, f"{folder}/{prefix}{cls}.java" if folder else f"{prefix}{cls}.java",
+    ext = NEW_LANGS[lang]
+    return new_file(rid, f"{folder}/{prefix}{cls}{ext}" if folder else f"{prefix}{cls}{ext}",
                     title, f"{source} | {difficulty}", must, sig)
 
 
@@ -1442,7 +1623,16 @@ def compile_target(code, rid, rel_path):
     return src_dir, fname, info
 
 
-def run_code(code, rid, rel_path, stdin, timeout, want_main):
+def run_code(code, rid, rel_path, stdin, timeout, want_main, lang=None):
+    """Compile and run code. A file's type comes from rel_path; the Scratch pad and the notes'
+    blocks have no path and send lang (java, py, js or mjs)."""
+    lang = (langsrc.lang_of(rel_path) if rel_path else lang) or "java"
+    if lang == "py":
+        return run_python(code, rid, rel_path, stdin, timeout)
+    if lang in ("js", "mjs"):
+        return run_node(code, rid, rel_path, stdin, timeout, lang)
+    if lang != "java":
+        return {"phase": "compile", "ok": False, "output": f"Run does not know {lang} files."}
     src_dir, fname, (pkg, mains, public, compact) = compile_target(code, rid, rel_path)
     if compact:
         mains = [pathlib.Path(fname).stem]
@@ -1483,30 +1673,174 @@ def run_code(code, rid, rel_path, stdin, timeout, want_main):
                     "output": "Compiled, but no class declares main() - nothing to run."}
 
         main = want_main if want_main in mains else javasrc.pick_main(mains, fname)
-        (work / "stdin.txt").write_text(stdin or "", encoding="utf-8")
         cmd = [JAVA, "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
                "-Dfile.encoding=UTF-8", "-XX:TieredStopAtLevel=1", "-cp", str(out), prefix + main]
-        t0 = time.monotonic()
-        with open(work / "stdin.txt", "rb") as fin, open(work / "output.txt", "wb") as fout:
-            proc = subprocess.Popen(cmd, stdin=fin, stdout=fout, stderr=subprocess.STDOUT, cwd=work,
-                                    creationflags=NO_WINDOW)
-            try:
-                rc, timed_out = proc.wait(timeout=timeout), False
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                rc, timed_out = proc.wait(), True
-        run_ms = int((time.monotonic() - t0) * 1000)
-        size = (work / "output.txt").stat().st_size
-        with open(work / "output.txt", "rb") as fh:
-            text = fh.read(OUTPUT_CAP).decode("utf-8", "replace")
-        output = tidy(text, work)
+        rc, timed_out, output, truncated, run_ms = run_process(cmd, work, stdin, timeout)
         verdicts, checks = check_lines(output)
         return {"phase": "run", "ok": rc == 0 and not timed_out, "exitCode": rc,
-                "timedOut": timed_out, "truncated": size > OUTPUT_CAP, "file": fname,
+                "timedOut": timed_out, "truncated": truncated, "file": fname,
                 "ran": main, "mains": mains, "compileMs": compile_ms, "runMs": run_ms,
                 "output": output, "verdicts": verdicts, "checks": checks}
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def run_process(cmd, work, stdin, timeout, env=None):
+    """Run one program in the work folder, stdin from a file, for at most timeout seconds ->
+    (exit code, timed out, its output (stdout and stderr together, tidied), cut at OUTPUT_CAP,
+    milliseconds). Java, Python and Node runs all end here."""
+    (work / "stdin.txt").write_text(stdin or "", encoding="utf-8")
+    t0 = time.monotonic()
+    with open(work / "stdin.txt", "rb") as fin, open(work / "output.txt", "wb") as fout:
+        proc = subprocess.Popen(cmd, stdin=fin, stdout=fout, stderr=subprocess.STDOUT, cwd=work, env=env,
+                                creationflags=NO_WINDOW)
+        try:
+            rc, timed_out = proc.wait(timeout=timeout), False
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            rc, timed_out = proc.wait(), True
+    run_ms = int((time.monotonic() - t0) * 1000)
+    size = (work / "output.txt").stat().st_size
+    with open(work / "output.txt", "rb") as fh:
+        text = fh.read(OUTPUT_CAP).decode("utf-8", "replace")
+    return rc, timed_out, tidy(text, work), size > OUTPUT_CAP, run_ms
+
+
+def run_result(rc, timed_out, output, truncated, run_ms, fname, compile_ms, runner):
+    verdicts, checks = check_lines(output)
+    return {"phase": "run", "ok": rc == 0 and not timed_out, "exitCode": rc, "timedOut": timed_out,
+            "truncated": truncated, "file": fname, "runner": runner, "compileMs": compile_ms,
+            "runMs": run_ms, "output": output, "verdicts": verdicts, "checks": checks}
+
+
+def run_folder():
+    """A temp folder by its long name: Node prints the long form of an 8.3 path such as
+    RAVIVA~1, and tidy() must find the same text to take out."""
+    return pathlib.Path(os.path.realpath(tempfile.mkdtemp(prefix="codeview_")))
+
+
+def python_syntax(code, fname):
+    """-> Python's own report of the first syntax error ("" when there is none). Compiles only;
+    nothing runs. Warnings such as an invalid escape are left to the run."""
+    import traceback, warnings
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            compile(code, fname, "exec", dont_inherit=True)
+    except SyntaxError as e:                 # IndentationError and TabError too
+        return "".join(traceback.format_exception_only(e))
+    except ValueError as e:                  # a NUL byte in the code
+        return f"{fname}: {e}\n"
+    return ""
+
+
+def syntax_errors(lang, code):
+    """POST /api/syntax: the editor's live red underline for Python (JavaScript gets its own
+    from the editor). -> [{line, column, endColumn, message}], at most one."""
+    if lang != "py":
+        raise ValueError("Live syntax checks are for Python")
+    import warnings
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            compile(code, "<editor>", "exec", dont_inherit=True)
+    except SyntaxError as e:
+        col = e.offset or 1
+        return [{"line": e.lineno or 1, "column": col,
+                 "endColumn": e.end_offset if e.end_offset and e.end_offset > col and e.end_lineno == e.lineno else col + 1,
+                 "message": f"{type(e).__name__}: {e.msg}"}]
+    except ValueError as e:
+        return [{"line": 1, "column": 1, "endColumn": 2, "message": str(e)}]
+    return []
+
+
+def run_python(code, rid, rel_path, stdin, timeout):
+    """A .py file: Python's own syntax check, then python -X utf8 -u -B on a copy in a temp
+    folder. PYTHONPATH is the file's real folder, so `import helper` finds helper.py beside it;
+    -B means no __pycache__ appears there."""
+    fname = pathlib.Path(rel_path).name if rel_path else "Scratch.py"
+    folder = resolve(rid, rel_path).parent if rel_path else None
+    if not PYTHON:
+        return {"phase": "compile", "ok": False, "file": fname,
+                "output": "No python.exe was found beside the Python that runs Code Viewer, so .py files cannot run."}
+    t0 = time.monotonic()
+    error = python_syntax(code, fname)
+    compile_ms = int((time.monotonic() - t0) * 1000)
+    if error:
+        return {"phase": "compile", "ok": False, "file": fname, "compileMs": compile_ms, "output": error}
+    work = run_folder()
+    try:
+        src = work / "src" / fname
+        src.parent.mkdir()
+        src.write_bytes(code.encode("utf-8"))
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", PYTHONDONTWRITEBYTECODE="1")
+        if folder:
+            env["PYTHONPATH"] = os.pathsep.join(p for p in (str(folder), os.environ.get("PYTHONPATH")) if p)
+        res = run_process([PYTHON, "-X", "utf8", "-u", "-B", str(src)], work, stdin, timeout, env)
+        return run_result(*res, fname, compile_ms, "Python " + platform_python())
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# Node's own frames ("at Module._compile (node:internal/...)") say nothing about the program
+NODE_INTERNAL = re.compile(r"^\s+at (?:.* \()?node:internal/.*\n?", re.M)
+
+
+def run_node(code, rid, rel_path, stdin, timeout, lang="js"):
+    """A .js or .mjs file: node --check (syntax only), then node on a copy in a temp folder.
+    Node 24 runs a .js that uses import/export as a module by itself."""
+    fname = pathlib.Path(rel_path).name if rel_path else "Scratch.mjs" if lang == "mjs" else "Scratch.js"
+    if not NODE:
+        return {"phase": "compile", "ok": False, "file": fname,
+                "output": "Node.js is not installed, so .js files cannot run. Install it from https://nodejs.org,"
+                          " then restart Code Viewer (tray → Restart)."}
+    work = run_folder()
+    try:
+        src = work / "src" / fname
+        src.parent.mkdir()
+        src.write_bytes(code.encode("utf-8"))
+        t0 = time.monotonic()
+        try:
+            c = subprocess.run([NODE, "--check", str(src)], capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=60, stdin=subprocess.DEVNULL, cwd=work, creationflags=NO_WINDOW)
+        except subprocess.TimeoutExpired:
+            return {"phase": "compile", "ok": False, "file": fname, "output": "node --check took longer than 60 s."}
+        compile_ms = int((time.monotonic() - t0) * 1000)
+        if c.returncode != 0:
+            return {"phase": "compile", "ok": False, "file": fname, "compileMs": compile_ms,
+                    "output": NODE_INTERNAL.sub("", tidy(c.stderr + c.stdout, work))}
+        rc, timed_out, output, truncated, run_ms = run_process([NODE, str(src)], work, stdin, timeout)
+        return run_result(rc, timed_out, NODE_INTERNAL.sub("", output), truncated, run_ms, fname, compile_ms,
+                          "Node " + (node_version() or ""))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def platform_python():
+    return sys.version.split()[0]
+
+
+def langs():
+    """What this server can run, for /api/info: Java, UI files (they run in the page), and
+    Python and JavaScript when their interpreters are here."""
+    return ["java", "html"] + (["py"] if PYTHON else []) + (["js"] if NODE else [])
+
+
+_node_version = []
+
+
+def node_version():
+    """'v24.19.0', asked once; None without Node."""
+    if not NODE:
+        return None
+    if not _node_version:
+        try:
+            v = subprocess.run([NODE, "--version"], capture_output=True, text=True, timeout=20,
+                               stdin=subprocess.DEVNULL, creationflags=NO_WINDOW).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            v = ""
+        _node_version.append(v)
+    return _node_version[0] or None
 
 
 def check_lines(output):
@@ -1529,8 +1863,10 @@ def check_lines(output):
 
 
 def tidy(text, work):
-    """Show `A01_X.java:12: error` instead of the temp folder path."""
-    for form in (str(work / "src") + "\\", str(work / "src") + "/", str(work) + "\\"):
+    """Show `A01_X.java:12: error` instead of the temp folder path (Node's modules print it as
+    a file:/// URL)."""
+    src = work / "src"
+    for form in ("file:///" + src.as_posix() + "/", str(src) + "\\", str(src) + "/", str(work) + "\\"):
         text = text.replace(form, "")
     return text
 
@@ -1814,7 +2150,8 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/info":
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
                                        "autostart": autostart_on(), "platform": sys.platform, "git": True, "stub": True,
-                                       "files": True})
+                                       "files": True, "langs": langs(), "python": PYTHON and platform_python(),
+                                       "node": node_version()})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":
@@ -1822,9 +2159,13 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/file":
                 return self.send_json(read_file(rid, q.get("path", "")))
             if u.path == "/api/practice":
-                text = read_file(rid, q.get("path", ""))["text"]
-                skeleton, hidden = javasrc.practice_skeleton(text)
-                return self.send_json({"text": skeleton, "hidden": hidden, "hints": javasrc.practice_hints(text)})
+                rel = q.get("path", "")
+                lang = langsrc.lang_of(rel)
+                if not lang:
+                    raise ValueError("Practice works on .java, .py, .js and .html files")
+                text = read_file(rid, rel)["text"]
+                skeleton, hidden = langsrc.practice_skeleton(text, lang)
+                return self.send_json({"text": skeleton, "hidden": hidden, "hints": langsrc.practice_hints(text, lang)})
             if u.path == "/api/progress":
                 return self.send_json(STATE.progress(rid))
             if u.path == "/api/git":
@@ -1851,19 +2192,24 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/run":
                 timeout = max(1, min(int(req.get("timeout") or 10), MAX_TIMEOUT))
                 res = run_code(req.get("code", ""), rid, req.get("path") or None, req.get("stdin", ""),
-                               timeout, req.get("main"))
+                               timeout, req.get("main"), req.get("lang"))
                 status = "ok" if res.get("ok") else ("timeout" if res.get("timedOut") else "failed")
                 print(f"  run {req.get('path') or 'scratch'}  ->  {res.get('phase')} {status}", flush=True)
                 return self.send_json(res)
             if path == "/api/assist":
                 return self.send_json(assist_request(req))
+            if path == "/api/check":            # a UI file's test output, run in the page: its ticks
+                verdicts, checks = check_lines(str(req.get("output", "")))
+                return self.send_json({"verdicts": verdicts, "checks": checks})
+            if path == "/api/syntax":
+                return self.send_json({"errors": syntax_errors(req.get("lang"), str(req.get("code", "")))})
             if path == "/api/save":
                 res = save_file(rid, req["path"], req.get("code", ""), req.get("base"), req.get("force"))
                 return self.send_json(res, 409 if res.get("conflict") else 200)
             if path == "/api/new" and "name" in req:
                 return self.send_json(new_problem(rid, req.get("folder", ""), req.get("level", ""), req["name"],
                                                   req.get("source", ""), req.get("difficulty", ""),
-                                                  bool(req.get("must")), req.get("method", "")))
+                                                  bool(req.get("must")), req.get("method", ""), req.get("lang") or "java"))
             if path == "/api/new":
                 return self.send_json(new_file(rid, req.get("path", "")))
             if path == "/api/git/push":

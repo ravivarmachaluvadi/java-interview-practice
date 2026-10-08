@@ -36,8 +36,8 @@ await suite(async t => {
   check('subfolders first, then the files the tree has (no pic.png)',
     JSON.stringify(await rows()) === JSON.stringify(['..', 'Sub', 'First', 'Second', 'notes.md']), await rows());
   check('a done file carries its ✓', await ev(`!!document.querySelector('#md .dirview .row[href$="A01_First.java"] .st.done')`));
-  check('the summary counts Java files done, subfolders included',
-    /1 of 3 Java files done/.test(await ev(`document.querySelector('#md .dv-sum').textContent`)),
+  check('the summary counts practice files done, subfolders included',
+    /1 of 3 practice files done/.test(await ev(`document.querySelector('#md .dv-sum').textContent`)),
     await ev(`document.querySelector('#md .dv-sum').textContent`));
   check('the tree row of the folder is highlighted and open',
     await ev(`(() => { const r = document.querySelector('#tree .row.dir[data-dir="Topic"]'); return !!r && r.classList.contains('active') && r.classList.contains('open'); })()`));

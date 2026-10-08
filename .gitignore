@@ -14,6 +14,11 @@
 !AAScratches/**/*.txt
 !AAScratches/**/*.properties
 !AAScratches/**/pom.xml
+# Python, JavaScript and UI practice files (8 Oct 2026; Code Viewer runs them)
+!AAScratches/**/*.py
+!AAScratches/**/*.js
+!AAScratches/**/*.mjs
+!AAScratches/**/*.html
 !/.gitignore
 !/.gitattributes
 !/*.md
@@ -36,6 +41,12 @@ AAScratches/_personal/
 **/*.env
 api_keys.text
 **/api_keys*
+
+# Python and Node environments and caches, should one ever sit inside AAScratches.
+**/venv/
+**/.venv/
+**/node_modules/
+**/__pycache__/
 
 # IDE state and OS junk: machine-specific, churns constantly, zero value to a reader.
 **/.idea/

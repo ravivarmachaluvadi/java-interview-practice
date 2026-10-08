@@ -178,7 +178,8 @@ aside.side { display: flex; flex-direction: column; min-height: 0; background: v
 .vsplit:hover, .vsplit.live { background: var(--accent); }
 
 /* ---- main column ---- */
-main { display: grid; min-width: 0; min-height: 0; grid-template-rows: 42px auto minmax(0, 1fr) 4px var(--out-h, 230px); }
+main { display: grid; min-width: 0; min-height: 0; grid-template-rows: 42px auto minmax(0, 1fr) 4px var(--out-h, 230px);
+       grid-template-columns: minmax(0, 1fr); }   /* 8 Oct: a long output line widened the bar and pushed Run off screen; now it scrolls */
 main.out-collapsed { grid-template-rows: 42px auto minmax(0, 1fr) 4px 36px; }
 /* fixed rows: the banner is display:none most of the time, and auto-placement would
    then shift every later child up one row */
@@ -416,6 +417,18 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 /* ---- a .md in source with its rendered page beside it (8 Oct) ---- */
 .stage.split #editor { right: calc(50% + var(--ol) / 2); }     /* with the Outline open, the two share what is left */
 .stage.split #md { left: calc(50% - var(--ol) / 2); border-left: 1px solid var(--border); padding: 16px 24px 60px; }
+/* ---- a UI page (.html) with the page itself beside it, live (8 Oct) ---- */
+.stage.uisplit #editor { right: 50%; }
+#uiWrap { position: absolute; top: 0; bottom: 0; right: 0; left: 50%; display: flex; flex-direction: column;
+          border-left: 1px solid var(--border); background: var(--bg); }
+#uiFrame { flex: 1; min-height: 0; width: 100%; border: 0; background: #fff; }
+.ui-foot { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 10px; flex: none;
+           border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.ui-foot #uiStatus { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ui-foot .bad { color: var(--bad); }
+.ui-foot button { height: 20px; padding: 0 8px; font-size: 12px; }
+/* Run with the preview hidden (no room): the page still needs a real size to lay out and paint */
+.ui-offscreen { position: fixed; left: -10000px; top: 0; width: 900px; height: 700px; border: 0; }
 
 /* ---- output ---- */
 .out { display: flex; flex-direction: column; min-height: 0; background: var(--out-bg); }
@@ -501,10 +514,11 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     </div>
   </div>
   <div class="panel" id="newPanel" hidden>
-    <span class="seg np-kinds" id="npKind"><button data-k="problem" title="A Java problem file, numbered after the folder's last file of its level">Problem</button><button data-k="file" title="Any file, such as notes.md">File</button><button data-k="folder" title="An empty folder">Folder</button></span>
+    <span class="seg np-kinds" id="npKind"><button data-k="problem" title="A practice file (Java, Python, JavaScript or a UI page), numbered after the folder's last file of its level">Problem</button><button data-k="file" title="Any file, such as notes.md">File</button><button data-k="folder" title="An empty folder">Folder</button></span>
     <label class="np-row"><span>Folder</span><input id="npFolder" list="npFolders" spellcheck="false" autocomplete="off" placeholder="(top level)"></label>
     <datalist id="npFolders"></datalist>
     <div class="np" id="npForm">
+      <div class="np-row" id="npLangRow" hidden><span>Language</span><span class="seg" id="npLang"><button data-g="java">Java</button><button data-g="py">Python</button><button data-g="js">JavaScript</button><button data-g="html" title="A small screen in HTML, CSS and JavaScript, shown beside the code, with tests Ctrl+Enter runs">UI</button></span></div>
       <div class="np-row"><span>Level</span><span class="seg" id="npLevel"><button data-l="A" title="A: building block">A</button><button data-l="B" title="B: easy">B</button><button data-l="C" title="C: medium">C</button><button data-l="D" title="D: hard">D</button><button data-l="" title="No level letter and number in the file name">none</button></span></div>
       <label class="np-row"><span>Name</span><input id="npName" placeholder="Two Sum" spellcheck="false" autocomplete="off"></label>
       <label class="np-row" title="Type the method, or paste LeetCode's starter code (class Solution { ... } is fine). The file gets that method and a main() that calls it. Empty: solve(int[] nums)"><span>Method</span><input id="npMethod" placeholder="int[] twoSum(int[] nums, int target)" spellcheck="false" autocomplete="off"></label>
@@ -629,6 +643,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
         <button data-act="assistPractice" title="Suggestions, parameter hints and live error underlines while practising"><span id="assistPracticeLabel">Autocomplete in Practice: off</span></button>
         <button data-act="lastSolved" id="lastSolvedBtn" hidden title="The code of your last solved attempt, kept when a new attempt started">Bring back my last solution</button>
       </div>
+      <select id="scratchLang" hidden title="The Scratch pad's language; each one keeps its own text"></select>
       <select id="mainSel" hidden title="Which class's main() to run"></select>
       <select id="timeoutSel" title="Stop the program after">
         <option value="5">5 s</option><option value="10" selected>10 s</option>
@@ -673,6 +688,11 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <div id="olList"></div>
     </nav>
     <article class="md" id="md" hidden></article>
+    <div id="uiWrap" hidden>
+      <iframe id="uiFrame" title="The page, as a browser shows it" sandbox="allow-scripts allow-forms"></iframe>
+      <div class="ui-foot"><span id="uiStatus"></span><span class="spacer"></span>
+        <button id="uiReload" title="Load the page again, fresh (the test block does not run)">↻ Reload</button></div>
+    </div>
     <div class="hintcard" id="hintCard" hidden>
       <header><span id="hintTitle">Hint</span><button class="icon" id="hintClose" title="Close (the hints stay shown; Hint opens them again)">×</button></header>
       <div class="body" id="hintBody"></div>
@@ -688,11 +708,11 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
       <span class="verdict" id="verdict" hidden></span>
       <span class="meta" id="meta"></span>
       <span class="spacer"></span>
-      <button id="stdinBtn" title="Text fed to System.in">stdin</button>
+      <button id="stdinBtn" title="Text the program reads as its input (System.in, input(), process.stdin)">stdin</button>
       <button id="clearBtn">Clear</button>
       <button class="icon" id="outToggle" title="Collapse / expand">▾</button>
     </div>
-    <textarea id="stdin" hidden placeholder="Input for Scanner / BufferedReader (System.in). Leave empty if the program does not read input." spellcheck="false"></textarea>
+    <textarea id="stdin" hidden placeholder="Input the program reads: System.in in Java, input() in Python, process.stdin in Node. Leave empty if it reads none." spellcheck="false"></textarea>
     <div id="output"></div>
   </section>
 </main>
@@ -704,7 +724,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Find a file by name</td></tr>
     <tr><td><kbd>↑</kbd> / <kbd>↓</kbd> in the file list</td><td>Previous / next file, which opens as you go (hold the key and only the one it stops on opens). <kbd>→</kbd> / <kbd>←</kbd> open and close a folder, Enter does too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compile and run what is in the editor</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run what is in the editor: Java (compiled first), Python, JavaScript (with Node.js). On a UI page (.html): its test block. Lines that say what they expected get ✓ or ✗</td></tr>
+    <tr><td>Python and JavaScript files</td><td>Run, Practice (function bodies hidden, Hints, timer, Done), Try, Compare and Next work as for Java. A syntax error is underlined in red; every file and line in a traceback or stack is a link. A .py can import a module beside it</td></tr>
+    <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. The footer counts what it logged and its errors. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
+    <tr><td>Scratch pad language</td><td>The select in its bar: Java, Python, JavaScript or UI. Each keeps its own text</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>C</kbd></td><td>Compare: your practice attempt next to the solution, or your Try copy or unsaved edit next to the file</td></tr>
@@ -718,12 +741,12 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Edit / lock</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save your edit to the file</td></tr>
     <tr><td>Bar beside the line numbers</td><td>Lines you changed since opening the file in this tab, saved or not: green added, blue changed, red where lines were removed. Forgotten on reload. Edit pressed instead of Try? Compare (<kbd>Alt</kbd>+<kbd>C</kbd>) shows the changes, Reset puts the file back as you opened it (<kbd>Ctrl</kbd>+<kbd>S</kbd> saves that), and Try (<kbd>Alt</kbd>+<kbd>T</kbd>) offers to move them into a Try copy</td></tr>
-    <tr><td>+ above the file list</td><td>New problem: pick the folder, the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java, numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is) and the file starts with that method and a main() that calls it; the name can then be left empty. File: any file, such as notes.md (with no type, .md is added). Folder: an empty folder, which the list shows until it has files</td></tr>
+    <tr><td>+ above the file list</td><td>New problem: pick the folder, the language (Java, Python, JavaScript or UI; it starts as the one the folder holds most), the level (A building block, B easy, C medium, D hard) and type the name. It becomes e.g. B12_TwoSum.java (or .py, .js, .html), numbered after the folder's last file of that level, with the header ready to fill in. Give the Method too (typed, or LeetCode's starter code pasted as it is; Java only) and the file starts with that method and a main() that calls it; the name can then be left empty. File: any file, such as notes.md (with no type, .md is added). Folder: an empty folder, which the list shows until it has files</td></tr>
     <tr><td>Right-click in the file list</td><td>New file / New folder here (on empty space: at the top level), Rename (the name before the type is selected; unsaved edits, attempts and marks move along), Move to Recycle Bin (files and folders, after a confirm bar), Open in browser, Show in File Explorer, Copy path. Shift+right-click: the browser's own menu</td></tr>
     <tr><td>A .md file</td><td>Opens rendered. Edit (<kbd>Ctrl</kbd>+<kbd>E</kbd>) goes straight to its source, editable, with the rendered page beside it as you type; Preview hides or shows that side (for every .md), Rendered goes back. Each file remembers source or rendered. An unsaved edit shows in Rendered too, with Save</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>O</kbd></td><td>Outline: a .md's headings on the right, with the rendered page, the source, or both. Click one to go there; the section you are in is marked. Stays open for every .md until you close it</td></tr>
     <tr><td>Diagrams in a .md</td><td>A <code>```mermaid</code> block is drawn as a picture, in the page's light or dark colours. While you type one beside its source, the last picture stays until the new text is a valid diagram; a broken one shows Mermaid's reason and its text. On hover: − / + resize it, Fit goes back, ⤢ opens it full window (wheel zooms, drag moves it, double-click switches Fit / 1:1, Esc closes)</td></tr>
-    <tr><td>Code blocks in a .md</td><td>In the editor's colours. On hover: the language and Copy; on Java, ▶ Try turns the block into an editor right there: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs it and the output shows under it (loose statements run inside <code>void main()</code>). Never saved to the note; → Scratch pad moves it there. Not on Spring, JUnit or Lombok code: those libraries are not here. <kbd>Alt</kbd>+<kbd>Z</kbd> wraps long lines</td></tr>
+    <tr><td>Code blocks in a .md</td><td>In the editor's colours. On hover: the language and Copy; on Java, Python and JavaScript, ▶ Try turns the block into an editor right there: <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs it and the output shows under it (loose statements run inside <code>void main()</code>). Never saved to the note; → Scratch pad moves it there. Not on Spring, JUnit or Lombok code: those libraries are not here. <kbd>Alt</kbd>+<kbd>Z</kbd> wraps long lines</td></tr>
     <tr><td>⇡ above the file list</td><td>Push to GitHub. The number is how many files changed. It lists them (untick any to leave out) with a commit message made from their names; Push commits the ticked files, updates the README problem lists and pushes. An edit still unsaved in this browser goes only after you Save it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>Z</kbd></td><td>Wrap long lines</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>N</kbd></td><td>Show / hide the minimap</td></tr>
@@ -736,7 +759,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Shift</kbd>+<kbd>F6</kbd> or <kbd>F2</kbd></td><td>Rename a variable, method or class everywhere in this file</td></tr>
     <tr><td>⏱ at the top</td><td>Timer on any file: count down from 5-60 minutes (or your own) and hear three beeps at zero, or count up like a stopwatch. It keeps going across files and reloads; after a reload it shows 🔇 until you click the page, because the browser allows sound only then. The practice time limit beeps too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd></td><td>Java files open at the code; this goes up to the problem description above it</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td><td>Format the file the way IntelliJ does (indentation, spaces, blank lines), keeping your comments, one-line blocks and the extra spaces that line up test cases</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></td><td>Format the file the way IntelliJ does (indentation, spaces, blank lines), keeping your comments, one-line blocks and the extra spaces that line up test cases. JavaScript and UI pages get the editor's own formatter; Python has none here</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd></td><td>Introduce variable, as in IntelliJ: the selected expression (or one around the cursor, from a list) becomes <code>Type name = expr;</code> above the statement, here or at every occurrence; then type a better name and Enter</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find inside this file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Java suggestions (they also open by themselves while you type, and after a dot). Again for the Javadoc panel. A class picked from the list brings its import</td></tr>
@@ -784,7 +807,47 @@ void main() {
     IO.println(Arrays.toString(nums) + "   expected [1, 3, 5, 8]");
 }
 `;
-const TIER = { A: 'A: building block', B: 'B: easy', C: 'C: medium', D: 'D: hard' };
+/* 8 Oct, Ravi: "UI practice and development practice for python too, like java capabilities".
+   The four kinds of practice file: Run, Practice, Try, Compare and the Scratch pad work on
+   each. Python runs with the PC's Python, JavaScript with Node (both on the server); a UI
+   page (.html) runs here, in a locked frame beside the code. */
+const CODE_KIND = { java: 'java', py: 'py', js: 'js', mjs: 'js', html: 'html' };
+const KIND_NAME = { java: 'Java', py: 'Python', js: 'JavaScript', html: 'UI (HTML)' };
+const KIND_EXT = { java: 'java', py: 'py', js: 'js', html: 'html' };
+const CODE_EXT = /\.(java|py|js|mjs|html)$/i;
+const SCRATCH_TEMPLATES = {
+  java: SCRATCH_TEMPLATE,
+  py: `# Scratch pad: kept in this browser, never written to a file.
+# Ctrl+Enter runs it with Python.
+
+nums = [5, 3, 8, 1]
+print(sorted(nums), "  expected [1, 3, 5, 8]")
+`,
+  js: `// Scratch pad: kept in this browser, never written to a file.
+// Ctrl+Enter runs it with Node.js.
+
+const nums = [5, 3, 8, 1];
+console.log(JSON.stringify([...nums].sort((a, b) => a - b)), '  expected [1,3,5,8]');
+`,
+  html: `<!DOCTYPE html>
+<!-- Scratch pad: kept in this browser, never written to a file. The page shows beside this
+     as you type; Ctrl+Enter runs the test block at the bottom. -->
+<html>
+<body>
+  <button id="btn">Clicked 0 times</button>
+  <script>
+    let clicks = 0;
+    document.querySelector('#btn').onclick = (e) => { e.target.textContent = \`Clicked \${++clicks} times\`; };
+  <\/script>
+  <script type="test">
+    document.querySelector('#btn').click();
+    console.log(document.querySelector('#btn').textContent, '  expected Clicked 1 times');
+  <\/script>
+</body>
+</html>
+`,
+};   // (<\/script>: a plain one would end this page's own script)
+const TIER ={ A: 'A: building block', B: 'B: easy', C: 'C: medium', D: 'D: hard' };
 const LANG = {
   java: 'java', kt: 'kotlin', kts: 'kotlin', scala: 'scala', groovy: 'java', gradle: 'java', md: 'markdown',
   sql: 'sql', xml: 'xml', json: 'json', yml: 'yaml', yaml: 'yaml', toml: 'ini', ini: 'ini', cfg: 'ini',
@@ -830,6 +893,7 @@ const S = {
   views: new Map(), editing: new Set(), outputs: new Map(), mains: new Map(), mainChoice: new Map(), modes: new Map(),
   openDirs: new Set(), running: false, hits: [], hitIdx: 0, pendingReveal: null,
   mdPreview: store.get('mdPreview', true),   // a .md's source with its rendered page beside it
+  uiPreview: store.get('uiPreview', true),   // a UI page (.html) with the page itself beside it
   outline: store.get('mdOutline', false),    // a .md's headings docked on the right
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
@@ -1053,7 +1117,13 @@ async function loadProgress() {
   S.progress = p;
 }
 const statusOf = path => (S.progress[path] || {}).s;
-const isJava = f => f.name.endsWith('.java');
+/* a practice file: Java, Python, JavaScript or a UI page (8 Oct; was .java only) */
+const isProblem = f => CODE_EXT.test(f.name);
+/* the open file (or the Scratch pad) is code that Run, Practice and Try work on, and this
+   server can run it: a tray started before 8 Oct knows only Java */
+const isCode = (c = S.cur) => !!c && !!KIND_NAME[c.kind] && canRun(c.kind);
+const canRun = kind => kind === 'java' || !!(S.info && S.info.langs && S.info.langs.includes(kind));
+const monacoLang = c => LANG[KIND_EXT[c.kind] || c.ext] || 'plaintext';
 /* Spaced review: a file marked done is due again after 3 days; each time it is solved
    again in practice mode (the server counts these as r) the gap grows to 7, 21, 60. */
 const REVIEW_DAYS = [3, 7, 21, 60];
@@ -1070,7 +1140,7 @@ function visible(f) {
   const st = statusOf(f.path);
   switch (S.show) {
     case 'must': return !!f.must;
-    case 'todo': return isJava(f) && st !== 'done';
+    case 'todo': return isProblem(f) && st !== 'done';
     case 'mustTodo': return !!f.must && st !== 'done';
     case 'revise': return st === 'revise';
     case 'due': return isDue(f.path);
@@ -1082,7 +1152,7 @@ function stats(n) {
   let java = 0, done = 0, shown = 0;
   for (const d of n.dirs) { const s = stats(d); java += s.java; done += s.done; shown += s.shown; }
   for (const f of n.files) {
-    if (isJava(f)) { java++; if (statusOf(f.path) === 'done') done++; }
+    if (isProblem(f)) { java++; if (statusOf(f.path) === 'done') done++; }
     if (visible(f)) shown++;
   }
   n._s = { java, done, shown };
@@ -1120,7 +1190,7 @@ function build(node, depth, parent) {
     row.style.paddingLeft = (8 + depth * 14) + 'px';
     const s = d._s;
     const cnt = filtered ? s.shown : s.done ? `${s.done}/${s.java}` : s.java || '';
-    row.innerHTML = `<span class="caret">▶</span><span class="nm"></span><span class="cnt" title="${s.done} of ${s.java} Java files done">${cnt}</span>`;
+    row.innerHTML = `<span class="caret">▶</span><span class="nm"></span><span class="cnt" title="${s.done} of ${s.java} practice files done">${cnt}</span>`;
     row.querySelector('.nm').textContent = d.name;
     const kids = document.createElement('div');
     kids.hidden = !open;
@@ -1159,7 +1229,7 @@ function renderFooter() {
   let java = 0, done = 0, must = 0, mustDone = 0, rev = 0, due = 0;
   for (const f of S.files) {
     const st = statusOf(f.path);
-    if (isJava(f)) { java++; if (st === 'done') done++; }
+    if (isProblem(f)) { java++; if (st === 'done') done++; }
     if (f.must) { must++; if (st === 'done') mustDone++; }
     if (st === 'revise') rev++;
     if (isDue(f.path)) due++;
@@ -1460,7 +1530,7 @@ $('#sRegex').addEventListener('change', runSearch);
    folder. It replaced the "Type a path…" box, which was the only way to a .md, and a folder
    could only come with a file in it. A new .md opens as source, editable, beside its page. */
 const NP_DIFF = { A: 'Easy', B: 'Easy', C: 'Medium', D: 'Hard', '': 'Medium' };
-const np = { kind: 'problem', level: 'B', diffTouched: false, folders: [] };
+const np = { kind: 'problem', level: 'B', lang: 'java', diffTouched: false, folders: [] };
 const NP_INPUT = { problem: '#npName', file: '#nfName', folder: '#ndName' };
 const npFileName = name => /\.[^./]+$/.test(name.split('/').pop()) ? name : name + '.md';
 const npFolder = () => $('#npFolder').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
@@ -1490,8 +1560,24 @@ function npMethod() {                  // null: none given; false: not readable
   return m && !/^(return|new|class|if|for|while)$/.test(m[2]) && !/^(return|new)$/.test(m[1])
     ? { ret: m[1].replace(/\s+/g, ''), name: m[2], params: m[3].trim().replace(/\s+/g, ' ') } : false;
 }
+/* 8 Oct: the language of a new problem; it starts as the one most used in the chosen folder */
+function npSetLang(g) {
+  np.lang = g;
+  document.querySelectorAll('#npLang button').forEach(b => b.classList.toggle('on', b.dataset.g === g));
+  $('#npMethod').closest('label').hidden = g !== 'java' || !(S.info && S.info.stub);
+  npUpdate();
+}
+function npFolderLang(folder, here) {       // here: the file you are on; its language wins a tie
+  const dir = folder ? folder + '/' : '', n = {}, kindOf = name => CODE_KIND[(name.match(/\.(\w+)$/) || [])[1]];
+  for (const f of S.files) { const k = dirOf(f.path) === dir && kindOf(f.name); if (k) n[k] = (n[k] || 0) + 1; }
+  const mine = here && kindOf(here);
+  if (mine && n[mine]) n[mine] += 0.5;
+  const best = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+  return best || store.get('newLang', 'java');
+}
 function npUpdate() {
   if (np.kind !== 'problem') return npUpdatePlain();
+  if (np.lang !== 'java') return npUpdateLang();
   const folder = npFolder(), meth = npMethod(), pv = $('#npPreview');
   const fromMethod = meth ? (meth.name[0].toUpperCase() + meth.name.slice(1)).replace(/(?<=[a-z0-9])(?=[A-Z])/g, ' ') : '';
   $('#npName').placeholder = fromMethod || 'Two Sum';
@@ -1503,6 +1589,18 @@ function npUpdate() {
   pv.textContent = bad || '→ ' + (folder ? folder + '/' : '') + (np.level ? npNext(folder, np.level) + '_' : '') + cls + '.java'
     + (folder && !np.folders.includes(folder) ? '   (new folder)' : '')
     + (meth ? `\n  with ${meth.ret} ${meth.name}(${meth.params}) and a main() that calls it` : '');
+  $('#npCreate').disabled = !!bad;
+}
+function npUpdateLang() {                  // a Python, JavaScript or UI problem: no Method field
+  const folder = npFolder(), pv = $('#npPreview');
+  $('#npName').placeholder = np.lang === 'html' ? 'Star Rating' : np.lang === 'js' ? 'Debounce' : 'Two Sum';
+  const name = $('#npName').value.trim(), cls = npClass(name);
+  const bad = !name ? "Type the problem's name." : !cls ? 'Use letters or digits in the name.'
+    : /^\d/.test(cls) ? 'A name cannot start with a digit: write it in words, such as Three Sum.' : '';
+  pv.classList.toggle('bad', !!bad);
+  pv.textContent = bad || '→ ' + (folder ? folder + '/' : '') + (np.level ? npNext(folder, np.level) + '_' : '') + cls + '.' + KIND_EXT[np.lang]
+    + (folder && !np.folders.includes(folder) ? '   (new folder)' : '')
+    + (np.lang === 'html' ? '\n  a small working page, and a test block Ctrl+Enter runs' : '\n  with solve(), a check() helper and a main() that prints actual vs expected');
   $('#npCreate').disabled = !!bad;
 }
 function npUpdatePlain() {                 // the File and Folder tabs: what Create will make
@@ -1548,6 +1646,10 @@ function openNewPanel(kind, at) {
   np.diffTouched = false;
   const tiered = S.files.some(f => dirOf(f.path) === (dir ? dir + '/' : '') && levelOf(f.name));
   np.kind = 'problem';
+  $('#npLangRow').hidden = !(S.info && S.info.langs);                  // started before 8 Oct: Java only
+  np.lang = S.info && S.info.langs ? npFolderLang(dir, here) : 'java';
+  document.querySelectorAll('#npLang button').forEach(b => b.classList.toggle('on', b.dataset.g === np.lang));
+  if (np.lang !== 'java') $('#npMethod').closest('label').hidden = true;
   npSetLevel(here && levelOf(here.split('/').pop()) || (tiered ? 'B' : ''));
   $('#newPanel').hidden = false;
   npSetKind(kind || store.get('newKind', 'problem'));
@@ -1582,8 +1684,10 @@ async function npCreate() {
     if (kind === 'folder') await createdFolder(await api('/api/mkdir', { root: S.root, path: dir + name }));
     else await created(await api('/api/new', kind === 'file' ? { root: S.root, path: dir + npFileName(name) }
       : { root: S.root, folder, level: np.level, name: $('#npName').value, source: $('#npSource').value,
-          difficulty: $('#npDiff').value, must: $('#npMust').checked, method: $('#npMethod').value }));
+          difficulty: $('#npDiff').value, must: $('#npMust').checked, method: np.lang === 'java' ? $('#npMethod').value : '',
+          ...(np.lang !== 'java' ? { lang: np.lang } : {}) }));
     store.set('newKind', kind);
+    if (kind === 'problem') store.set('newLang', np.lang);
   } catch (err) {                            // the reason next to what was typed; the panel stays open
     const pv = $('#npPreview');
     pv.textContent = err.message; pv.classList.add('bad');
@@ -1592,6 +1696,7 @@ async function npCreate() {
 $('#newBtn').onclick = () => { setSide(false); if ($('#newPanel').hidden) openNewPanel(); else closeNew(); };
 $('#npKind').onclick = e => { const b = e.target.closest('button'); if (b) npSetKind(b.dataset.k); };
 $('#npLevel').onclick = e => { const b = e.target.closest('button'); if (b) { npSetLevel(b.dataset.l); $('#npName').focus(); } };
+$('#npLang').onclick = e => { const b = e.target.closest('button'); if (b) { npSetLang(b.dataset.g); $('#npName').focus(); } };
 $('#npDiff').onchange = () => { np.diffTouched = true; };
 for (const id of ['#npFolder', '#npName', '#npMethod', '#nfName', '#ndName']) $(id).addEventListener('input', npUpdate);
 $('#npCreate').onclick = npCreate;
@@ -2066,12 +2171,18 @@ function modelFor(k, text, lang) {
   }
   return m;
 }
-function scratchModel() {
-  let m = S.models.get(SCRATCH);
+/* The Scratch pad keeps one text per language (8 Oct): Java's under the old key "scratch", so
+   nothing written before is lost; the others under "scratch:py", "scratch:js", "scratch:html".
+   The language select in the bar switches between them. */
+const scratchKey = lang => lang === 'java' ? SCRATCH : SCRATCH + ':' + lang;
+const scratchLang = () => { const l = store.get('scratchLang', 'java'); return KIND_NAME[l] && canRun(l) ? l : 'java'; };
+function scratchModel(lang = S.cur && S.cur.path === SCRATCH ? S.cur.kind : scratchLang()) {
+  const k = scratchKey(lang);
+  let m = S.models.get(k);
   if (!m) {
-    m = monaco.editor.createModel(store.get('scratch', SCRATCH_TEMPLATE), 'java');
-    m.onDidChangeContent(debounce(() => { if (!store.set('scratch', m.getValue())) storageFull(); refreshBar(); }, 250));
-    S.models.set(SCRATCH, m);
+    m = monaco.editor.createModel(store.get(k, SCRATCH_TEMPLATES[lang]), LANG[KIND_EXT[lang]]);
+    m.onDidChangeContent(debounce(() => { if (!store.set(k, m.getValue())) storageFull(); refreshBar(); }, 250));
+    S.models.set(k, m);
   }
   return m;
 }
@@ -2083,13 +2194,13 @@ function saveDraft(k, m) {
 }
 function hasDraft(c) {
   if (!c) return false;
-  if (c.path === SCRATCH) { const m = S.models.get(SCRATCH); return !!m && m.getValue() !== SCRATCH_TEMPLATE; }
+  if (c.path === SCRATCH) { const m = S.models.get(scratchKey(c.kind)); return !!m && m.getValue() !== SCRATCH_TEMPLATES[c.kind]; }
   if (c.mode === 'practice') { const m = S.pmodels.get(c.key); return !!m && m.getValue() !== S.skeletons.get(c.key); }
   const m = S.models.get(c.key);
   return m && S.originals.has(c.key) ? m.getValue() !== S.originals.get(c.key) : store.has('draft:' + c.key);
 }
 function hasDraftStored(path) {
-  if (path === SCRATCH) return store.has('scratch');
+  if (path === SCRATCH) return Object.keys(KIND_EXT).some(l => store.has(scratchKey(l)));
   const k = keyOf(path);
   return store.has('draft:' + k) || store.has('practice:' + k) || store.has('try:' + k);
 }
@@ -2124,7 +2235,8 @@ async function route() {
   }
   openPath(p);
 }
-const viewKey = () => S.cur ? S.cur.key + ':' + (S.cur.mode || 'file') : '';
+/* the Scratch pad's other languages each keep their own place and output */
+const viewKey = () => S.cur ? S.cur.key + ':' + (S.cur.mode || 'file') + (S.cur.path === SCRATCH && S.cur.kind !== 'java' ? ':' + S.cur.kind : '') : '';
 function saveView() { if (S.cur && !$('#editor').hidden && editor.getModel()) S.views.set(viewKey(), editor.saveViewState()); }
 const getMode = k => S.modes.get(k) || store.get('mode:' + k, 'file');
 function setMode(k, m) { S.modes.set(k, m); if (m === 'file') store.del('mode:' + k); else store.set('mode:' + k, m); }
@@ -2139,8 +2251,9 @@ async function openPath(path) {
   hideBanner();
   $('#hintCard').hidden = true;
   if (path === SCRATCH) {
-    S.cur = { path: SCRATCH, key: SCRATCH, name: 'Scratch pad', kind: 'java', mode: 'file' };
-    showEditor(scratchModel());
+    const lang = scratchLang();
+    S.cur = { path: SCRATCH, key: SCRATCH, name: 'Scratch pad', kind: lang, ext: KIND_EXT[lang], mode: 'file' };
+    showEditor(scratchModel(lang));
     return afterOpen();
   }
   const f = S.byPath.get(path);
@@ -2153,9 +2266,10 @@ async function openPath(path) {
   if (!S.opened.has(k) || (S.hashes.has(k) && S.hashes.get(k) !== d.hash)) S.opened.set(k, d.text);
   S.originals.set(k, d.text); S.hashes.set(k, d.hash);
   const ext = ((path.match(/\.([^./]+)$/) || [])[1] || '').toLowerCase();
-  const kind = ext === 'md' ? 'md' : ext === 'java' ? 'java' : 'text';
+  const kind = ext === 'md' ? 'md' : CODE_KIND[ext] || 'text';
   const source = kind === 'md' && (isSrc(k) || !!(S.pendingReveal && S.pendingReveal.key === k));
-  S.cur = { path, key: k, name: f.name, ext, kind, source, mode: kind === 'java' ? getMode(k) : 'file' };
+  S.cur = { path, key: k, name: f.name, ext, kind, source, mode: 'file' };
+  S.cur.mode = isCode(S.cur) ? getMode(k) : 'file';
   if (S.cur.mode === 'practice' && !(await showPractice(token))) S.cur.mode = 'file';
   if (S.pending !== token) return;
   if (S.cur.mode === 'try') showTry();
@@ -2211,7 +2325,7 @@ function renderDir(dir) {
     rows += `<a class="row${hasDraftStored(f.path) ? ' drafted' : ''}" href="${href(f.path)}" title="${esc(f.path)}">${fileInner(f)}</a>`;
   md.innerHTML = `<div class="dirview">${dir ? `<div class="dv-path">${crumbs.join(' / ')} /</div>` : ''}<h1></h1>`
     + `<p class="dv-sum">${plural(node.dirs.length, 'folder')} · ${plural(node.files.length, 'file')} here`
-    + (s.java ? ` · ${s.done} of ${s.java} Java files done${node.dirs.length ? ', subfolders included' : ''}` : '') + '</p>'
+    + (s.java ? ` · ${s.done} of ${s.java} practice files done${node.dirs.length ? ', subfolders included' : ''}` : '') + '</p>'
     + `<div class="dv-list">${rows}${node.dirs.length || node.files.length ? '' : '<div class="empty">No files here yet.<br><button data-new="file">New file here</button>'
       + (S.info && S.info.files ? '<button data-new="folder">New folder here</button>' : '') + '</div>'}</div></div>`;
   md.querySelector('h1').textContent = dir ? parts[parts.length - 1] : r.name;
@@ -2226,13 +2340,16 @@ function showEditor(m) {
   $('#editor').hidden = false;
   editor.setModel(m);
   const vs = S.views.get(viewKey());
+  const code = CODE_LANGS.has(m.getLanguageId());
   if (vs) editor.restoreViewState(vs);
-  else if (m.getLanguageId() !== 'java') editor.setScrollTop(0);
-  if (m.getLanguageId() === 'java') atCode(m, vs);
+  else if (!code) editor.setScrollTop(0);
+  if (code) atCode(m, vs);
   editor.updateOptions({ readOnly: !isEditable() });
   applyAssist();
   editor.layout();
   paintChanges();
+  paintUi();                                  // a UI page's preview follows Practice, Try and the file
+  pySyntax();
 }
 
 /* 7 Oct, Ravi: Edit pressed instead of Try, and saved before noticing. A bar beside the line
@@ -2316,7 +2433,7 @@ async function showPractice(token) {
       S.hintsFor.set(k, r.hints || []);
     }
     if (token && S.pending !== token) return false;
-    m = monaco.editor.createModel(store.get('practice:' + k, null) ?? S.skeletons.get(k), 'java');
+    m = monaco.editor.createModel(store.get('practice:' + k, null) ?? S.skeletons.get(k), monacoLang(c));
     m.onDidChangeContent(debounce(() => {
       if (m.isDisposed()) return;                 // cleared from the Attempts tab meanwhile
       if (m.getValue() === S.skeletons.get(k)) store.del('practice:' + k);
@@ -2333,19 +2450,19 @@ async function showPractice(token) {
 }
 async function togglePractice() {
   const c = S.cur;
-  if (!c || c.kind !== 'java' || c.path === SCRATCH) return;
+  if (!c || !isCode(c) || c.path === SCRATCH) return;
   closeCompare(false);
   closeVisual(false);
   saveView();
   if (c.mode === 'practice') {
     const peeked = notePeek(c);
     c.mode = 'file'; setMode(c.key, 'file');
-    showEditor(modelFor(c.key, S.originals.get(c.key), 'java'));
+    showEditor(modelFor(c.key, S.originals.get(c.key), monacoLang(c)));
     if (!peeked) toast('Showing the original solution. Practice again to get your attempt back.');
   } else {
     c.mode = 'practice'; setMode(c.key, 'practice');
     if (await showPractice()) { toast('Practice: the solution is hidden. Write it, then Ctrl+Enter.'); editor.focus(); }
-    else { c.mode = 'file'; showEditor(modelFor(c.key, S.originals.get(c.key), 'java')); }
+    else { c.mode = 'file'; showEditor(modelFor(c.key, S.originals.get(c.key), monacoLang(c))); }
   }
   refreshBar();
   renderOutput(S.outputs.get(viewKey()));
@@ -2362,12 +2479,18 @@ function atCode(m, vs) {
   if (!vs || !p || p.lineNumber < start) editor.setPosition({ lineNumber: start, column: 1 });
   else editor.revealPositionInCenterIfOutsideViewport(p);     // the caret was in the code: keep it, in view
 }
-/* the line the code starts on, below the header comment (1 if there is none) */
+/* the line the code starts on, below the header comment (1 if there is none): a Java or
+   JavaScript block comment, a Python docstring, or a UI page's <!-- --> after <!DOCTYPE html> */
+const CODE_LANGS = new Set(['java', 'python', 'javascript', 'html']);
+const HEADER_MARKS = [['/*', '*/'], ['"""', '"""'], ["'''", "'''"], ['<!--', '-->']];
 function codeStart(m) {
   const lines = m.getLinesContent();
-  if (!/^\s*\/\*/.test(lines[0] || '')) return 1;
-  let n = lines.findIndex(l => l.includes('*/')) + 1;
-  if (n <= 0) return 1;
+  const i = /^\s*<!doctype/i.test(lines[0] || '') ? 1 : 0, first = (lines[i] || '').trimStart();
+  const mark = HEADER_MARKS.find(([open]) => first.startsWith(open));
+  if (!mark) return 1;
+  let n = first.includes(mark[1], mark[0].length) ? i : lines.findIndex((l, j) => j > i && l.includes(mark[1]));
+  if (n < 0) return 1;
+  n++;
   while (n < lines.length && !lines[n].trim()) n++;
   return n < lines.length ? n + 1 : 1;
 }
@@ -2401,7 +2524,7 @@ function showTry(fileView) {
     const fm = S.models.get(k);
     const text = store.get('try:' + k, null) ?? (fm ? fm.getValue() : store.get('draft:' + k, null) ?? S.originals.get(k));
     if (!store.set('try:' + k, text)) storageFull();
-    m = monaco.editor.createModel(text, 'java');
+    m = monaco.editor.createModel(text, monacoLang(c));
     m.onDidChangeContent(debounce(() => {
       if (m.isDisposed()) return;                 // discarded meanwhile
       if (!store.set('try:' + k, m.getValue())) storageFull();
@@ -2427,7 +2550,7 @@ function dropDraft(c) {
 }
 function toggleTry() {
   const c = S.cur;
-  if (!c || c.kind !== 'java' || c.path === SCRATCH || c.mode === 'practice') return;
+  if (!c || !isCode(c) || c.path === SCRATCH || c.mode === 'practice') return;
   closeCompare(false);                 // the diff view holds the copy's model, which Discard disposes
   closeVisual(false);
   saveView();
@@ -2456,7 +2579,7 @@ function toggleTry() {
     if (m) { m.dispose(); S.tmodels.delete(k); }
     S.views.delete(k + ':try');          // a new Try starts from where you are in the file
     c.mode = 'file'; setMode(k, 'file');
-    showEditor(modelFor(k, S.originals.get(k), 'java'));
+    showEditor(modelFor(k, S.originals.get(k), monacoLang(c)));
     markDraft(c.path);
     // 5 Oct: was "Try copy thrown away. The file was not changed. [Undo]" - Ravi asked twice
     // what he had to do there. Nothing; the button is only for a Discard by mistake.
@@ -2476,6 +2599,12 @@ function toggleTry() {
    and Prev carry on from it instead of starting at the top of the list (4 Oct). */
 const backFile = () => { const p = store.get('backFile:' + S.root, null); return p && S.byPath.has(p) ? p : null; };
 $('#backBtn').onclick = () => { const p = backFile(); if (p) go(p); };
+$('#scratchLang').onchange = async e => {
+  saveView();
+  store.set('scratchLang', e.target.value);
+  await openPath(SCRATCH);
+  editor.focus();
+};
 function afterOpen() {
   store.set('last:' + S.root, S.cur.path);
   if (S.cur.path !== SCRATCH && S.cur.kind !== 'dir') store.set('backFile:' + S.root, S.cur.path);
@@ -2525,19 +2654,28 @@ function refreshBar() {
   const back = isScratch ? backFile() : null, bb = $('#backBtn');
   bb.hidden = !back;
   if (back) {
-    bb.innerHTML = '← ' + wideNarrow(esc(back.split('/').pop().replace(/\.java$/, '')), 'Back');
+    bb.innerHTML = '← ' + wideNarrow(esc(back.split('/').pop().replace(CODE_EXT, '')), 'Back');
     bb.title = `Back to ${back}, in the mode you left it. Next and Prev also carry on from this file.`;
   }
   $('#srcBtn').hidden = c.kind !== 'md';
   $('#srcBtn').textContent = c.source ? 'Rendered' : 'Source';
   $('#outlineBtn').hidden = c.kind !== 'md';
-  const pv = $('#previewBtn'), split = $('.stage').classList.contains('split');
-  pv.hidden = c.kind !== 'md' || !c.source;
+  const pv = $('#previewBtn'), ui = c.kind === 'html';
+  const split = $('.stage').classList.contains(ui ? 'uisplit' : 'split'), wanted = ui ? S.uiPreview : S.mdPreview;
+  pv.hidden = !(ui ? isCode(c) : c.kind === 'md' && c.source);
   pv.classList.toggle('on', split);
-  pv.title = S.mdPreview && !split && !S.comparing ? `On, but there is no room beside the source (under ${SPLIT_MIN}px): hide the file list with Ctrl+B`
+  pv.title = wanted && !split && !S.comparing ? `On, but there is no room beside the ${ui ? 'code' : 'source'} (under ${SPLIT_MIN}px): hide the file list with Ctrl+B`
+    : ui ? (split ? 'Hide the page beside the code' : 'Show the page beside the code, redrawn as you type')
     : split ? 'Hide the rendered page beside the source' : 'Show the rendered page beside the source, as you type';
+  const sl = $('#scratchLang');
+  sl.hidden = !isScratch;
+  if (isScratch) {
+    const langs = Object.keys(KIND_NAME).filter(canRun);
+    if (sl.options.length !== langs.length) sl.replaceChildren(...langs.map(l => new Option(KIND_NAME[l], l)));
+    sl.value = c.kind;
+  }
   const pb = $('#practiceBtn');
-  pb.hidden = c.kind !== 'java' || isScratch;
+  pb.hidden = !isCode(c) || isScratch;
   pb.innerHTML = practice ? wideNarrow('Show solution', 'Solution') : 'Practice';
   pb.classList.toggle('practice-on', practice);
   const st = statusOf(c.path), gb = $('#progBtn');
@@ -2550,7 +2688,7 @@ function refreshBar() {
   $('#editBtn').textContent = S.editing.has(c.key) && !rendered ? 'Lock' : 'Edit';
   $('#editBtn').classList.toggle('on', S.editing.has(c.key) && !rendered);
   const tb = $('#tryBtn');
-  tb.hidden = c.kind !== 'java' || isScratch || practice;
+  tb.hidden = !isCode(c) || isScratch || practice;
   tb.textContent = trying ? 'Discard copy' : 'Try';     // full label even on a narrow bar: the badge is hidden there
   tb.title = trying ? 'Throw this try copy away and go back to the file, which was never changed (Alt+T)'
     : 'Change and run a throwaway copy of this file; the file itself is never changed (Alt+T)';
@@ -2559,7 +2697,10 @@ function refreshBar() {
   const sinceOpen = savedSinceOpen(c);           // saved changes since this tab opened the file
   $('#resetBtn').hidden = rendered || trying || !(drafted || sinceOpen);
   $('#resetBtn').title = !drafted && sinceOpen ? 'Put the file back as you opened it (Ctrl+S then saves that)' : 'Throw away your edit';
-  $('#runBtn').disabled = c.kind !== 'java' || S.running;
+  $('#runBtn').disabled = !isCode(c) || S.running;
+  $('#runBtn').title = kb(!KIND_NAME[c.kind] ? 'Run (Ctrl+Enter): .java, .py, .js and .html files run' : !isCode(c) ? cannotRun(c.kind)
+    : c.kind === 'html' ? "Run the page's test block (Ctrl+Enter)" : c.kind === 'java' ? 'Compile and run (Ctrl+Enter)'
+    : `Run with ${c.kind === 'py' ? 'Python' : 'Node.js'} (Ctrl+Enter)`);
   const cb = $('#compareBtn');
   const editDraft = !isScratch && !practice && !trying && !rendered && (drafted || sinceOpen);
   cb.hidden = !practice && !trying && !editDraft;
@@ -2573,7 +2714,7 @@ function refreshBar() {
   vb.hidden = !visualFor(c);
   vb.textContent = S.visual ? 'Close visual' : 'Visual';
   vb.classList.toggle('on', !!S.visual);
-  $('#navGroup').hidden = !S.files.some(isJava);
+  $('#navGroup').hidden = !S.files.some(isProblem);
   paintNav();
   $('#lastSolvedBtn').hidden = !practice || !store.has('lastSolved:' + c.key);
   paintTimer();
@@ -2668,8 +2809,8 @@ function resetDraft() {
     refreshBar();
     return toast('The file as you opened it is back in the editor, not saved yet: Ctrl+S saves it, Ctrl+Z undoes this.');
   }
-  const m = c.path === SCRATCH ? S.models.get(SCRATCH) : S.models.get(c.key);
-  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATE : S.originals.get(c.key);
+  const m = c.path === SCRATCH ? S.models.get(scratchKey(c.kind)) : S.models.get(c.key);
+  const orig = c.path === SCRATCH ? SCRATCH_TEMPLATES[c.kind] : S.originals.get(c.key);
   if (!m || orig == null) return;
   replaceAll(m, orig);
   toast('Edit thrown away. Ctrl+Z undoes it.');
@@ -2734,8 +2875,12 @@ function assistModel(model, readOnlyToo) {
 function applyAssist() {
   if (!editor || !S.cur) return;
   const on = assistOn(), code = { other: 'on', comments: 'off', strings: 'off' };
+  // 8 Oct: Python, JavaScript and UI files get the editor's own suggestions, and Practice turns
+  // them off there too unless ⋯ → Autocomplete in Practice is on
+  const fair = isCode(S.cur) && S.cur.mode === 'practice' && !assistPracticeOn();
   const opts = S.cur.kind === 'java'
     ? { wordBasedSuggestions: 'off', quickSuggestions: on ? code : false, suggestOnTriggerCharacters: on, parameterHints: { enabled: on } }
+    : fair ? { wordBasedSuggestions: 'off', quickSuggestions: false, suggestOnTriggerCharacters: false, parameterHints: { enabled: false } }
     : { wordBasedSuggestions: 'matchingDocuments', quickSuggestions: code, suggestOnTriggerCharacters: true, parameterHints: { enabled: true } };
   editor.updateOptions(opts);
   if (diffEditor) diffEditor.getModifiedEditor().updateOptions(opts);
@@ -2786,6 +2931,19 @@ function templateItems(model, pos) {
     documentation: { value: '```java\n' + body.replace(/\$\{\d+:([^}]*)\}/g, '$1').replace(/\$\d/g, '') + '\n```' },
   }));
 }
+/* Python's first syntax error as a red underline while editing (8 Oct), 0.5 s after typing
+   stops, from the server's compile() of the text (nothing runs). JavaScript gets its own from
+   the editor. Same marker owner as Run's, so a run clears it. */
+const pySyntax = debounce(async () => {
+  const m = editor && editor.getModel(), c = S.cur;
+  if (!m || !c || c.kind !== 'py' || !isCode(c) || !isEditable() || S.running || S.comparing) return;
+  const v = m.getVersionId();
+  let r;
+  try { r = await api('/api/syntax', { lang: 'py', code: m.getValue() }); } catch { return; }
+  if (m.isDisposed() || m.getVersionId() !== v || S.running) return;
+  monaco.editor.setModelMarkers(m, 'javac', r.errors.map(e => ({ severity: monaco.MarkerSeverity.Error, message: e.message, source: 'python',
+    startLineNumber: e.line, startColumn: e.column, endLineNumber: e.line, endColumn: Math.max(e.endColumn, e.column + 1) })));
+}, 500);
 /* javac's errors as red underlines, 0.6 s after typing stops; the same marker owner as Run's */
 const liveCheck = debounce(async () => {
   const m = shownModel();
@@ -3081,7 +3239,14 @@ async function formatFile(how = '') {
   const say = msg => { fmtLog(msg); toast(msg); };
   fmtLog('format started' + (how ? ' by ' + how : ''));
   if (!c) return fmtLog('no file open');
-  if (c.kind !== 'java') return say('Ctrl+Alt+L formats Java files.');
+  if (c.kind === 'js' || c.kind === 'html') {          // 8 Oct: the editor's own formatter for these
+    if (!m) return;
+    if (!isEditable()) return say('Formatting changes the code: press Edit (or Try) first.');
+    const a = editor.getAction('editor.action.formatDocument');
+    return a ? a.run() : say('The editor has no formatter for this file.');
+  }
+  if (c.kind !== 'java') return say(c.kind === 'py' ? 'There is no Python formatter here: Ctrl+Alt+L formats Java, JavaScript and HTML.'
+    : 'Ctrl+Alt+L formats Java, JavaScript and HTML files.');
   if (!m) return fmtLog('no editor text');
   if (!isEditable()) return say('Formatting changes the code: press Edit (or Try) first.');
   // Ravi's screenshot (6 Oct): the code changed while the formatter answered and the answer was
@@ -3298,7 +3463,7 @@ function initAssist() {
       return { edits: r.spots.map(s => ({ resource: model.uri, versionId: v, textEdit: { range: offsetRange(model, s, s + r.len), text: newName } })) };
     },
   });
-  editor.onDidChangeModelContent(() => liveCheck());
+  editor.onDidChangeModelContent(() => { liveCheck(); pySyntax(); });
   editor.onDidChangeModelContent(e => dropAltgrText(editor.getModel(), e));
   // `Map<` gets its `>` (5 Oct, Ravi), as in IntelliJ. Only right after a capitalised name
   // (Map, List, HashMap - not MAX, not i), so `i < n` stays as typed. A typed `>` steps over
@@ -4016,7 +4181,7 @@ function step(dir) {
   const pos = new Map(S.files.map((f, i) => [f.path, i]));
   const at = inDir ? S.files.findIndex(f => f.path.startsWith(below)) - 0.5 : here ? pos.get(here) : -1;
   const wants = f => mode.tiers.some(([test]) => test(f));
-  let pool = S.files.filter(f => isJava(f) && f.path !== here && (home === null || dirOf(f.path) === home) && wants(f));
+  let pool = S.files.filter(f => isProblem(f) && f.path !== here && (home === null || dirOf(f.path) === home) && wants(f));
   if (dir < 0) pool.reverse();
   const ahead = f => dir > 0 ? pos.get(f.path) > at : pos.get(f.path) < at;
   const order = pool.filter(ahead).concat(pool.filter(f => !ahead(f)));    // from here on, then wrap
@@ -4030,11 +4195,11 @@ function step(dir) {
     [pick, why] = hit;
   } else if (!ahead(pick)) note = dir > 0 ? ` · back to the start${where || ' of the list'}` : ` · back to the end${where || ' of the list'}`;
   const k = keyOf(pick.path);
-  const practising = !S.cur || S.cur.path === SCRATCH || S.cur.kind !== 'java' || S.cur.mode === 'practice';
+  const practising = !S.cur || S.cur.path === SCRATCH || !isCode(S.cur) || S.cur.mode === 'practice';
   setMode(k, practising ? 'practice' : 'file');
   if (practising && (why === 'due for review' || why === 'to revise')) S.fresh = k;
   go(pick.path);
-  toast(`${dir > 0 ? 'Next' : 'Prev'} (${mode.label}): ${pick.name.replace(/\.java$/, '')}` + (why ? ` · ${why}` : '') + note);
+  toast(`${dir > 0 ? 'Next' : 'Prev'} (${mode.label}): ${pick.name.replace(/\.java$/, '')}` + (why ? ` · ${why}` : '') + note);   // a .py / .js / .html keeps its type in the name
 }
 function paintNav() {
   const m = NEXT_MODES[nextMode], scope = nextStay ? ', this folder only' : '';
@@ -4239,6 +4404,9 @@ function renderMd(path, text, beside) {
 const LIB_JAVA = [/^\s*import\s+(?!(?:static\s+)?java\.|javax\.(?!persistence|validation|annotation))/m,
   /@(?:SpringBootApplication|RestController|Controller|Service|Component|Repository|Configuration|Bean|Autowired|Value|Transactional|Entity|Table|Id|Column|GeneratedValue|OneToMany|ManyToOne|ManyToMany|OneToOne|GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping|RequestBody|PathVariable|RequestParam|ResponseStatus|ExceptionHandler|ControllerAdvice|RestControllerAdvice|EnableAutoConfiguration|ConditionalOn\w+|KafkaListener|Cacheable|CacheEvict|Scheduled|Async|EventListener|Test|BeforeEach|AfterEach|ParameterizedTest|Mock|InjectMocks|MockBean|SpyBean|Slf4j|Data|Builder|Getter|Setter|RequiredArgsConstructor|AllArgsConstructor|NoArgsConstructor|Valid|NotNull|NotBlank)\b/];
 const libraryJava = t => LIB_JAVA.some(r => r.test(t));    // Spring, JUnit, Lombok...: no jars here, so no Try
+/* 8 Oct: Python and JavaScript blocks get Try too, run as they are */
+const BLOCK_KIND = { java: 'java', python: 'py', py: 'py', javascript: 'js', js: 'js' };
+const tryKind = (lang, raw) => { const k = BLOCK_KIND[lang]; return k && canRun(k) && !(k === 'java' && libraryJava(raw)) ? k : null; };
 function dressBlock(code, i) {
   const pre = code.parentElement, lang = ((code.className.match(/language-([\w+#.-]+)/) || [])[1] || '').toLowerCase();
   const raw = code.textContent.replace(/\n$/, '');
@@ -4248,7 +4416,8 @@ function dressBlock(code, i) {
   pre.replaceWith(cb);
   cb.innerHTML = '<div class="cb-bar">' + (lang ? `<span class="cb-lang">${esc(lang)}</span>` : '')
     + '<button class="cb-copy" title="Copy the code">Copy</button>'
-    + (lang === 'java' && !libraryJava(raw) ? '<button class="cb-try" title="Edit and run it here. Never saved to the note">▶ Try</button>' : '') + '</div>';
+    + (tryKind(lang, raw) ? '<button class="cb-try" title="Edit and run it here. Never saved to the note">▶ Try</button>' : '') + '</div>';
+  cb._kind = tryKind(lang, raw);
   cb.prepend(pre);
   if (!lang || lang === 'text' || !window.monaco) return;
   code.setAttribute('data-lang', LANG[lang] || lang);
@@ -4301,12 +4470,12 @@ function runnable(src) {
 }
 function openTry(cb, again) {
   closeTry();
-  const c = S.cur, i = +cb.dataset.i, raw = cb._raw, key = `${c.key}#${i}\n${raw}`;
-  const model = monaco.editor.createModel(tryEdits.get(key) ?? raw, 'java');
+  const c = S.cur, i = +cb.dataset.i, raw = cb._raw, key = `${c.key}#${i}\n${raw}`, kind = cb._kind || 'java';
+  const model = monaco.editor.createModel(tryEdits.get(key) ?? raw, LANG[KIND_EXT[kind]]);
   cb.classList.add('trying');
-  cb.insertAdjacentHTML('beforeend', '<div class="try"><div class="try-bar"><span class="cb-lang">java</span>'
+  cb.insertAdjacentHTML('beforeend', `<div class="try"><div class="try-bar"><span class="cb-lang">${KIND_EXT[kind]}</span>`
     + '<span class="try-note">Never saved to the note</span><span class="spacer"></span>'
-    + `<button class="primary try-run" title="${kb('Compile and run it (Ctrl+Enter)')}">▶ Run</button>`
+    + `<button class="primary try-run" title="${kb(kind === 'java' ? 'Compile and run it (Ctrl+Enter)' : 'Run it (Ctrl+Enter)')}">▶ Run</button>`
     + '<button class="try-scratch" title="Move it to the Scratch pad. Ctrl+Z there brings back what it had">→ Scratch pad</button>'
     + '<button class="icon try-close" title="Close: the block as the note has it (your edit stays for this tab)">×</button></div>'
     + '<div class="try-ed"></div><div class="try-out" hidden></div></div>');
@@ -4330,7 +4499,7 @@ function openTry(cb, again) {
       toast(kb('A Try here is never saved to the note. To change the note: Edit (Ctrl+E).'));
     }
   });
-  tryOpen = { key, path: c.path, i, raw, cb, ed, model, running: false };
+  tryOpen = { key, path: c.path, i, raw, cb, ed, model, kind, running: false };
   if (again && again.out) { const o = cb.querySelector('.try-out'); o.innerHTML = again.out; o.hidden = false; }
   if (!again) ed.focus();
 }
@@ -4350,12 +4519,13 @@ async function runTry() {
   const t = tryOpen;
   if (!t || t.running) return;
   t.running = true;
-  const out = t.cb.querySelector('.try-out'), { code, line } = runnable(t.model.getValue());
+  const java = t.kind === 'java', out = t.cb.querySelector('.try-out');
+  const { code, line } = java ? runnable(t.model.getValue()) : { code: t.model.getValue(), line: n => n };
   out.hidden = false;
-  out.innerHTML = '<div class="try-status run"><span class="spin"></span>Compiling and running…</div>';
+  out.innerHTML = `<div class="try-status run"><span class="spin"></span>${java ? 'Compiling and running…' : 'Running…'}</div>`;
   monaco.editor.setModelMarkers(t.model, 'javac', []);
   let res;
-  try { res = await api('/api/run', { root: S.root, path: null, code, stdin: '', timeout: +$('#timeoutSel').value, main: null }); }
+  try { res = await api('/api/run', { root: S.root, path: null, code, stdin: '', timeout: +$('#timeoutSel').value, main: null, lang: t.kind }); }
   catch (e) { res = { phase: 'compile', ok: false, output: e.message }; }
   t.running = false;
   if (tryOpen !== t) return;
@@ -4375,7 +4545,9 @@ async function runTry() {
 function tryToScratch() {
   const t = tryOpen;
   if (!t) return;
-  const { code } = runnable(t.model.getValue()), m = scratchModel();
+  const code = t.kind === 'java' ? runnable(t.model.getValue()).code : t.model.getValue();
+  store.set('scratchLang', t.kind);                // the pad opens in the block's language
+  const m = scratchModel(t.kind);
   m.pushStackElement();
   m.pushEditOperations([], [{ range: m.getFullModelRange(), text: code }], () => null);
   m.pushStackElement();
@@ -4720,6 +4892,7 @@ function paintSplit(fresh) {
     editor.updateOptions({ minimap: { enabled: S.minimap && !on, renderCharacters: false } });
     editor.layout();
   }
+  paintUi();
 }
 function syncSplitScroll() {
   const md = $('#md'), max = editor.getScrollHeight() - editor.getLayoutInfo().height;
@@ -4735,13 +4908,239 @@ function hookSplit() {                  // once, when the editor exists
     if ($('.stage').classList.contains('split') && performance.now() > mdHold) syncSplitScroll();
     if (!$('#outline').hidden) markSoon();
   });
-  window.addEventListener('resize', debounce(() => { if (splitWanted()) paintSplit(); }, 150));
+  window.addEventListener('resize', debounce(() => { if (splitWanted()) paintSplit(); else paintUi(); }, 150));
+  // not when the frame already holds this text (a Run right after typing: keep what its tests left)
+  editor.onDidChangeModelContent(debounce(() => { const m = editor.getModel(); if (uiShown() && !S.running && (ui.model !== m || ui.version !== m.getVersionId())) uiRender(); }, 400));
 }
 function togglePreview() {
+  if (S.cur && S.cur.kind === 'html') {
+    S.uiPreview = !S.uiPreview; store.set('uiPreview', S.uiPreview);
+    paintUi();
+    refreshBar();
+    if (S.uiPreview && !uiShown()) toast('Not enough room beside the code: hide the file list (Ctrl+B) or widen the window.');
+    return;
+  }
   S.mdPreview = !S.mdPreview; store.set('mdPreview', S.mdPreview);
   paintSplit(true);
   refreshBar();
   if (S.mdPreview && !$('.stage').classList.contains('split')) toast('Not enough room beside the source: hide the file list (Ctrl+B) or widen the window.');
+}
+
+/* ------------------------------------------------------------ UI pages (.html) */
+/* 8 Oct, Ravi: UI practice. A .html practice file shows beside its code as a browser shows it,
+   redrawn 400 ms after typing stops, in a locked frame: sandbox without allow-same-origin, so
+   the page cannot read this page's storage or call the server (its requests carry Origin: null,
+   which the server refuses). alert / confirm / prompt are logged instead of blocking the tab.
+   A small script put first in its <head>, on the same line so line numbers stay true, sends
+   back what it logs and its errors.
+   Ctrl+Enter runs the file's <script type="test"> blocks: browsers skip that type, so the page
+   alone never runs them. Here each becomes an async function that runs once the page has
+   loaded (await works in it); their check() lines are ticked by the same server code as Java's
+   and, in Practice, all of them matching marks the file done. */
+const ui = { token: 0, preview: 0, model: null, version: 0, sinks: new Map() };   // version: the text the frame holds
+const UI_MSG = 'codeview-ui';
+const TEST_TAG = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+const isTestTag = attrs => /\btype\s*=\s*["']?test\b/i.test(attrs);
+const uiWanted = () => { const c = S.cur; return !!c && c.kind === 'html' && isCode(c) && !S.comparing && !S.visual; };
+const uiShown = () => $('.stage').classList.contains('uisplit') && uiWanted();
+const uiFile = c => c.path === SCRATCH ? 'Scratch.html' : c.name;
+/* runs inside the page, before its own code: one line, no line breaks */
+const UI_CAPTURE = String.raw`(function(){var P=parent,T=__TOKEN__,tests=[],loopAt=performance.now();
+function F(v){try{if(typeof v==='string')return v;if(v instanceof Error)return v.name+': '+v.message;if(v instanceof Node)return '<'+v.nodeName.toLowerCase()+(v.id?'#'+v.id:'')+'>';if(v===undefined)return 'undefined';if(typeof v==='function')return 'function '+(v.name||'');var s=JSON.stringify(v);return s===undefined?String(v):s;}catch(e){return String(v);}}
+function send(kind,text,line){try{P.postMessage({cv:'codeview-ui',token:T,kind:kind,text:String(text),line:line||0},'*');}catch(e){}}
+function lineOf(e){var m=e&&e.stack&&/about:srcdoc:(\d+)/.exec(e.stack);return m?+m[1]:0;}
+function named(e){return e&&e.name&&e.message!==undefined?e.name+': '+e.message:'Error: '+F(e);}
+['log','info','debug','warn','error'].forEach(function(k){var o=console[k];console[k]=function(){send(k==='error'?'stderr':'log',[].map.call(arguments,F).join(' '));return o.apply(console,arguments);};});
+addEventListener('error',function(e){send('error',e.error?named(e.error):e.message,e.lineno||lineOf(e.error));});
+addEventListener('unhandledrejection',function(e){send('error','Unhandled rejection: '+named(e.reason),lineOf(e.reason));});
+window.alert=function(m){send('log','[alert] '+F(m));};
+window.confirm=function(m){send('log','[confirm] '+F(m)+' -> OK');return true;};
+window.prompt=function(m,d){send('log','[prompt] '+F(m)+' -> '+(d==null?'':d));return d==null?'':String(d);};
+setInterval(function(){loopAt=performance.now();},100);
+window.__cvLoop=function(line){if(performance.now()-loopAt<2000)return false;loopAt=performance.now();send('error','A loop ran for 2 s without letting the page breathe, so it was stopped',line);return true;};
+window.__cvTest=function(f){tests.push(f);};
+addEventListener('load',function(){setTimeout(async function(){for(var i=0;i<tests.length;i++){try{await tests[i]();}catch(e){send('error',named(e),lineOf(e));}}send('done',tests.length);},0);});
+})();`.replace(/\n/g, '');
+/* The page to load: the capture script first, every loop guarded, and (for Run) each test
+   block turned into a function that runs after load. Every change keeps the line count. */
+function uiDoc(text, token, withTests) {
+  const capture = '<script>' + UI_CAPTURE.replace('__TOKEN__', token) + '<\/script>';
+  let doc = text.replace(TEST_TAG, (all, attrs, body, at) => {
+    if (isTestTag(attrs)) return withTests ? `<script>__cvTest(async () => {${body}${/\n[ \t]*$/.test(body) ? '' : '\n'}});<\/script>` : all;
+    const type = ((/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs) || [])[1] || '').toLowerCase();
+    if (/\bsrc\s*=/i.test(attrs) || !['', 'module', 'text/javascript', 'application/javascript'].includes(type)) return all;
+    const first = text.slice(0, at + 8 + attrs.length).split('\n').length;       // the file's line the script starts on
+    return `<script${attrs}>${guardLoops(body, first)}<\/script>`;
+  });
+  const at = /<head\b[^>]*>/i.exec(doc) || /<html\b[^>]*>/i.exec(doc) || /^\s*<!doctype[^>]*>/i.exec(doc);
+  const cut = at ? at.index + at[0].length : 0;
+  return doc.slice(0, cut) + capture + doc.slice(cut);
+}
+/* A loop typed half-way (while (i < n) before the i++) would freeze the tab: each for / while
+   / do body with braces starts with a check that stops it after 2 s without a break. Strings,
+   comments and regex literals are skipped; the check goes on the same line. */
+function guardLoops(js, first = 1) {        // first: the file's line js starts on, for the message
+  let out = '', i = 0, prev = '';
+  const n = js.length, line = k => js.slice(0, k).split('\n').length + first - 1;
+  const strEnd = k => {
+    const q = js[k];
+    for (let j = k + 1; j < n; j++) {
+      if (js[j] === '\\') j++;
+      else if (js[j] === q) return j + 1;
+      else if (q !== '`' && js[j] === '\n') return j;
+    }
+    return n;
+  };
+  const skip = k => {                            // past spaces and comments
+    for (;;) {
+      while (k < n && /\s/.test(js[k])) k++;
+      if (js.startsWith('//', k)) { const e = js.indexOf('\n', k); k = e < 0 ? n : e; }
+      else if (js.startsWith('/*', k)) { const e = js.indexOf('*/', k + 2); k = e < 0 ? n : e + 2; }
+      else return k;
+    }
+  };
+  const parenEnd = k => {                        // js[k] is '(': just after its ')'
+    for (let d = 0, j = k; j < n; j++) {
+      const ch = js[j];
+      if (ch === '"' || ch === "'" || ch === '`') { j = strEnd(j) - 1; continue; }
+      if (ch === '(') d++;
+      else if (ch === ')' && --d === 0) return j + 1;
+    }
+    return -1;
+  };
+  while (i < n) {
+    const ch = js[i];
+    if (js.startsWith('//', i) || js.startsWith('/*', i)) { const e = skip(i); out += js.slice(i, e); i = e; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { const e = strEnd(i); out += js.slice(i, e); i = e; prev = 'a'; continue; }
+    if (ch === '/' && (!prev || /[(,=:[!&|?{};+\-*%<>~^]/.test(prev))) {          // a regex literal
+      const m = /^\/(?:\\.|\[(?:\\.|[^\]\n])*\]|[^\/\\\n])+\/[a-z]*/.exec(js.slice(i, i + 400));
+      if (m) { out += m[0]; i += m[0].length; prev = 'a'; continue; }
+    }
+    const w = /^[A-Za-z_$][\w$]*/.exec(js.slice(i, i + 40));
+    if (w && !/[\w$.]/.test(js[i - 1] || '')) {
+      let body = -1;
+      if (w[0] === 'for' || w[0] === 'while') {
+        const p = skip(i + w[0].length);
+        const q = js[p] === '(' ? parenEnd(p) : -1;
+        if (q > 0) { const b = skip(q); if (js[b] === '{') body = b; }
+      } else if (w[0] === 'do') {
+        const b = skip(i + 2);
+        if (js[b] === '{') body = b;
+      }
+      if (body > 0) { out += js.slice(i, body + 1) + `if(__cvLoop(${line(body)}))break;`; i = body + 1; prev = '{'; continue; }
+      out += w[0]; i += w[0].length; prev = 'a'; continue;
+    }
+    out += ch;
+    if (!/\s/.test(ch)) prev = ch;
+    i++;
+  }
+  return out;
+}
+window.addEventListener('message', e => {
+  const d = e.data, sink = d && d.cv === UI_MSG && ui.sinks.get(d.token);
+  if (sink && e.source === sink.frame.contentWindow) sink.on(d);
+});
+/* the preview beside the code: on for a UI file with room for it */
+function paintUi() {
+  const st = $('.stage'), was = st.classList.contains('uisplit');
+  const on = uiWanted() && S.uiPreview && !$('#editor').hidden && !!editor && !!editor.getModel() && st.clientWidth >= SPLIT_MIN;
+  st.classList.toggle('uisplit', on);
+  $('#uiWrap').hidden = !on;
+  if (on && ui.model !== editor.getModel()) uiRender();
+  if (!on && was) uiBlank();
+  if (on !== was) {
+    editor.updateOptions({ minimap: { enabled: S.minimap && !on && !st.classList.contains('split'), renderCharacters: false } });
+    editor.layout();
+  }
+}
+function uiBlank() {                       // the old page's timers stop with it
+  ui.sinks.delete(ui.preview);
+  ui.model = null;
+  $('#uiFrame').srcdoc = '';
+}
+function uiRender() {
+  const m = editor.getModel();
+  if (!m) return;
+  ui.sinks.delete(ui.preview);
+  const token = ui.preview = ++ui.token, st = { logs: 0, errors: 0, last: '', after: false };
+  ui.model = m; ui.version = m.getVersionId();
+  paintUiFoot(st);
+  ui.sinks.set(token, { frame: $('#uiFrame'), on: d => uiNote(st, d) });
+  $('#uiFrame').srcdoc = uiDoc(m.getValue(), token, false);
+}
+function uiNote(st, d) {
+  if (d.kind === 'done') return;
+  if (d.kind === 'error') { st.errors++; st.last = d.text + (d.line ? ` (line ${d.line})` : ''); } else st.logs++;
+  paintUiFoot(st);
+}
+function paintUiFoot(st) {
+  const s = $('#uiStatus'), lines = `${st.logs} console line${st.logs === 1 ? '' : 's'}`;
+  s.replaceChildren((st.after ? 'After the tests · ' : '') + (st.logs || !st.errors ? lines : ''));
+  if (st.errors) {
+    const b = document.createElement('span');
+    b.className = 'bad';
+    b.textContent = `${st.logs ? ' · ' : ''}${st.errors} error${st.errors > 1 ? 's' : ''}: ${st.last}`;
+    s.append(b);
+  }
+  s.title = (st.after ? 'The page as the tests left it. ↻ Reload, or any change to the code, starts it fresh. ' : '')
+    + (st.errors ? 'Last error: ' + st.last + '. Ctrl+Enter shows every line in the Output pane.' : 'Ctrl+Enter shows what the page logged in the Output pane.');
+}
+$('#uiReload').onclick = () => { if (uiShown()) { uiRender(); editor.focus(); } };
+/* load text into frame and collect what it logs until its tests are done (or ms pass) */
+function uiCollect(frame, text, ms, file, onLine) {
+  return new Promise(resolve => {
+    const token = ++ui.token, lines = [], tests = [...text.matchAll(TEST_TAG)].filter(m => isTestTag(m[1])).length;
+    let errors = 0, over = false;
+    const finish = timedOut => {
+      if (over) return;
+      over = true; clearTimeout(timer); ui.sinks.delete(token);
+      resolve({ lines, errors, timedOut, tests });
+    };
+    const timer = setTimeout(() => finish(true), ms);
+    ui.sinks.set(token, { frame, on: d => {
+      if (onLine) onLine(d);
+      if (d.kind === 'done') return tests ? finish(false) : setTimeout(() => finish(false), 300);   // a page with no tests: what it logs as it starts
+      if (d.kind === 'error') errors++;
+      lines.push(d.kind === 'error' && d.line ? `${d.text}   (${file}:${d.line})` : d.text);
+    } });
+    frame.srcdoc = uiDoc(text, token, true);
+  });
+}
+async function runUi() {
+  const c = S.cur, vk = viewKey(), model = editor.getModel(), practice = c.mode === 'practice';
+  checkVersion();
+  S.running = true;
+  refreshBar();
+  $('#main').classList.remove('out-collapsed');
+  $('#status').className = 'status run';
+  $('#status').innerHTML = "<span class=\"spin\"></span>Running the page's tests…";
+  $('#verdict').hidden = true; $('#meta').textContent = ''; $('#output').textContent = '';
+  const shown = uiShown(), file = uiFile(c), t0 = performance.now();
+  let frame = $('#uiFrame'), st = null;
+  if (shown) {                                // the tests run in the page you see, which keeps their result
+    ui.sinks.delete(ui.preview);
+    ui.preview = 0; ui.model = model; ui.version = model.getVersionId();
+    st = { logs: 0, errors: 0, last: '', after: true };
+    paintUiFoot(st);
+  } else {
+    frame = Object.assign(document.createElement('iframe'), { className: 'ui-offscreen', title: 'Test run' });
+    frame.setAttribute('sandbox', 'allow-scripts allow-forms');
+    frame.setAttribute('aria-hidden', 'true');
+    document.body.append(frame);
+  }
+  const r = await uiCollect(frame, model.getValue(), +$('#timeoutSel').value * 1000, file, st && (d => uiNote(st, d)));
+  if (!shown) frame.remove();
+  const output = r.lines.join('\n');
+  const res = { phase: 'run', ui: true, file, output, errors: r.errors, timedOut: r.timedOut, exitCode: r.errors || r.timedOut ? 1 : 0,
+                ok: !r.errors && !r.timedOut, runner: 'in this browser', runMs: Math.round(performance.now() - t0) };
+  if (!r.tests) res.note = 'This file has no <script type="test"> block, so nothing was checked: above is what the page logged as it loaded.';
+  try { Object.assign(res, await api('/api/check', { output })); delete res._status; }
+  catch (e) { res.note = 'The ticks could not be worked out: ' + e.message; }
+  S.running = false;
+  res.at = new Date();
+  S.outputs.set(vk, res);
+  if (viewKey() === vk) { renderOutput(res); refreshBar(); }
+  await scoreRun(c, res, practice);
 }
 $('#md').addEventListener('click', e => {
   const bb = e.target.closest('.cb-bar button, .try-bar button, .mmd-bar button');
@@ -4758,23 +5157,32 @@ $('#md').addEventListener('click', e => {
 });
 
 /* ------------------------------------------------------------ run */
+/* why a Python / JavaScript file cannot run here: an old server, or no interpreter on this PC */
+function cannotRun(kind) {
+  if (!(S.info && S.info.langs)) return `Restart Code Viewer (tray → Restart) to run ${KIND_NAME[kind]} files: this copy started before they could run.`;
+  return kind === 'js' ? 'Node.js is not installed, so .js files cannot run. Install it from nodejs.org, then tray → Restart.'
+    : kind === 'py' ? 'No python.exe was found beside the Python that runs Code Viewer, so .py files cannot run.'
+    : `${KIND_NAME[kind]} files cannot run here.`;
+}
 async function run() {
   const c = S.cur;
-  if (!c || c.kind !== 'java' || S.running || !editor) return;
+  if (!c || S.running || !editor) return;
+  if (!isCode(c)) { if (KIND_NAME[c.kind]) toast(cannotRun(c.kind)); return; }
+  if (c.kind === 'html') return runUi();
   const vk = viewKey(), model = editor.getModel(), practice = c.mode === 'practice';
   checkVersion();
   S.running = true;
   refreshBar();
   $('#main').classList.remove('out-collapsed');
   $('#status').className = 'status run';
-  $('#status').innerHTML = '<span class="spin"></span>Compiling and running…';
+  $('#status').innerHTML = '<span class="spin"></span>' + (c.kind === 'java' ? 'Compiling and running…' : 'Running…');
   $('#verdict').hidden = true; $('#meta').textContent = ''; $('#output').textContent = '';
   monaco.editor.setModelMarkers(model, 'javac', []);
   let res;
   try {
     res = await api('/api/run', {
       root: S.root, path: c.path === SCRATCH ? null : c.path, code: model.getValue(), stdin: $('#stdin').value,
-      timeout: +$('#timeoutSel').value, main: S.mainChoice.get(vk) || null,
+      timeout: +$('#timeoutSel').value, main: S.mainChoice.get(vk) || null, lang: c.kind,
     });
   } catch (e) { res = { phase: 'compile', ok: false, output: e.message }; }
   S.running = false;
@@ -4783,6 +5191,11 @@ async function run() {
   if (res.mains) S.mains.set(vk, res.mains);
   if (res.phase === 'compile' && !res.ok) setMarkers(model, res.output || '', res.file);
   if (viewKey() === vk) { renderOutput(res); refreshBar(); }
+  await scoreRun(c, res, practice);
+}
+/* A practice run where every case matches marks the file done, once per attempt. Java,
+   Python and JavaScript runs come here from run(), a UI page's tests from runUi(). */
+async function scoreRun(c, res, practice) {
   if (practice && res.phase === 'run') {
     const { pass, fail, unchecked } = res.checks || { pass: 0, fail: 0, unchecked: 0 };
     if (res.ok && pass && !fail && !unchecked) {
@@ -4809,23 +5222,38 @@ async function run() {
     }
   }
 }
-function setMarkers(model, output, file, line = n => n) {    // line: javac's line -> the model's (a Try)
+/* A compile error as a red underline. javac: "X.java:12: error: msg" with the caret two lines
+   down. Python (8 Oct): '  File "X.py", line 12', the code indented 4 with its caret, then
+   "SyntaxError: msg". Node: "X.js:12", the code line as written, the caret, then "SyntaxError". */
+function setMarkers(model, output, file, line = n => n) {    // line: the reported line -> the model's (a Try)
   const lines = output.replace(/\r\n?/g, '\n').split('\n'), markers = [];
-  lines.forEach((l, i) => {
-    const m = l.match(/^(.+?\.java):(\d+): error: (.*)$/);
-    if (!m || m[1] !== file) return;
-    const n = line(+m[2]);
+  const add = (reported, caretCol, message) => {
+    const n = line(reported);
     if (n < 1 || n > model.getLineCount()) return;
-    const caret = (lines[i + 2] || '').indexOf('^');
-    const col = caret >= 0 ? caret + 1 : model.getLineFirstNonWhitespaceColumn(n) || 1;
-    markers.push({ severity: monaco.MarkerSeverity.Error, message: m[3], startLineNumber: n, startColumn: col,
+    const col = caretCol(n) || model.getLineFirstNonWhitespaceColumn(n) || 1;
+    markers.push({ severity: monaco.MarkerSeverity.Error, message, startLineNumber: n, startColumn: col,
                    endLineNumber: n, endColumn: Math.max(col + 1, model.getLineMaxColumn(n)) });
+  };
+  const errorAfter = i => lines.slice(i + 1).find(x => /^\w*(Error|Exception)\b/.test(x)) || 'Syntax error';
+  lines.forEach((l, i) => {
+    let m;
+    if ((m = l.match(/^(.+?\.java):(\d+): error: (.*)$/)) && m[1] === file) {
+      const caret = (lines[i + 2] || '').indexOf('^');
+      add(+m[2], () => caret >= 0 ? caret + 1 : 0, m[3]);
+    } else if ((m = l.match(/^\s*File "(.+?)", line (\d+)/)) && m[1] === file) {
+      const caret = (lines.slice(i + 1, i + 4).find(x => /^\s*\^/.test(x)) || '').indexOf('^');
+      add(+m[2], n => caret >= 4 ? caret - 4 + model.getLineFirstNonWhitespaceColumn(n) : 0, errorAfter(i));
+    } else if ((m = l.match(/^(.+?\.m?js):(\d+)$/)) && m[1] === file) {
+      const caret = (lines[i + 2] || '').indexOf('^');
+      add(+m[2], () => caret >= 0 ? caret + 1 : 0, errorAfter(i));
+    }
   });
   monaco.editor.setModelMarkers(model, 'javac', markers);
 }
 // Ticks and crosses come from the server (tools/outcheck.py, measured on every repo file),
 // one verdict per output line: true, false, or null when it is not a result or can't be called.
-const isErrorLine = line => /^(Exception in thread|Caused by:|\s+at |\s+\.\.\. \d+ more|Error: )/.test(line) || /^[\w.$]+(Exception|Error)(: |$)/.test(line);
+const isErrorLine = line => /^(Exception in thread|Caused by:|\s+at |\s+\.\.\. \d+ more|Error: |Traceback \(most recent call last\):)/.test(line)
+  || /^[\w.$]+(Exception|Error)(: |$)/.test(line);
 
 function renderOutput(res) {
   const out = $('#output'), status = $('#status'), verdict = $('#verdict'), meta = $('#meta');
@@ -4833,9 +5261,11 @@ function renderOutput(res) {
   if (S.running) return;
   if (!res) {
     status.textContent = ''; status.className = 'status'; meta.textContent = '';
-    out.innerHTML = S.cur && S.cur.kind === 'java'
-      ? '<div class="hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or ▶ Run to compile and run what is in the editor.</div>'
-      : '<div class="hint">Only .java files run. Open one on the left, or the Scratch pad.</div>';
+    const c = S.cur, what = c && { java: 'compile and run what is in the editor', py: 'run what is in the editor with Python',
+      js: 'run what is in the editor with Node.js', html: "run the page's test block (the page itself shows beside the code)" }[c.kind];
+    out.innerHTML = c && isCode(c) ? `<div class="hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> or ▶ Run to ${what}.</div>`
+      : c && KIND_NAME[c.kind] ? `<div class="hint">${esc(cannotRun(c.kind))}</div>`
+      : '<div class="hint">Java, Python, JavaScript and UI (.html) files run. Open one on the left, or the Scratch pad.</div>';
     return;
   }
   const [label, cls] = runStatus(res);
@@ -4851,11 +5281,15 @@ function renderOutput(res) {
     verdict.title = unchecked ? 'Lines with no mark state their expectation in words, or in a shape the checker will not guess at.' : '';
   }
 }
-const runStatus = res => res.phase === 'compile' && !res.ok ? ['✗ Did not compile', 'bad'] : res.timedOut ? ['⏱ Stopped: timed out', 'bad']
+const runStatus = res => res.phase === 'compile' && !res.ok
+    ? [!/\.(py|m?js)$/.test(res.file || '') ? '✗ Did not compile' : /\b(SyntaxError|IndentationError|TabError)\b/.test(res.output || '') ? '✗ Syntax error' : '✗ Could not run', 'bad']
+  : res.timedOut ? ['⏱ Stopped: timed out', 'bad']
+  : res.ui && res.errors ? [`✗ ${res.errors} error${res.errors > 1 ? 's' : ''}`, 'bad']
   : res.exitCode !== 0 ? ['✗ Exit code ' + res.exitCode, 'bad'] : ['✓ Ran', 'ok'];
 function runMeta(res) {
   const secs = ms => (ms / 1000).toFixed(1) + ' s', bits = [];
   if (res.ran) bits.push('main in ' + res.ran);
+  if (res.runner) bits.push(res.runner);
   if (res.compileMs != null) bits.push('compile ' + secs(res.compileMs));
   if (res.runMs != null) bits.push('run ' + secs(res.runMs));
   if (res.at) bits.push(res.at.toLocaleTimeString());
@@ -4877,6 +5311,18 @@ function outputLines(res, link) {
     } else if ((m = line.match(/^(\s+at .*\()(.+?\.java):(\d+)(\).*)$/))) {
       div.classList.add('err');
       if (m[2] === res.file) div.append(m[1], link(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
+    } else if ((m = line.match(/^(\s*File ")(.+?)(", line )(\d+)(.*)$/))) {              // a Python traceback
+      div.classList.add('err');
+      if (m[2] === res.file) div.append(m[1], link(m[2] + m[3] + m[4], +m[4]), m[5]); else div.textContent = line;
+    } else if ((m = line.match(/^(\s+at (?:.*?\()?)(.+?\.m?js):(\d+)(:\d+\)?.*)$/))) {     // a Node stack frame
+      div.classList.add('err');
+      if (m[2] === res.file) div.append(m[1], link(m[2] + ':' + m[3], +m[3]), m[4]); else div.textContent = line;
+    } else if ((m = line.match(/^(.+?\.m?js):(\d+)$/))) {                                  // Node: where it failed
+      div.classList.add('err');
+      if (m[1] === res.file) div.append(link(line, +m[2])); else div.textContent = line;
+    } else if ((m = line.match(/^(.*\()(.+?\.html):(\d+)(\).*)$/)) && m[2] === res.file) {  // a UI page's error
+      div.classList.add('err');
+      div.append(m[1], link(m[2] + ':' + m[3], +m[3]), m[4]);
     } else if (isErrorLine(line)) {
       div.classList.add('err'); div.textContent = line;
     } else if (verdicts[i] === true || verdicts[i] === false) {
@@ -4890,7 +5336,9 @@ function outputLines(res, link) {
   const note = t => { const d = document.createElement('div'); d.className = 'ln note'; d.textContent = t; frag.append(d); };
   if (!res.output && res.phase === 'run' && !res.timedOut) note('(no output)');
   if (res.truncated) note('… output cut at 256 KB.');
-  if (res.timedOut) note(`Stopped after ${$('#timeoutSel').value} s. An infinite loop, or a program waiting for input? (stdin button above)`);
+  if (res.timedOut) note(res.ui ? `Stopped after ${$('#timeoutSel').value} s: the test block did not finish. An await that never settles?`
+    : `Stopped after ${$('#timeoutSel').value} s. An infinite loop, or a program waiting for input? (stdin button above)`);
+  if (res.ui && res.note) note(res.note);
   return frag;
 }
 function lineLink(text, n) {
