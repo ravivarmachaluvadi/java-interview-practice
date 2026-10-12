@@ -5,9 +5,10 @@ autocomplete, Run, F12, rename, Ctrl+Alt+V, the formatter, the header timer, the
     python tools/test_ui.py              every suite in tools/ui_tests/
     python tools/test_ui.py timer caret  only the suites whose names contain these words
 
-Needs Google Chrome and Node.js 22 or newer. It starts its own Code Viewer on 127.0.0.1:8026
+Needs Google Chrome and Node.js 22 or newer. It starts its own Code Viewer on 127.0.0.1:8036
 with a throwaway state file - the tray's server on 8025 and your progress are never used - and
-stops it at the end. All suites take about 5 minutes.
+stops it at the end. All suites take about 5 minutes. (Not 8026: the Python Learning Tool next
+to this repo starts there, and these tests could not run while it was open.)
 
 The suites read repo files (C06 and a few others) but never change them: whatever saves works
 in a scratch folder, and a suite fails if `git status` or `git diff` changed while it ran.
@@ -17,7 +18,7 @@ import os, pathlib, re, shutil, socket, subprocess, sys, tempfile, time, urllib.
 
 HERE = pathlib.Path(__file__).resolve().parent
 SUITES = HERE / "ui_tests"
-PORT = 8026
+PORT = 8036
 BASE = f"http://127.0.0.1:{PORT}"
 
 

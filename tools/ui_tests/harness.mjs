@@ -6,7 +6,7 @@
  *
  * Each suite drives a headless Chrome over the DevTools protocol, the way you would use the
  * page: real key presses, clicks and typing. It talks to the throwaway server test_ui.py starts
- * on 127.0.0.1:8026 (CV_BASE overrides it) - never the tray's 8025, never its progress file.
+ * on 127.0.0.1:8036 (CV_BASE overrides it) - never the tray's 8025, never its progress file.
  *
  * Safety rules, learned the hard way (5 Oct 2026):
  *   - A check that saves must use scratchFolder(), never a repo file. A missed open once left
@@ -24,7 +24,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const BASE = process.env.CV_BASE || 'http://127.0.0.1:8026';
+export const BASE = process.env.CV_BASE || 'http://127.0.0.1:8036';
 export const ED = 'monaco.editor.getEditors()[0]';
 export const C06 = 'AAScratches/01-DSA/07-Stack-Queue-Monotonic/C06_DailyTemperatures.java';
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
