@@ -18,8 +18,8 @@ files, which Code Viewer (`tools/codeview`) runs and practises the same way.
 | [07-Interview-QA-Memory](07-Interview-QA-Memory/) | Three mixed-topic Q&A files written from real interview rounds | [Part 1](07-Interview-QA-Memory/Interview_Memory_QA_Part1.md) |
 | [08-Reference](08-Reference/) | Git workflow, maths symbols, IntelliJ plugins, work techniques, an AI-assisted development playbook | [08-Reference/README.md](08-Reference/README.md) |
 | [09-Python](09-Python/) | Python practice: Counter and sort keys, decorators, an LRU cache | [09-Python/README.md](09-Python/README.md) |
-| [10-JavaScript](10-JavaScript/) | JavaScript practice for Node.js: debounce, Promise.all, an event emitter | [10-JavaScript/README.md](10-JavaScript/README.md) |
-| [11-UI-Practice](11-UI-Practice/) | Machine-coding screens in HTML, CSS and JavaScript, each with its own tests: counter, todo list, autocomplete | [11-UI-Practice/README.md](11-UI-Practice/README.md) |
+| [10-JavaScript](10-JavaScript/) | JavaScript practice for Node.js: timers, closures and `this` (curry, bind, deep clone), promises and the event loop | [10-JavaScript/README.md](10-JavaScript/README.md) |
+| [11-UI-Practice](11-UI-Practice/) | Machine-coding screens in HTML, CSS and JavaScript, each with its own tests: counter, star rating, accordion, todo list, pagination, OTP input, nested checkboxes, carousel, autocomplete, progress bars, file explorer | [11-UI-Practice/README.md](11-UI-Practice/README.md) |
 
 ## How a practice file is laid out
 
