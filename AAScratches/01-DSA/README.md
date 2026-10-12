@@ -54,8 +54,8 @@ Start with `00-Patterns`: 110 files, one per pattern, each saying how to recogni
 | [18-Sorting-Searching-Algorithms](18-Sorting-Searching-Algorithms/) | 14 | 5 | Sorting algorithm implementations, quick select, KMP, Rabin-Karp, segment tree. |
 | [19-Design-Data-Structures](19-Design-Data-Structures/) | 18 | 6 | LeetCode design problems: LRU and LFU cache, min stack, hit counter, time-based KV store. |
 | [20-Scenario-Based-Problems](20-Scenario-Based-Problems/) | 13 | 4 | Real-world style questions from Karat, Atlassian and onsite rounds: logs, votes, ratings, distances. |
-| [RealTimeInterviewQs](RealTimeInterviewQs/) | 2 | 0 |  |
-| **Total** | **602** | **206** | |
+| [RealTimeInterviewQs](RealTimeInterviewQs/) | 4 | 0 |  |
+| **Total** | **604** | **206** | |
 
 ## 00-Patterns/01-Arrays-Prefix-Sums
 
@@ -1129,5 +1129,7 @@ Real-world style questions from Karat, Atlassian and onsite rounds: logs, votes,
 |---|---|---|---|
 | [InfosysGrumpyOwner.java](RealTimeInterviewQs/InfosysGrumpyOwner.java) | InfosysGrumpyOwner |  |  |
 | [InfosysGrumpyOwnerOptimised.java](RealTimeInterviewQs/InfosysGrumpyOwnerOptimised.java) | InfosysGrumpyOwnerOptimised |  |  |
+| [LeapYear.java](RealTimeInterviewQs/LeapYear.java) | Leap Year | LeetCode ? / ? | "Divisible by 4" alone is wrong for century years. |
+| [TraverseFolderFindMinFile.java](RealTimeInterviewQs/TraverseFolderFindMinFile.java) | TraverseFolderFindMinFile |  |  |
 
 `*` = must-know. Run any file with `tools/runjava <file>` from the repo root, or open it as an IntelliJ scratch.
