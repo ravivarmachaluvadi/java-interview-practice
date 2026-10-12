@@ -733,7 +733,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run what is in the editor: Java (compiled first), Python, JavaScript (with Node.js). On a UI page (.html): its test block. Lines that say what they expected get ✓ or ✗</td></tr>
     <tr><td>Python and JavaScript files</td><td>Run, Practice (function bodies hidden, Hints, timer, Done), Try, Compare and Next work as for Java. A syntax error is underlined in red; every file and line in a traceback or stack is a link. A .py can import a module beside it</td></tr>
-    <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. Console under it lists every line it logs as you click, errors linked to their line, also after <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; <code>alert()</code> shows there as <code>[alert] …</code> instead of a box. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
+    <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. Console under it lists every line it logs as you click, errors linked to their line, also after <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; <code>alert()</code> shows there as <code>[alert] …</code> instead of a box. Suggestions as you type: tags and attributes in the markup, real JavaScript ones in every <code>&lt;script&gt;</code> (the page's own functions too), and CSS properties in <code>&lt;style&gt;</code>, with only the values that property accepts. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
     <tr><td>Scratch pad language</td><td>The select in its bar: Java, Python, JavaScript or UI. Each keeps its own text</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
@@ -2067,6 +2067,7 @@ function initEditor() {
   if (document.fonts) document.fonts.ready.then(() => monaco.editor.remeasureFonts());
   applyTheme();
   initAssist();
+  initPageAssist();
   initNav();
 }
 
@@ -3327,6 +3328,158 @@ function wantedIndent(m, n) {
   const o = m.getOptions(), unit = o.insertSpaces ? ' '.repeat(o.indentSize || o.tabSize) : '\t';
   const code = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '').trim();
   return lead(line) + (/\{$/.test(code) || /^(case\b.*|default\s*):$/.test(code) ? unit : '');
+}
+/* ------------------------------------------------------------ suggestions in a UI page (12 Oct)
+   Monaco's HTML service knows only the markup, so inside <script> and <style> it offered
+   nothing. Scripts: a hidden JavaScript model holds the page's script bodies at the same
+   offsets (everything else blanked), and Monaco's own TypeScript worker answers for it - the
+   DOM, the page's functions, parameter hints, hover. Styles: property names and values come
+   from the browser itself (its style object and CSS.supports), so only values the property
+   accepts are offered and there is no list of properties to keep up to date. The same rule as
+   the editor's other suggestions: off in Practice unless ... -> Autocomplete in Practice is on. */
+const pageJs = { model: null, src: null, version: -1 };
+function langAssistOn(model) {
+  const c = S.cur;
+  return !!c && !!model && !model.isDisposed() && model === shownModel() && isCode(c)
+    && !(c.mode === 'practice' && !assistPracticeOn());
+}
+/* the page's <script> and <style> bodies by offset; an unclosed one runs to the end */
+function pageRegions(text) {
+  const scan = text.replace(/<!--[\s\S]*?-->/g, s => ' '.repeat(s.length)), low = scan.toLowerCase();
+  const out = [], open = /<(script|style)\b([^>]*)>/gi;
+  let m;
+  while ((m = open.exec(scan))) {
+    const kind = m[1].toLowerCase(), from = m.index + m[0].length, end = low.indexOf('</' + kind, from);
+    const to = end < 0 ? text.length : end;
+    const type = ((/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(m[2]) || [])[1] || '').toLowerCase();
+    if (kind === 'style' || (!/\bsrc\s*=/i.test(m[2]) && ['', 'module', 'text/javascript', 'application/javascript', 'test'].includes(type)))
+      out.push({ kind, from, to });
+    open.lastIndex = to;
+  }
+  return out;
+}
+function pageScriptModel(model) {
+  if (pageJs.src === model && pageJs.version === model.getVersionId()) return pageJs.model;
+  const text = model.getValue(), blank = s => s.replace(/[^\r\n]/g, ' ');
+  let out = '', at = 0;
+  for (const r of pageRegions(text)) {
+    if (r.kind !== 'script') continue;
+    out += blank(text.slice(at, r.from)) + text.slice(r.from, r.to);
+    at = r.to;
+  }
+  out += blank(text.slice(at));
+  if (!pageJs.model) pageJs.model = monaco.editor.createModel('', 'javascript', monaco.Uri.parse('inmemory://cv/page-scripts.js'));
+  pageJs.model.setValue(out);
+  pageJs.src = model; pageJs.version = model.getVersionId();
+  return pageJs.model;
+}
+async function pageWorker() {
+  const get = await monaco.languages.typescript.getJavaScriptWorker();
+  return get(pageJs.model.uri);
+}
+/* the offset of pos when it is inside a body of this kind, else -1 */
+function inPage(model, pos, kind) {
+  const off = model.getOffsetAt(pos);
+  return pageRegions(model.getValue()).some(r => r.kind === kind && off >= r.from && off <= r.to) ? off : -1;
+}
+const CSS_WORDS = ('auto none normal inherit initial unset revert block inline inline-block flex inline-flex grid inline-grid '
+  + 'contents table list-item flow-root hidden visible scroll clip static relative absolute fixed sticky row row-reverse '
+  + 'column column-reverse wrap nowrap wrap-reverse start end flex-start flex-end center baseline stretch space-between '
+  + 'space-around space-evenly left right top bottom middle sub super justify solid dashed dotted double groove ridge '
+  + 'inset outset bold bolder lighter italic oblique underline overline line-through uppercase lowercase capitalize '
+  + 'pointer default text move not-allowed grab grabbing wait help crosshair border-box content-box padding-box cover '
+  + 'contain repeat no-repeat repeat-x repeat-y ellipsis break-word break-all anywhere pre pre-wrap pre-line transparent '
+  + 'currentcolor black white red green blue gray orange purple yellow pink brown navy teal silver ease ease-in ease-out '
+  + 'ease-in-out linear infinite alternate forwards backwards both running paused dense min-content max-content '
+  + 'fit-content smooth thin medium thick serif sans-serif monospace system-ui collapse separate').split(' ');
+const CSS_GLOBAL = new Set(['inherit', 'initial', 'unset', 'revert']);
+let cssProps = null;
+function cssPropertyNames() {
+  if (cssProps) return cssProps;
+  const names = new Set();
+  for (const n in document.body.style) {               // the browser's own list, shorthands included
+    const k = n.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    if (/^[a-z]+(-[a-z]+)*$/.test(k) && CSS.supports(k, 'inherit')) names.add(k);
+  }
+  return (cssProps = [...names].sort());
+}
+function cssItems(model, pos, text, off) {
+  const r = pageRegions(text).find(x => x.kind === 'style' && off >= x.from && off <= x.to);
+  const before = text.slice(r.from, off), open = before.lastIndexOf('{');
+  if (open < 0 || before.lastIndexOf('}') > open) return null;          // a selector, not a rule's body
+  const decl = before.slice(Math.max(open, before.lastIndexOf(';')) + 1), typed = /[-\w]*$/.exec(decl)[0];
+  const range = new monaco.Range(pos.lineNumber, pos.column - typed.length, pos.lineNumber, pos.column);
+  const K = monaco.languages.CompletionItemKind, m = /^\s*([-a-z]+)\s*:([^:]*)$/i.exec(decl);
+  if (m) {                                             // a value: only the ones this property accepts
+    const prop = m[1].toLowerCase();
+    return { suggestions: CSS_WORDS.filter(w => CSS.supports(prop, w)).map(w => ({
+      label: w, kind: K.Value, insertText: w, range, detail: prop, sortText: (CSS_GLOBAL.has(w) ? '1' : '0') + w })) };
+  }
+  if (!/^\s*[-a-z]*$/i.test(decl)) return null;
+  return { suggestions: cssPropertyNames().map(p => ({ label: p, kind: K.Property, insertText: p + ': ', range,
+    command: { id: 'editor.action.triggerSuggest', title: 'Its values' } })) };
+}
+function initPageAssist() {
+  const L = monaco.languages, K = L.CompletionItemKind;
+  const KINDS = { method: K.Method, property: K.Property, getter: K.Property, setter: K.Property, function: K.Function,
+                  'local function': K.Function, var: K.Variable, let: K.Variable, const: K.Constant, 'local var': K.Variable,
+                  parameter: K.Variable, alias: K.Variable, class: K.Class, 'local class': K.Class, interface: K.Interface,
+                  type: K.TypeParameter, enum: K.Enum, 'enum member': K.EnumMember, module: K.Module, keyword: K.Keyword };
+  const parts = p => (p || []).map(x => x.text).join('');
+  editor.onDidChangeModel(() => { pageJs.src = null; if (pageJs.model) pageJs.model.setValue(''); });   // no page's names in a .js file
+  L.registerCompletionItemProvider('html', {
+    triggerCharacters: ['.', ':'],
+    async provideCompletionItems(model, pos, ctx, token) {
+      if (!langAssistOn(model)) return null;
+      if (inPage(model, pos, 'style') >= 0) return cssItems(model, pos, model.getValue(), model.getOffsetAt(pos));
+      const off = inPage(model, pos, 'script');
+      if (off < 0 || ctx.triggerCharacter === ':') return null;
+      const js = pageScriptModel(model), w = await pageWorker();
+      const info = await w.getCompletionsAtPosition(js.uri.toString(), off);
+      if (!info || token.isCancellationRequested) return null;
+      const word = model.getWordUntilPosition(pos), range = new monaco.Range(pos.lineNumber, word.startColumn, pos.lineNumber, word.endColumn);
+      return { suggestions: info.entries.map(e => ({ label: e.name, kind: KINDS[e.kind] ?? K.Property, insertText: e.insertText || e.name,
+        sortText: e.sortText, range, cvAt: off })) };
+    },
+    async resolveCompletionItem(item) {
+      if (item.cvAt == null || !pageJs.model || item.documentation) return item;
+      const d = await (await pageWorker()).getCompletionEntryDetails(pageJs.model.uri.toString(), item.cvAt, item.label);
+      if (d) { item.detail = parts(d.displayParts); item.documentation = parts(d.documentation); }
+      return item;
+    },
+  });
+  L.registerSignatureHelpProvider('html', {
+    signatureHelpTriggerCharacters: ['(', ','], signatureHelpRetriggerCharacters: [','],
+    async provideSignatureHelp(model, pos, token) {
+      const off = langAssistOn(model) ? inPage(model, pos, 'script') : -1;
+      if (off < 0) return null;
+      const js = pageScriptModel(model), h = await (await pageWorker()).getSignatureHelpItems(js.uri.toString(), off, {});
+      if (!h || token.isCancellationRequested) return null;
+      return {
+        value: {
+          activeSignature: h.selectedItemIndex, activeParameter: h.argumentIndex,
+          signatures: h.items.map(it => {
+            const params = it.parameters.map(p => ({ label: parts(p.displayParts), documentation: parts(p.documentation) }));
+            return { label: parts(it.prefixDisplayParts) + params.map(p => p.label).join(parts(it.separatorDisplayParts)) + parts(it.suffixDisplayParts),
+                     documentation: parts(it.documentation), parameters: params };
+          }),
+        },
+        dispose() {},
+      };
+    },
+  });
+  L.registerHoverProvider('html', {
+    async provideHover(model, pos, token) {
+      const off = langAssistOn(model) ? inPage(model, pos, 'script') : -1;
+      if (off < 0) return null;
+      const js = pageScriptModel(model), q = await (await pageWorker()).getQuickInfoAtPosition(js.uri.toString(), off);
+      if (!q || token.isCancellationRequested) return null;
+      const a = model.getPositionAt(q.textSpan.start), b = model.getPositionAt(q.textSpan.start + q.textSpan.length);
+      const doc = parts(q.documentation);
+      return { range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column),
+               contents: [{ value: '```js\n' + parts(q.displayParts) + '\n```' }, ...(doc ? [{ value: doc }] : [])] };
+    },
+  });
 }
 function initAssist() {
   const L = monaco.languages, K = L.CompletionItemKind;
