@@ -63,7 +63,9 @@ DESC = {
     "03-LLD/WorkFlowExecutor": "A small workflow executor with a bounded queue (needs Guava; read, do not run).",
     "04-HLD-System-Design/code": "Building blocks you can be asked to sketch: ID generator, wide-column store, Merkle tree, erasure coding.",
     "09-Python/01-Essentials": "Python as interviews use it: collections (Counter, OrderedDict), sorting with keys, decorators and closures.",
-    "10-JavaScript/01-Essentials": "The classic JavaScript questions: timers (debounce), promises (Promise.all), events (an emitter class).",
+    "10-JavaScript/01-Essentials": "The classic JavaScript questions: timers (debounce, throttle), promises (Promise.all), events (an emitter class).",
+    "10-JavaScript/02-Functions": "Closures and `this`: memoize, curry, call/apply/bind from scratch, flatten, deep clone with cycles.",
+    "10-JavaScript/03-Async": "Promises and the event loop: allSettled/race/any, retry with backoff, a concurrency limit, predict the print order.",
     "11-UI-Practice/01-Components": "Machine-coding screens: a counter, a todo list, an autocomplete with debounce and arrow keys.",
 }
 NOTES = {

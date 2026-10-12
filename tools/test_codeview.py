@@ -2597,6 +2597,51 @@ class LangHttpTest(unittest.TestCase):
             self.assertEqual(cm.exception.code, 403)
 
 
+STARTERS = codeview.REPO / "AAScratches"
+JS_NEW = ["01-Essentials/A02_Throttle.js", "02-Functions/A01_Memoize.js", "02-Functions/A02_FlattenArray.js",
+          "02-Functions/B01_Curry.js", "02-Functions/B02_BindPolyfill.js", "02-Functions/B03_DeepClone.js",
+          "03-Async/B01_PromiseCombinators.js", "03-Async/B02_RetryWithBackoff.js", "03-Async/B03_ConcurrencyLimit.js",
+          "03-Async/C01_EventLoopOrder.js"]
+
+
+def hygiene(test, files):
+    for f in files:
+        with test.subTest(f.name):
+            test.assertTrue(f.is_file(), f)
+            _, h, issues = check_headers.check(f)
+            test.assertEqual(issues, [])
+            test.assertTrue(set(check_headers.SECTIONS_DSA) <= set(h["sections"]), h["sections"])
+
+
+class JsStartersTest(unittest.TestCase):
+    """12 Oct: the JavaScript practice files. Each runs as committed and ticks every line; its
+    Practice copy hides at least one function and then FAILS a check, which proves the checks
+    test the hidden code."""
+    JS = STARTERS / "10-JavaScript"
+
+    def test_the_new_files_are_there_and_clean(self):
+        hygiene(self, [self.JS / rel for rel in JS_NEW])
+
+    @unittest.skipUnless(codeview.NODE, "Node.js not installed")
+    def test_every_js_file_ticks_every_line_and_its_practice_copy_does_not(self):
+        import langsrc
+        files = sorted(self.JS.rglob("*.js"))
+        self.assertGreaterEqual(len(files), 13)
+        for f in files:
+            with self.subTest(f.name):
+                src = f.read_text(encoding="utf-8")
+                res = codeview.run_code(src, "", None, "", 20, None, lang="js")
+                lines = res["output"].strip().split("\n")
+                self.assertTrue(res["ok"], res["output"])
+                self.assertGreaterEqual(len(lines), 3, res["output"])
+                self.assertEqual(res["checks"], {"pass": len(lines), "fail": 0, "unchecked": 0}, res["output"])
+                text, hidden = langsrc.practice_skeleton(src, "js")
+                self.assertTrue(hidden, "Practice would say Nothing to hide")
+                self.assertFalse({"check", "main"} & set(hidden), hidden)
+                res = codeview.run_code(text, "", None, "", 20, None, lang="js")
+                self.assertTrue(not res["ok"] or res["checks"]["fail"] > 0, f"the practice copy passes:\n{res['output']}")
+
+
 def tearDownModule():
     codeview.ASSIST.stop()
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file
