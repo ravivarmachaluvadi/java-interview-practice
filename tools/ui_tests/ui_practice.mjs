@@ -87,7 +87,7 @@ await suite(async t => {
   // --- an error: counted in the footer, and in the Output as a link to its line
   await replaceLine('count += 1;', '      count += 1; null.boom;');
   const errLine = await lineOf('null.boom');
-  await waitFor(`/2 console lines$/.test(document.querySelector('#uiStatus').textContent)`, 3000);    // redrawn, nothing clicked yet
+  await waitFor(`/2 console lines · last: again$/.test(document.querySelector('#uiStatus').textContent)`, 3000);    // redrawn, nothing clicked yet
   await runAndWait();
   const o = await out();
   check('Run shows the error with its file and line', o.includes(`(A01_Counter.html:${errLine})`), o);
@@ -103,6 +103,56 @@ await suite(async t => {
   check('Run ticks the test block\'s checks', (await ev(`document.querySelector('#verdict').textContent`)).includes('2/2 match')
         && (await out()).includes('ready'), await out());
   check('the meta line says it ran in this browser', /in this browser/.test(await ev(`document.querySelector('#meta').textContent`)));
+
+  // --- the console under the page (12 Oct, Ravi's screenshot: a click's console.log could not be
+  //     read anywhere, and after Ctrl+Enter clicks were not even counted). Real mouse clicks: the
+  //     frame is locked, so this page cannot reach into it.
+  const lines = () => ev(`[...document.querySelectorAll('#uiLines .ln')].map(d => d.textContent)`);
+  const clickInPage = async () => {
+    const r = await ev(`(() => { const b = document.querySelector('#uiFrame').getBoundingClientRect(); return [b.left + 30, b.top + 30]; })()`);
+    await t.click(r[0], r[1]);
+    await ev(`${ED}.focus()`);           // keys typed after a click in the page would go to the page
+  };
+  check('the console under the page is open at first', (await ev(`!!document.querySelector('#uiConsole') && !document.querySelector('#uiConsole').hidden`)) === true);
+  check('and lists every line the run logged', (await lines()).includes('case 2 two clicks: 2   expected 2'), await lines());
+  await tryOn();
+  await replaceLine('count += 1;', "      count += 1; console.log('clicked ' + count); alert('hi ' + count);");
+  await replaceLine('<style> button', '  <style> button { padding: 4px; } #inc { position: fixed; left: 0; top: 0; width: 120px; height: 80px; } </style>');
+  await runAndWait();
+  ok = await waitFor(`/^After the tests · 7 console lines/.test(document.querySelector('#uiStatus').textContent)`, 5000);
+  check('a run that clicks twice: 7 lines', ok, await foot());
+  await clickInPage();
+  ok = await waitFor(`/^After the tests · 9 console lines/.test(document.querySelector('#uiStatus').textContent)`, 5000);
+  check('a click after Run is still counted', ok, await foot());
+  check('the footer shows the last line', /last: \[alert\] hi 3$/.test(await foot()), await foot());
+  const after = await lines();
+  check('the console shows the click\'s log and its alert', after.includes('clicked 3') && after.includes('[alert] hi 3'), after);
+  await ev(`document.querySelector('#uiClear').click()`);
+  check('Clear empties the console and the count', (await lines()).length === 0 && /0 console lines/.test(await foot()), [await lines(), await foot()]);
+
+  // an error in a click: red in the console, its line a link
+  await replaceLine("console.log('clicked ' + count);", '      count += 1; null.boom;');
+  const boomLine = await lineOf('null.boom');
+  await waitFor(`/^1 console line · last: ready$/.test(document.querySelector('#uiStatus').textContent)`, 5000);
+  await clickInPage();
+  ok = await waitFor(`!!document.querySelector('#uiLines .ln.err a')`, 5000);
+  check('an error in a click shows red, with its line', ok && (await ev(`document.querySelector('#uiLines .ln.err a').textContent`)) === `line ${boomLine}`, await lines());
+  await ev(`${ED}.setPosition({ lineNumber: 1, column: 1 })`);
+  await ev(`document.querySelector('#uiLines .ln.err a').click()`);
+  await sleep(300);
+  check('clicking it puts the caret on that line', (await t.pos())[0] === boomLine, [await t.pos(), boomLine]);
+
+  // closed stays closed after a reload
+  await ev(`document.querySelector('#uiConsoleBtn').click()`);
+  check('the Console button closes it', await ev(`document.querySelector('#uiConsole').hidden`));
+  await ws.open('A01_Counter.html');
+  await waitFor(`!document.querySelector('#uiWrap').hidden`, 5000);
+  check('and it stays closed after a reload', await ev(`document.querySelector('#uiConsole').hidden && !document.querySelector('#uiConsoleBtn').classList.contains('on')`));
+  await ev(`document.querySelector('#uiConsoleBtn').click()`);
+  check('the button opens it again', !(await ev(`document.querySelector('#uiConsole').hidden`)));
+  await ev(`${ED}.focus()`);
+  await waitFor(`document.querySelector('#badge').textContent.startsWith('Try')`, 5000);
+  await discard();
 
   // --- a loop that never ends is stopped, and the tab stays usable
   await tryOn();

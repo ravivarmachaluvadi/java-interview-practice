@@ -427,6 +427,10 @@ button.timer.solved { color: var(--ok); border-color: color-mix(in srgb, var(--o
 .ui-foot #uiStatus { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ui-foot .bad { color: var(--bad); }
 .ui-foot button { height: 20px; padding: 0 8px; font-size: 12px; }
+/* what the page logged, line by line, live (12 Oct: a click's console.log could not be read anywhere) */
+#uiConsole { flex: 0 0 140px; min-height: 0; overflow: auto; padding: 4px 10px 6px; border-top: 1px solid var(--border);
+             background: var(--out-bg); font: 12px/1.5 var(--code); }
+#uiConsole .ln { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 0; min-height: 0; }
 /* Run with the preview hidden (no room): the page still needs a real size to lay out and paint */
 .ui-offscreen { position: fixed; left: -10000px; top: 0; width: 900px; height: 700px; border: 0; }
 
@@ -690,7 +694,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <article class="md" id="md" hidden></article>
     <div id="uiWrap" hidden>
       <iframe id="uiFrame" title="The page, as a browser shows it" sandbox="allow-scripts allow-forms"></iframe>
+      <div id="uiConsole" role="log" aria-label="What the page logged" hidden><div id="uiLines"></div></div>
       <div class="ui-foot"><span id="uiStatus"></span><span class="spacer"></span>
+        <button id="uiClear" title="Empty the console and its count" hidden>Clear</button>
+        <button id="uiConsoleBtn" title="Show or hide every line the page logs, as it logs it">Console</button>
         <button id="uiReload" title="Load the page again, fresh (the test block does not run)">↻ Reload</button></div>
     </div>
     <div class="hintcard" id="hintCard" hidden>
@@ -726,7 +733,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run what is in the editor: Java (compiled first), Python, JavaScript (with Node.js). On a UI page (.html): its test block. Lines that say what they expected get ✓ or ✗</td></tr>
     <tr><td>Python and JavaScript files</td><td>Run, Practice (function bodies hidden, Hints, timer, Done), Try, Compare and Next work as for Java. A syntax error is underlined in red; every file and line in a traceback or stack is a link. A .py can import a module beside it</td></tr>
-    <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. The footer counts what it logged and its errors. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
+    <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. Console under it lists every line it logs as you click, errors linked to their line, also after <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; <code>alert()</code> shows there as <code>[alert] …</code> instead of a box. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
     <tr><td>Scratch pad language</td><td>The select in its bar: Java, Python, JavaScript or UI. Each keeps its own text</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>H</kbd></td><td>Practice: show the next hint</td></tr>
@@ -894,6 +901,7 @@ const S = {
   openDirs: new Set(), running: false, hits: [], hitIdx: 0, pendingReveal: null,
   mdPreview: store.get('mdPreview', true),   // a .md's source with its rendered page beside it
   uiPreview: store.get('uiPreview', true),   // a UI page (.html) with the page itself beside it
+  uiConsole: store.get('uiConsole', true),   // and what it logs listed under it
   outline: store.get('mdOutline', false),    // a .md's headings docked on the right
   hintsFor: new Map(), comparing: false, visual: null, fresh: null, skipped: new Set(), attSel: new Set(),
   theme: store.get('theme', 'auto'), font: store.get('font', 14), wrap: store.get('wrap', false), minimap: store.get('minimap', true), show: store.get('show', 'all'),
@@ -4937,7 +4945,8 @@ function togglePreview() {
    alone never runs them. Here each becomes an async function that runs once the page has
    loaded (await works in it); their check() lines are ticked by the same server code as Java's
    and, in Practice, all of them matching marks the file done. */
-const ui = { token: 0, preview: 0, model: null, version: 0, sinks: new Map() };   // version: the text the frame holds
+const ui = { token: 0, preview: 0, model: null, version: 0, sinks: new Map(), st: null };   // version: the text the frame holds; st: what the shown page logged
+const UI_KEEP = 200;                        // console lines kept for the shown page
 const UI_MSG = 'codeview-ui';
 const TEST_TAG = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
 const isTestTag = attrs => /\btype\s*=\s*["']?test\b/i.test(attrs);
@@ -5056,36 +5065,70 @@ function paintUi() {
 function uiBlank() {                       // the old page's timers stop with it
   ui.sinks.delete(ui.preview);
   ui.model = null;
+  ui.st = null; paintUiConsole();
   $('#uiFrame').srcdoc = '';
 }
+/* what a page logged: counted in the footer, listed in the console under it */
+const uiState = after => ({ logs: 0, errors: 0, last: '', lastLog: '', lines: [], after });
 function uiRender() {
   const m = editor.getModel();
   if (!m) return;
   ui.sinks.delete(ui.preview);
-  const token = ui.preview = ++ui.token, st = { logs: 0, errors: 0, last: '', after: false };
+  const token = ui.preview = ++ui.token, st = ui.st = uiState(false);
   ui.model = m; ui.version = m.getVersionId();
-  paintUiFoot(st);
+  paintUiFoot(st); paintUiConsole();
   ui.sinks.set(token, { frame: $('#uiFrame'), on: d => uiNote(st, d) });
   $('#uiFrame').srcdoc = uiDoc(m.getValue(), token, false);
 }
 function uiNote(st, d) {
   if (d.kind === 'done') return;
-  if (d.kind === 'error') { st.errors++; st.last = d.text + (d.line ? ` (line ${d.line})` : ''); } else st.logs++;
+  if (d.kind === 'error') { st.errors++; st.last = d.text + (d.line ? ` (line ${d.line})` : ''); }
+  else { st.logs++; st.lastLog = d.text; }
+  const row = { kind: d.kind, text: d.text, line: d.line };
+  st.lines.push(row);
+  if (st.lines.length > UI_KEEP) st.lines.shift();
   paintUiFoot(st);
+  if (st === ui.st) addUiLine(row);
 }
 function paintUiFoot(st) {
   const s = $('#uiStatus'), lines = `${st.logs} console line${st.logs === 1 ? '' : 's'}`;
-  s.replaceChildren((st.after ? 'After the tests · ' : '') + (st.logs || !st.errors ? lines : ''));
+  const last = st.logs && !st.errors ? ' · last: ' + st.lastLog.split('\n')[0].slice(0, 120) : '';
+  s.replaceChildren((st.after ? 'After the tests · ' : '') + (st.logs || !st.errors ? lines + last : ''));
   if (st.errors) {
     const b = document.createElement('span');
     b.className = 'bad';
     b.textContent = `${st.logs ? ' · ' : ''}${st.errors} error${st.errors > 1 ? 's' : ''}: ${st.last}`;
     s.append(b);
   }
-  s.title = (st.after ? 'The page as the tests left it. ↻ Reload, or any change to the code, starts it fresh. ' : '')
-    + (st.errors ? 'Last error: ' + st.last + '. Ctrl+Enter shows every line in the Output pane.' : 'Ctrl+Enter shows what the page logged in the Output pane.');
+  s.title = (st.after ? 'The page as the tests left it; clicks still log. ↻ Reload, or any change to the code, starts it fresh. ' : '')
+    + (st.errors ? 'Last error: ' + st.last + '. ' : '') + 'Console lists every line. Ctrl+Enter runs the test block into the Output pane.';
+}
+function paintUiConsole() {
+  const on = S.uiConsole;
+  $('#uiConsole').hidden = !on; $('#uiClear').hidden = !on;
+  $('#uiConsoleBtn').classList.toggle('on', on);
+  $('#uiLines').replaceChildren();
+  if (on && ui.st) ui.st.lines.forEach(addUiLine);
+}
+function addUiLine(row) {
+  if (!S.uiConsole) return;
+  const box = $('#uiConsole'), list = $('#uiLines'), atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 4;
+  const div = document.createElement('div');
+  div.className = 'ln' + (row.kind === 'error' || row.kind === 'stderr' ? ' err' : '');
+  div.append(row.text);
+  if (row.line) div.append(' (', lineLink('line ' + row.line, row.line), ')');
+  list.append(div);
+  while (list.childElementCount > UI_KEEP) list.firstElementChild.remove();
+  if (atEnd) box.scrollTop = box.scrollHeight;
 }
 $('#uiReload').onclick = () => { if (uiShown()) { uiRender(); editor.focus(); } };
+$('#uiConsoleBtn').onclick = () => { S.uiConsole = !S.uiConsole; store.set('uiConsole', S.uiConsole); paintUiConsole(); };
+$('#uiClear').onclick = () => {
+  if (!ui.st) return;
+  Object.assign(ui.st, uiState(ui.st.after));
+  paintUiFoot(ui.st); paintUiConsole();
+};
+paintUiConsole();
 /* load text into frame and collect what it logs until its tests are done (or ms pass) */
 function uiCollect(frame, text, ms, file, onLine) {
   return new Promise(resolve => {
@@ -5094,7 +5137,7 @@ function uiCollect(frame, text, ms, file, onLine) {
     const finish = timedOut => {
       if (over) return;
       over = true; clearTimeout(timer); ui.sinks.delete(token);
-      resolve({ lines, errors, timedOut, tests });
+      resolve({ lines, errors, timedOut, tests, token });
     };
     const timer = setTimeout(() => finish(true), ms);
     ui.sinks.set(token, { frame, on: d => {
@@ -5120,8 +5163,8 @@ async function runUi() {
   if (shown) {                                // the tests run in the page you see, which keeps their result
     ui.sinks.delete(ui.preview);
     ui.preview = 0; ui.model = model; ui.version = model.getVersionId();
-    st = { logs: 0, errors: 0, last: '', after: true };
-    paintUiFoot(st);
+    st = ui.st = uiState(true);
+    paintUiFoot(st); paintUiConsole();
   } else {
     frame = Object.assign(document.createElement('iframe'), { className: 'ui-offscreen', title: 'Test run' });
     frame.setAttribute('sandbox', 'allow-scripts allow-forms');
@@ -5130,6 +5173,10 @@ async function runUi() {
   }
   const r = await uiCollect(frame, model.getValue(), +$('#timeoutSel').value * 1000, file, st && (d => uiNote(st, d)));
   if (!shown) frame.remove();
+  else if (!ui.preview && ui.model === model && ui.st === st) {      // the page stays live: later clicks still log (12 Oct)
+    ui.preview = r.token;
+    ui.sinks.set(r.token, { frame, on: d => uiNote(st, d) });
+  }
   const output = r.lines.join('\n');
   const res = { phase: 'run', ui: true, file, output, errors: r.errors, timedOut: r.timedOut, exitCode: r.errors || r.timedOut ? 1 : 0,
                 ok: !r.errors && !r.timedOut, runner: 'in this browser', runMs: Math.round(performance.now() - t0) };
