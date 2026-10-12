@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Star Rating                                 Machine coding | Easy
+=====================================================================
+
+PROBLEM
+  Build a 5-star rating. Clicking a star sets the rating to it; hovering a star previews
+  that many stars without changing the rating; leaving the stars shows the rating again.
+  Clicking the current rating again clears it. Arrow Right / Left on the stars move the
+  rating by one. A line under the stars says "3 of 5" or "No rating".
+
+EXAMPLE
+  start                   ->  0 stars lit, "No rating"
+  click star 3            ->  3 lit, "3 of 5"
+  hover star 5            ->  5 lit, still "3 of 5"; mouse leaves -> 3 lit
+  click star 3 again      ->  0 lit, "No rating"
+
+APPROACH  (two numbers, one render)
+  1. State: rating (what is chosen) and hover (what the mouse points at, 0 when away).
+  2. render(): a star is lit when its value <= (hover || rating); the text uses rating only.
+  3. One click, one mouseover and one mouseleave listener on the container (event
+     delegation), each changing the state and calling render().
+
+KEY INSIGHT
+  Keep the preview (hover) separate from the choice (rating), and light up to hover when it
+  is set, else up to rating: leaving the stars is then just hover = 0, nothing to undo.
+
+COMPLEXITY
+  Time  O(n) per render, n = 5 stars
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Half stars: two hit areas per star, value = i - 0.5 for the left half.
+  - Accessibility: role="radiogroup", each star role="radio" with aria-checked, and
+    roving tabindex so Tab lands on the group once.
+  - A read-only version showing an average such as 3.7 (a width % on a lit overlay).
+  - Make it reusable: createRating(element, { max, onChange }).
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Star Rating</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    #rating { display: inline-flex; gap: 2px; }
+    .star { font-size: 32px; line-height: 1; padding: 0 2px; border: 0; background: none;
+            color: #ccc; cursor: pointer; }
+    .star.on { color: #f5a623; }
+    #label { color: #555; }
+  </style>
+</head>
+<body>
+  <div id="rating" role="radiogroup" aria-label="Rating" tabindex="0"></div>
+  <p id="label" aria-live="polite"></p>
+
+  <script>
+    const MAX = 5;
+    let rating = 0;
+    let hover = 0;
+    const box = document.querySelector('#rating');
+    const label = document.querySelector('#label');
+
+    for (let value = 1; value <= MAX; value++) {
+      const star = document.createElement('button');
+      star.className = 'star';
+      star.dataset.value = value;
+      star.textContent = '\u2605';               // a filled star
+      star.setAttribute('role', 'radio');
+      star.setAttribute('aria-label', `${value} star${value > 1 ? 's' : ''}`);
+      box.append(star);
+    }
+
+    function render() {
+      const lit = hover || rating;
+      box.querySelectorAll('.star').forEach((star) => {
+        const value = Number(star.dataset.value);
+        star.classList.toggle('on', value <= lit);
+        star.setAttribute('aria-checked', String(value === rating));
+      });
+      label.textContent = rating ? `${rating} of ${MAX}` : 'No rating';
+    }
+
+    function setRating(value) {
+      rating = Math.max(0, Math.min(MAX, value));
+      render();
+    }
+
+    function choose(value) {
+      setRating(value === rating ? 0 : value);
+    }
+
+    box.addEventListener('click', (e) => {
+      const star = e.target.closest('.star');
+      if (star) choose(Number(star.dataset.value));
+    });
+    box.addEventListener('mouseover', (e) => {
+      const star = e.target.closest('.star');
+      if (star) { hover = Number(star.dataset.value); render(); }
+    });
+    box.addEventListener('mouseleave', () => { hover = 0; render(); });
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') setRating(rating + 1);
+      if (e.key === 'ArrowLeft') setRating(rating - 1);
+    });
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const lit = () => document.querySelectorAll('.star.on').length;
+    const seen = () => `${lit()} lit, ${$('#label').textContent}`;
+    const star = (n) => $(`.star[data-value="${n}"]`);
+    function key(name) {
+      $('#rating').dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }));
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 starts empty     ', seen(), '0 lit, No rating');
+    star(3).click();
+    check('case 2 click star 3     ', seen(), '3 lit, 3 of 5');
+    star(5).dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    check('case 3 hover previews 5 ', seen(), '5 lit, 3 of 5');
+    $('#rating').dispatchEvent(new MouseEvent('mouseleave'));
+    check('case 4 leave shows 3    ', lit(), 3);
+    key('ArrowRight');
+    check('case 5 arrow right      ', $('#label').textContent, '4 of 5');
+    key('ArrowRight');
+    key('ArrowRight');
+    check('case 6 stops at 5       ', $('#label').textContent, '5 of 5');
+    check('case 7 aria-checked     ', star(5).getAttribute('aria-checked'), 'true');
+    star(5).click();
+    check('case 8 click again clears', seen(), '0 lit, No rating');
+  </script>
+</body>
+</html>

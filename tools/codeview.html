@@ -4945,7 +4945,7 @@ function togglePreview() {
    alone never runs them. Here each becomes an async function that runs once the page has
    loaded (await works in it); their check() lines are ticked by the same server code as Java's
    and, in Practice, all of them matching marks the file done. */
-const ui = { token: 0, preview: 0, model: null, version: 0, sinks: new Map(), st: null };   // version: the text the frame holds; st: what the shown page logged
+const ui = { token: 0, preview: 0, model: null, version: 0, sinks: new Map(), st: null, holdUntil: 0 };   // version: the text the frame holds; st: what the shown page logged
 const UI_KEEP = 200;                        // console lines kept for the shown page
 const UI_MSG = 'codeview-ui';
 const TEST_TAG = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
@@ -5078,8 +5078,22 @@ function uiRender() {
   ui.model = m; ui.version = m.getVersionId();
   paintUiFoot(st); paintUiConsole();
   ui.sinks.set(token, { frame: $('#uiFrame'), on: d => uiNote(st, d) });
+  uiHoldFocus(Infinity);                     // until the page has loaded, and a second more
   $('#uiFrame').srcdoc = uiDoc(m.getValue(), token, false);
 }
+/* 12 Oct: a page that focuses an element as it loads (an OTP box, an autofocus search) took
+   the keyboard from the editor on every redraw, so typing and Ctrl+Enter went into the page.
+   While a page loads, and while its tests run, focus that moves into it goes back to the
+   editor. Clicking into the page after that works as usual. */
+function uiHoldFocus(ms) { ui.holdUntil = performance.now() + ms; }
+window.addEventListener('blur', () => {
+  if (performance.now() > ui.holdUntil) return;
+  setTimeout(() => {
+    const a = document.activeElement;
+    if (a && a.matches('#uiFrame, .ui-offscreen') && editor) typing().focus();
+  }, 0);
+});
+$('#uiFrame').addEventListener('load', () => { if (!S.running) uiHoldFocus(1000); });
 function uiNote(st, d) {
   if (d.kind === 'done') return;
   if (d.kind === 'error') { st.errors++; st.last = d.text + (d.line ? ` (line ${d.line})` : ''); }
@@ -5160,6 +5174,7 @@ async function runUi() {
   $('#verdict').hidden = true; $('#meta').textContent = ''; $('#output').textContent = '';
   const shown = uiShown(), file = uiFile(c), t0 = performance.now();
   let frame = $('#uiFrame'), st = null;
+  uiHoldFocus(Infinity);                       // the tests may focus things in the page
   if (shown) {                                // the tests run in the page you see, which keeps their result
     ui.sinks.delete(ui.preview);
     ui.preview = 0; ui.model = model; ui.version = model.getVersionId();
@@ -5172,6 +5187,7 @@ async function runUi() {
     document.body.append(frame);
   }
   const r = await uiCollect(frame, model.getValue(), +$('#timeoutSel').value * 1000, file, st && (d => uiNote(st, d)));
+  uiHoldFocus(800);
   if (!shown) frame.remove();
   else if (!ui.preview && ui.model === model && ui.st === st) {      // the page stays live: later clicks still log (12 Oct)
     ui.preview = r.token;

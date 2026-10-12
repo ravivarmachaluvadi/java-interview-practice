@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Nested Checkboxes                           Machine coding | Medium
+=====================================================================
+
+PROBLEM
+  Show a tree of checkboxes built from nested data (Fruits > Apple, Banana; Vegetables >
+  Carrot, Leafy > Spinach, Kale). Checking or unchecking a box does the same to every box
+  under it. A parent box is checked when all its children are checked, unchecked when
+  none are, and indeterminate (the dash) when only some are - at every level.
+
+EXAMPLE
+  check "Apple"            ->  Fruits indeterminate
+  check "Banana" too       ->  Fruits checked
+  check "Vegetables"       ->  Carrot, Leafy, Spinach, Kale all checked
+  uncheck "Kale"           ->  Leafy indeterminate, Vegetables indeterminate
+
+APPROACH  (state on the leaves; parents are computed)
+  1. Keep checked: true / false for each leaf only, in a Map by id.
+  2. Clicking any box sets every leaf under it to that box's new value.
+  3. render() walks the tree bottom-up: a leaf shows its value; a parent counts how many
+     of its leaves are checked - all, none, or some (indeterminate).
+
+KEY INSIGHT
+  Store only the leaves and compute every parent from them on each render: nothing can go
+  out of sync, and the indeterminate state falls out of "some but not all".
+
+COMPLEXITY
+  Time  O(n) per click, n = boxes in the tree
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Expand / collapse each group, and a "select all" at the top.
+  - Data from the server with thousands of nodes: count checked leaves per node once,
+    then update counts along one path per click instead of re-walking everything.
+  - Return the checked leaf ids for a form submit.
+  - Keyboard: Space toggles (native checkboxes give this), arrows move in the tree
+    (role="tree" and role="treeitem" with aria-checked="mixed").
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nested Checkboxes</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    ul { list-style: none; padding-left: 22px; margin: 2px 0; }
+    #tree > ul { padding-left: 0; }
+    label { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; }
+  </style>
+</head>
+<body>
+  <div id="tree"></div>
+
+  <script>
+    const TREE = [
+      { id: 'fruits', label: 'Fruits', children: [
+        { id: 'apple', label: 'Apple' },
+        { id: 'banana', label: 'Banana' },
+      ] },
+      { id: 'veg', label: 'Vegetables', children: [
+        { id: 'carrot', label: 'Carrot' },
+        { id: 'leafy', label: 'Leafy', children: [
+          { id: 'spinach', label: 'Spinach' },
+          { id: 'kale', label: 'Kale' },
+        ] },
+      ] },
+    ];
+    const checked = new Map();              // leaf id -> true / false
+    const boxes = new Map();                // every id -> its <input>
+
+    function leaves(node) {
+      return node.children ? node.children.flatMap(leaves) : [node];
+    }
+
+    function build(nodes, parent) {
+      const ul = document.createElement('ul');
+      for (const node of nodes) {
+        const li = document.createElement('li');
+        const label = document.createElement('label');
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = node.id;
+        box.addEventListener('change', () => setAll(node, box.checked));
+        label.append(box, node.label);
+        li.append(label);
+        if (node.children) build(node.children, li);
+        else checked.set(node.id, false);
+        boxes.set(node.id, box);
+        ul.append(li);
+      }
+      parent.append(ul);
+    }
+
+    function setAll(node, value) {
+      for (const leaf of leaves(node)) checked.set(leaf.id, value);
+      render();
+    }
+
+    function paint(node) {
+      const box = boxes.get(node.id);
+      if (!node.children) {
+        box.checked = checked.get(node.id);
+        box.indeterminate = false;
+        return;
+      }
+      node.children.forEach(paint);
+      const on = leaves(node).filter((leaf) => checked.get(leaf.id)).length;
+      const all = leaves(node).length;
+      box.checked = on === all;
+      box.indeterminate = on > 0 && on < all;
+    }
+
+    function render() {
+      TREE.forEach(paint);
+    }
+
+    build(TREE, document.querySelector('#tree'));
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const box = (id) => document.getElementById(id);
+    // "on", "off" or "some", the way a person reads the box
+    const state = (id) => (box(id).indeterminate ? 'some' : box(id).checked ? 'on' : 'off');
+    const states = (...ids) => ids.map(state).join(' ');
+    function click(id) {
+      box(id).click();                     // a real click: toggles, then fires change
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 all off           ', states('fruits', 'veg', 'leafy'), 'off off off');
+    click('apple');
+    check('case 2 one fruit         ', states('fruits', 'apple', 'banana'), 'some on off');
+    click('banana');
+    check('case 3 both fruits       ', state('fruits'), 'on');
+    click('veg');
+    check('case 4 parent sets all   ', states('carrot', 'leafy', 'spinach', 'kale'), 'on on on on');
+    click('kale');
+    check('case 5 two levels up     ', states('leafy', 'veg', 'kale'), 'some some off');
+    click('leafy');
+    check('case 6 some -> all on    ', states('leafy', 'veg'), 'on on');
+    click('fruits');
+    check('case 7 uncheck a parent  ', states('fruits', 'apple', 'banana'), 'off off off');
+  </script>
+</body>
+</html>

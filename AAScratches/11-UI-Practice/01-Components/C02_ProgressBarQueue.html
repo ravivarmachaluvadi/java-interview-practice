@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Progress Bars with a Queue                  Machine coding | Hard
+=====================================================================
+
+PROBLEM
+  An "Add" button adds a progress bar that fills from 0% to 100% in `duration` ms
+  (2000 by default). At most 3 bars may fill at the same time; a bar added while 3 are
+  filling waits, shown empty and marked "waiting", and starts as soon as one finishes, in
+  the order they were added. Each bar shows its state: waiting, running or done. A line
+  at the top counts them: "2 running, 1 waiting, 4 done".
+
+EXAMPLE
+  click Add 5 times quickly    ->  bars 1-3 running, bars 4-5 waiting
+  after one duration           ->  1-3 done, 4-5 running
+  after two durations          ->  all 5 done: "0 running, 0 waiting, 5 done"
+
+APPROACH  (a list of bars and a pump)
+  1. Each bar is { el, state, start }. Add pushes a waiting bar, then calls pump().
+  2. pump(): while fewer than 3 are running and one is waiting, start the oldest
+     waiting bar (state running, start = now).
+  3. A timer every 50 ms sets each running bar's width from (now - start) / duration;
+     a bar that reaches 100% becomes done and calls pump() again.
+
+KEY INSIGHT
+  Keep one pump() that fills free slots from the queue, and call it from both places a
+  slot can appear: when a bar is added and when a bar finishes. Then "at most 3" holds by
+  construction, with no special cases.
+
+COMPLEXITY
+  Time  O(n) per tick, n = bars on the page
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - The same pump runs real work: uploads with a limit of 3 (fetch instead of a timer).
+  - Pause / resume all, and cancel one bar (a waiting one leaves the queue).
+  - requestAnimationFrame instead of setInterval for smooth drawing - and why it stops in
+    a background tab.
+  - Make the limit and duration inputs on the page.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Progress Bars with a Queue</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; max-width: 420px; }
+    #summary { color: #555; }
+    .bar { height: 18px; margin: 8px 0; background: #eee; border-radius: 9px; overflow: hidden;
+           position: relative; }
+    .fill { height: 100%; width: 0; background: #2563eb; }
+    .bar[data-state="done"] .fill { background: #16a34a; }
+    .bar::after { content: attr(data-state); position: absolute; right: 8px; top: 0;
+                  font-size: 12px; line-height: 18px; color: #333; }
+  </style>
+</head>
+<body>
+  <button id="add">Add</button>
+  <p id="summary" aria-live="polite"></p>
+  <div id="bars"></div>
+
+  <script>
+    const LIMIT = 3;
+    let duration = 2000;                     // ms for one bar; the tests make it short
+    const bars = [];
+
+    function addBar() {
+      const el = document.createElement('div');
+      el.className = 'bar';
+      el.innerHTML = '<div class="fill"></div>';
+      document.querySelector('#bars').append(el);
+      bars.push({ el, state: 'waiting', start: 0 });
+      pump();
+    }
+
+    function pump() {
+      let running = bars.filter((b) => b.state === 'running').length;
+      for (const bar of bars) {
+        if (running >= LIMIT) break;
+        if (bar.state !== 'waiting') continue;
+        bar.state = 'running';
+        bar.start = Date.now();
+        running++;
+      }
+      render();
+    }
+
+    function tick() {
+      let finished = false;
+      for (const bar of bars) {
+        if (bar.state === 'running' && Date.now() - bar.start >= duration) {
+          bar.state = 'done';
+          finished = true;
+        }
+      }
+      if (finished) pump();
+      else render();
+    }
+
+    function render() {
+      const count = { running: 0, waiting: 0, done: 0 };
+      for (const bar of bars) {
+        count[bar.state]++;
+        const part = bar.state === 'done' ? 1
+          : bar.state === 'running' ? Math.min(1, (Date.now() - bar.start) / duration) : 0;
+        bar.el.dataset.state = bar.state;
+        bar.el.firstChild.style.width = `${Math.round(part * 100)}%`;
+      }
+      document.querySelector('#summary').textContent =
+        `${count.running} running, ${count.waiting} waiting, ${count.done} done`;
+    }
+
+    document.querySelector('#add').addEventListener('click', addBar);
+    setInterval(tick, 50);
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // one letter per bar: r running, w waiting, d done
+    const states = () => [...document.querySelectorAll('.bar')].map((b) => b.dataset.state[0])
+      .join('');
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    duration = 300;                          // short bars; timers on Windows step ~16 ms
+    check('case 1 nothing yet     ', $('#summary').textContent, '0 running, 0 waiting, 0 done');
+    for (let i = 0; i < 5; i++) $('#add').click();
+    check('case 2 three run, two wait', states(), 'rrrww');
+    check('case 3 the summary     ', $('#summary').textContent, '3 running, 2 waiting, 0 done');
+    await sleep(150);
+    const half = Number.parseInt($('.bar .fill').style.width, 10);
+    check('case 4 halfway filled  ', half > 20 && half < 90, true);
+    await sleep(350);                        // 500 ms: the first three are done
+    check('case 5 the queue moves ', states(), 'dddrr');
+    await sleep(450);                        // 950 ms: everything is done
+    check('case 6 all done        ', $('#summary').textContent, '0 running, 0 waiting, 5 done');
+    check('case 7 full bars       ', $('.bar:last-child .fill').style.width, '100%');
+  </script>
+</body>
+</html>

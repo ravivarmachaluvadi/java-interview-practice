@@ -2642,6 +2642,30 @@ class JsStartersTest(unittest.TestCase):
                 self.assertTrue(not res["ok"] or res["checks"]["fail"] > 0, f"the practice copy passes:\n{res['output']}")
 
 
+UI_NEW = ["A02_StarRating.html", "A03_Accordion.html", "B02_Pagination.html", "B03_OtpInput.html",
+          "B04_NestedCheckboxes.html", "B05_Carousel.html", "C02_ProgressBarQueue.html", "C03_FileExplorer.html"]
+
+
+class UiStartersTest(unittest.TestCase):
+    """12 Oct: the UI machine-coding pages. Their tests run in the browser (ui_starters.mjs); here,
+    the header rules, and that Practice hides the page's functions but keeps the test block."""
+    UI = STARTERS / "11-UI-Practice" / "01-Components"
+
+    def test_the_new_files_are_there_and_clean(self):
+        hygiene(self, [self.UI / name for name in UI_NEW])
+
+    def test_practice_hides_the_page_script_and_keeps_the_tests(self):
+        import langsrc
+        for name in UI_NEW:
+            with self.subTest(name):
+                src = (self.UI / name).read_text(encoding="utf-8")
+                text, hidden = langsrc.practice_skeleton(src, "html")
+                self.assertTrue(hidden, "Practice would say Nothing to hide")
+                tests = src[src.index('<script type="test">'):]
+                self.assertIn(tests, text)
+                self.assertGreaterEqual(tests.count("check('case"), 4)
+
+
 def tearDownModule():
     codeview.ASSIST.stop()
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file

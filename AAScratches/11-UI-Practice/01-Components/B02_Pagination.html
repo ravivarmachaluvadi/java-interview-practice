@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Pagination                                  Machine coding | Medium
+=====================================================================
+
+PROBLEM
+  Show 47 items, 5 per page, with page controls under them: Prev, page numbers, Next.
+  With many pages, show only page 1, the last page, and the current page with one page on
+  each side; put "..." where pages are skipped, but never a "..." that hides just one page
+  (show that page instead). Prev is disabled on the first page, Next on the last; the
+  current page's button has aria-current="page".
+
+EXAMPLE
+  page 1    ->  items 1-5     Prev(off) 1 2 ... 10 Next
+  page 4    ->  items 16-20   1 2 3 4 5 ... 10      (2 is shown: a "..." would hide one page)
+  page 6    ->  items 26-30   1 ... 5 6 7 ... 10
+  page 10   ->  items 46-47   1 ... 9 10 Next(off)
+
+APPROACH  (state = current page; everything else is computed)
+  1. pages = ceil(47 / 5) = 10. Visible items: slice((page - 1) * 5, page * 5).
+  2. pageList(page, total): take {1, total, page-1, page, page+1} inside 1..total, sort.
+     Walk it: between two numbers that differ by 2 put the missing page; by more than 2,
+     put "...".
+  3. render() draws the items and the controls from page; every button calls go(n).
+
+KEY INSIGHT
+  Compute which numbers to show as a small sorted set first, and only then decide about
+  gaps. Building the row left to right with if/else for "near the start / middle / end"
+  is where off-by-one bugs live.
+
+COMPLEXITY
+  Time  O(pageSize) per render; the page list is O(1) (at most 7 entries)
+  Space O(pageSize)
+
+INTERVIEW FOLLOW-UPS
+  - Keep the page in the URL (?page=4) so Back and reload work.
+  - Server-side paging: fetch(`/api/items?page=4&size=5`), with a loading state and
+    stale-response protection when clicks are fast.
+  - Infinite scroll instead: IntersectionObserver on a sentinel under the list.
+  - A siblings setting (2 on each side) and a page-size picker.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pagination</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    #items { list-style: none; padding: 0; min-height: 150px; }
+    #items li { padding: 4px 0; border-bottom: 1px solid #eee; }
+    #pager { display: flex; gap: 4px; align-items: center; }
+    #pager button { font: inherit; min-width: 36px; padding: 4px 8px; border: 1px solid #bbb;
+                    border-radius: 6px; background: #fff; cursor: pointer; }
+    #pager button[aria-current="page"] { background: #2563eb; border-color: #2563eb; color: #fff; }
+    #pager button:disabled { opacity: 0.4; cursor: default; }
+    #pager .gap { padding: 0 4px; color: #777; }
+  </style>
+</head>
+<body>
+  <ul id="items"></ul>
+  <nav id="pager" aria-label="Pages"></nav>
+
+  <script>
+    const ITEMS = Array.from({ length: 47 }, (_, i) => `Item ${i + 1}`);
+    const PAGE_SIZE = 5;
+    const TOTAL = Math.ceil(ITEMS.length / PAGE_SIZE);
+    const GAP = '...';
+    let page = 1;
+
+    function pageList(current, total) {
+      const wanted = [...new Set([1, total, current - 1, current, current + 1])]
+        .filter((n) => n >= 1 && n <= total)
+        .sort((a, b) => a - b);
+      const out = [];
+      wanted.forEach((n, i) => {
+        const prev = wanted[i - 1];
+        if (prev !== undefined && n - prev === 2) out.push(n - 1);
+        else if (prev !== undefined && n - prev > 2) out.push(GAP);
+        out.push(n);
+      });
+      return out;
+    }
+
+    function button(text, target, { disabled = false, current = false } = {}) {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.disabled = disabled;
+      if (current) b.setAttribute('aria-current', 'page');
+      b.addEventListener('click', () => go(target));
+      return b;
+    }
+
+    function render() {
+      const start = (page - 1) * PAGE_SIZE;
+      const rows = ITEMS.slice(start, start + PAGE_SIZE).map((text) => {
+        const li = document.createElement('li');
+        li.textContent = text;
+        return li;
+      });
+      document.querySelector('#items').replaceChildren(...rows);
+      const pager = document.querySelector('#pager');
+      pager.replaceChildren(button('Prev', page - 1, { disabled: page === 1 }));
+      for (const n of pageList(page, TOTAL)) {
+        if (n === GAP) {
+          const gap = document.createElement('span');
+          gap.className = 'gap';
+          gap.textContent = GAP;
+          pager.append(gap);
+        } else pager.append(button(String(n), n, { current: n === page }));
+      }
+      pager.append(button('Next', page + 1, { disabled: page === TOTAL }));
+    }
+
+    function go(n) {
+      page = Math.max(1, Math.min(TOTAL, n));
+      render();
+    }
+
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const all = (sel) => [...document.querySelectorAll(sel)];
+    const items = () => all('#items li').map((li) => li.textContent.replace('Item ', '')).join(' ');
+    const isPage = (t) => t !== 'Prev' && t !== 'Next';
+    const labels = () => [...$('#pager').children].map((el) => el.textContent);
+    const row = () => labels().filter(isPage).join(' ');
+    const press = (text) => all('#pager button').find((b) => b.textContent === text).click();
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 first page       ', `${items()} | ${row()}`, '1 2 3 4 5 | 1 2 ... 10');
+    check('case 2 Prev is off      ', $('#pager button').disabled, true);
+    press('Next');
+    press('Next');
+    press('Next');
+    check('case 3 page 4 shows 2   ', `${items()} | ${row()}`, '16 17 18 19 20 | 1 2 3 4 5 ... 10');
+    press('5');
+    press('6');
+    check('case 4 page 6           ', row(), '1 ... 5 6 7 ... 10');
+    check('case 5 current is marked', $('#pager [aria-current="page"]').textContent, '6');
+    press('10');
+    check('case 6 last page        ', `${items()} | ${row()}`, '46 47 | 1 ... 9 10');
+    check('case 7 Next is off      ', all('#pager button').pop().disabled, true);
+  </script>
+</body>
+</html>

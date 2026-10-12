@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ File Explorer                               Machine coding | Hard
+=====================================================================
+
+PROBLEM
+  Show a folder tree from nested data. Clicking a folder opens or closes it (its children
+  appear or disappear) and selects it. In every folder, sub-folders come first, then
+  files, each group in A-Z order. A name box and "Add file" / "Add folder" buttons add an
+  item inside the selected folder (the root when none is selected) and open that folder.
+  Adding a name that is already in that folder is refused with a message, and an empty
+  name does nothing.
+
+EXAMPLE
+  start                       ->  src/, README.md          (src closed)
+  click src                   ->  src/, components/, App.js, index.js, README.md
+  add file "api.js" in src    ->  ... components/, api.js, App.js, index.js ...
+  add file "App.js" in src    ->  refused: "App.js is already in src"
+
+APPROACH  (the data is the state; the tree is drawn from it)
+  1. Nodes: { name, children? } - a folder has a children array, a file has none.
+  2. State: a Set of open folders and the selected folder (object references).
+  3. render() recurses: sort children (folders first, then by name), draw each row
+     indented by depth, and recurse into a folder only if it is open.
+  4. add(kind): check the name, refuse a duplicate, push the new node, open the folder,
+     render.
+
+KEY INSIGHT
+  Keep open / selected as references to the data nodes, not to DOM elements. render()
+  can then throw the whole DOM away and redraw it, and nothing that matters is lost.
+
+COMPLEXITY
+  Time  O(n log n) per render (sorting each folder), n = visible nodes
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Rename and delete, and moving an item by drag and drop (no dropping a folder into
+    itself or its own children).
+  - Lazy loading: fetch a folder's children the first time it opens.
+  - Keyboard: arrows move, Right opens, Left closes or goes to the parent (role="tree").
+  - Keep the open folders across reloads (paths in localStorage).
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>File Explorer</title>
+  <style>
+    body { font: 15px system-ui, sans-serif; margin: 32px; max-width: 420px; }
+    .tools { display: flex; gap: 6px; margin-bottom: 8px; }
+    .tools input { flex: 1; font: inherit; padding: 4px 6px; }
+    .row { padding: 3px 6px; border-radius: 4px; cursor: default; white-space: nowrap; }
+    .row.folder { cursor: pointer; font-weight: 600; }
+    .row.selected { background: #e3ecff; }
+    #message { color: #b91c1c; min-height: 1.4em; }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <input id="name" placeholder="name" aria-label="New item name">
+    <button id="add-file">Add file</button>
+    <button id="add-folder">Add folder</button>
+  </div>
+  <p id="message" role="alert"></p>
+  <div id="tree" role="tree"></div>
+
+  <script>
+    const ROOT = { name: 'project', children: [
+      { name: 'README.md' },
+      { name: 'src', children: [
+        { name: 'index.js' },
+        { name: 'App.js' },
+        { name: 'components', children: [{ name: 'Button.js' }] },
+      ] },
+    ] };
+    const open = new Set([ROOT]);
+    let selected = ROOT;
+
+    function sorted(children) {
+      const isFolder = (n) => (n.children ? 0 : 1);
+      return [...children].sort((a, b) => isFolder(a) - isFolder(b)
+        || a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+    }
+
+    function drawRows(folder, depth, out) {
+      for (const node of sorted(folder.children)) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.classList.toggle('folder', !!node.children);
+        row.classList.toggle('selected', node === selected);
+        row.style.paddingLeft = `${6 + depth * 18}px`;
+        row.textContent = node.children ? `${open.has(node) ? 'v' : '>'} ${node.name}/` : node.name;
+        row.dataset.name = node.name;
+        if (node.children) row.addEventListener('click', () => toggle(node));
+        out.append(row);
+        if (node.children && open.has(node)) drawRows(node, depth + 1, out);
+      }
+    }
+
+    function render() {
+      const tree = document.querySelector('#tree');
+      tree.replaceChildren();
+      drawRows(ROOT, 0, tree);
+    }
+
+    function toggle(folder) {
+      if (open.has(folder)) open.delete(folder);
+      else open.add(folder);
+      selected = folder;
+      render();
+    }
+
+    function add(kind) {
+      const input = document.querySelector('#name');
+      const message = document.querySelector('#message');
+      const name = input.value.trim();
+      message.textContent = '';
+      if (!name) return;
+      if (selected.children.some((n) => n.name === name)) {
+        message.textContent = `${name} is already in ${selected.name}`;
+        return;
+      }
+      selected.children.push(kind === 'folder' ? { name, children: [] } : { name });
+      open.add(selected);
+      input.value = '';
+      render();
+    }
+
+    document.querySelector('#add-file').addEventListener('click', () => add('file'));
+    document.querySelector('#add-folder').addEventListener('click', () => add('folder'));
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const rows = () => [...document.querySelectorAll('#tree .row')].map((r) => r.textContent)
+      .join(', ');
+    const row = (name) => $(`#tree .row[data-name="${name}"]`);
+    function addItem(kind, name) {
+      $('#name').value = name;
+      $(kind === 'folder' ? '#add-folder' : '#add-file').click();
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 src is closed   ', rows(), '> src/, README.md');
+    row('src').click();
+    check('case 2 open src        ', rows(), 'v src/, > components/, App.js, index.js, README.md');
+    addItem('file', 'api.js');
+    check('case 3 added, in order ', rows(),
+      'v src/, > components/, api.js, App.js, index.js, README.md');
+    addItem('file', 'App.js');
+    check('case 4 a duplicate     ', $('#message').textContent, 'App.js is already in src');
+    addItem('folder', 'hooks');
+    const firstThree = rows().split(', ').slice(0, 3).join(', ');
+    check('case 5 folders first   ', firstThree, 'v src/, > components/, > hooks/');
+    row('components').click();
+    check('case 6 nested open     ', rows().includes('v components/, Button.js'), true);
+    row('src').click();
+    check('case 7 close src       ', rows(), '> src/, README.md');
+  </script>
+</body>
+</html>

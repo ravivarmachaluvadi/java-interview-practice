@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Image Carousel                              Machine coding | Medium
+=====================================================================
+
+PROBLEM
+  Build a carousel of 4 slides that shows one at a time, with Prev / Next buttons and one
+  dot per slide. Next on the last slide goes to the first, Prev on the first goes to the
+  last. Clicking a dot jumps to its slide; the current dot is marked (aria-current). Arrow
+  Left / Right on the carousel work like Prev / Next. A caption says "Slide 2 of 4".
+  Slides move by sliding a track sideways, not by hiding and showing.
+
+EXAMPLE
+  start              ->  slide 1, "Slide 1 of 4"
+  Next, Next         ->  slide 3
+  Next, Next         ->  slide 1 again (wrapped)
+  Prev               ->  slide 4
+  dot 2              ->  slide 2, dot 2 marked
+
+APPROACH  (one index; the track's transform follows it)
+  1. State: index (0-based).
+  2. go(i): index = (i + count) % count - this one line wraps both ways.
+  3. render(): track.style.transform = translateX(-index * 100%); mark the dot; set the
+     caption. Buttons, dots and keys all call go().
+
+KEY INSIGHT
+  "(i + count) % count" handles wrapping in both directions: -1 becomes count - 1, and
+  count becomes 0. JavaScript's % keeps the sign of the left side, so the + count is what
+  makes Prev from slide 0 work.
+
+COMPLEXITY
+  Time  O(count) per render (the dots)
+  Space O(count)
+
+INTERVIEW FOLLOW-UPS
+  - Autoplay every 3 s that pauses on hover and focus, and stops for prefers-reduced-motion.
+  - Swipe on touch screens (pointerdown / pointermove / pointerup with a threshold).
+  - Infinite loop without the jump back: clone the first and last slides at the ends.
+  - Lazy-load images: only the current and next slides get their src.
+  - Accessibility: aria-roledescription="carousel", each slide a group labelled "2 of 4".
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Image Carousel</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    .carousel { width: 360px; outline: none; }
+    .viewport { overflow: hidden; border-radius: 10px; }
+    .track { display: flex; transition: transform 0.3s ease; }
+    .slide { flex: 0 0 100%; height: 180px; display: grid; place-items: center;
+             color: #fff; font-size: 28px; font-weight: 700; }
+    .controls { display: flex; align-items: center; justify-content: space-between;
+                margin-top: 8px; }
+    .controls button { font: inherit; padding: 2px 10px; }
+    .dots { display: flex; gap: 6px; }
+    .dot { width: 12px; height: 12px; padding: 0; border-radius: 50%; border: 0; background: #ccc; }
+    .dot[aria-current="true"] { background: #2563eb; }
+    #caption { color: #555; }
+  </style>
+</head>
+<body>
+  <div class="carousel" id="carousel" tabindex="0" aria-label="Photos">
+    <div class="viewport"><div class="track" id="track"></div></div>
+    <div class="controls">
+      <button id="prev" aria-label="Previous slide">Prev</button>
+      <div class="dots" id="dots"></div>
+      <button id="next" aria-label="Next slide">Next</button>
+    </div>
+    <p id="caption" aria-live="polite"></p>
+  </div>
+
+  <script>
+    const SLIDES = [
+      { text: 'Beach', color: '#0ea5e9' },
+      { text: 'Forest', color: '#16a34a' },
+      { text: 'Desert', color: '#d97706' },
+      { text: 'Snow', color: '#64748b' },
+    ];
+    let index = 0;
+    const track = document.querySelector('#track');
+    const dots = document.querySelector('#dots');
+
+    SLIDES.forEach((slide, i) => {
+      const el = document.createElement('div');
+      el.className = 'slide';
+      el.style.background = slide.color;
+      el.textContent = slide.text;
+      track.append(el);
+      const dot = document.createElement('button');
+      dot.className = 'dot';
+      dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+      dot.addEventListener('click', () => go(i));
+      dots.append(dot);
+    });
+
+    function render() {
+      track.style.transform = `translateX(${-index * 100}%)`;
+      [...dots.children].forEach((dot, i) => dot.setAttribute('aria-current', String(i === index)));
+      document.querySelector('#caption').textContent = `Slide ${index + 1} of ${SLIDES.length}`;
+    }
+
+    function go(i) {
+      index = (i + SLIDES.length) % SLIDES.length;
+      render();
+    }
+
+    document.querySelector('#prev').addEventListener('click', () => go(index - 1));
+    document.querySelector('#next').addEventListener('click', () => go(index + 1));
+    document.querySelector('#carousel').addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') go(index - 1);
+      if (e.key === 'ArrowRight') go(index + 1);
+    });
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const caption = () => $('#caption').textContent;
+    const marked = () => [...document.querySelectorAll('.dot')]
+      .findIndex((d) => d.getAttribute('aria-current') === 'true') + 1;
+    function key(name) {
+      $('#carousel').dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }));
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 starts at 1     ', `${caption()}, dot ${marked()}`, 'Slide 1 of 4, dot 1');
+    $('#next').click();
+    $('#next').click();
+    check('case 2 two Next        ', caption(), 'Slide 3 of 4');
+    check('case 3 the track moved ', $('#track').style.transform, 'translateX(-200%)');
+    $('#next').click();
+    $('#next').click();
+    check('case 4 Next wraps to 1 ', caption(), 'Slide 1 of 4');
+    $('#prev').click();
+    check('case 5 Prev wraps to 4 ', `${caption()}, dot ${marked()}`, 'Slide 4 of 4, dot 4');
+    document.querySelectorAll('.dot')[1].click();
+    check('case 6 a dot jumps     ', `${caption()}, dot ${marked()}`, 'Slide 2 of 4, dot 2');
+    key('ArrowRight');
+    key('ArrowRight');
+    key('ArrowLeft');
+    check('case 7 arrow keys      ', caption(), 'Slide 3 of 4');
+  </script>
+</body>
+</html>

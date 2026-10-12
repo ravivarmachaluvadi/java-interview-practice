@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ OTP Input                                   Machine coding | Medium
+=====================================================================
+
+PROBLEM
+  Build a one-time-code input: 6 boxes, one digit each.
+    - Typing a digit fills the box and moves the focus to the next box.
+    - Anything that is not a digit is refused (the box stays as it was).
+    - Backspace in an empty box clears the box before it and moves there.
+    - Pasting "123456" into any box fills all six from that box on.
+    - When all six are filled, the line under the boxes says "Code: 123456".
+
+EXAMPLE
+  type 4, 2               ->  boxes "42____", focus on box 3
+  type "x" in box 3       ->  still "42____"
+  Backspace in empty box 3 ->  "4_____", focus on box 2
+  paste "987654" in box 1 ->  "987654", "Code: 987654"
+
+APPROACH  (the inputs are the state; read them back when needed)
+  1. Build 6 <input maxlength="1" inputmode="numeric">.
+  2. input event: keep the last character typed if it is a digit, else restore the old
+     value; on a digit, focus the next box. Then update the status line.
+  3. keydown Backspace on an empty box: clear and focus the previous box.
+  4. paste event: preventDefault, take the digits from the clipboard text, write one per
+     box from this box on, focus the box after the last one written.
+
+KEY INSIGHT
+  Handle paste yourself: with maxlength="1" the browser puts only the first pasted
+  character in one box, and the rest of the user's SMS code is lost.
+
+COMPLEXITY
+  Time  O(n) per event, n = 6 boxes
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - autocomplete="one-time-code" so phones offer the code from the SMS.
+  - Arrow Left / Right between boxes; select the content on focus so typing replaces it.
+  - One hidden <input> with 6 drawn boxes instead: simpler for screen readers and paste.
+  - Submit automatically when complete, and disable the boxes while it is checked.
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OTP Input</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; }
+    #otp { display: flex; gap: 8px; }
+    #otp input { width: 40px; height: 48px; text-align: center; font-size: 24px;
+                 border: 1px solid #aaa; border-radius: 8px; }
+    #otp input:focus { outline: 2px solid #2563eb; border-color: #2563eb; }
+    #status { color: #555; }
+  </style>
+</head>
+<body>
+  <label for="digit-0">Enter the 6-digit code we sent you</label>
+  <div id="otp"></div>
+  <p id="status" aria-live="polite"></p>
+
+  <script>
+    const LENGTH = 6;
+    const box = document.querySelector('#otp');
+    const boxes = [];
+
+    for (let i = 0; i < LENGTH; i++) {
+      const input = document.createElement('input');
+      input.id = `digit-${i}`;
+      input.maxLength = 1;
+      input.inputMode = 'numeric';
+      input.autocomplete = 'one-time-code';
+      input.setAttribute('aria-label', `Digit ${i + 1}`);
+      input.dataset.old = '';
+      box.append(input);
+      boxes.push(input);
+    }
+
+    function code() {
+      return boxes.map((b) => b.value).join('');
+    }
+
+    function showStatus() {
+      const value = code();
+      const status = document.querySelector('#status');
+      status.textContent = value.length === LENGTH ? `Code: ${value}` : '';
+    }
+
+    function onInput(i) {
+      const input = boxes[i];
+      const typed = input.value.slice(-1);
+      if (/^\d$/.test(typed)) {
+        input.value = typed;
+        if (i < LENGTH - 1) boxes[i + 1].focus();
+      } else if (typed) {
+        input.value = input.dataset.old;
+      }
+      input.dataset.old = input.value;
+      showStatus();
+    }
+
+    function onBackspace(i, event) {
+      if (boxes[i].value || i === 0) return;
+      event.preventDefault();
+      boxes[i - 1].value = '';
+      boxes[i - 1].dataset.old = '';
+      boxes[i - 1].focus();
+      showStatus();
+    }
+
+    function onPaste(i, event) {
+      event.preventDefault();
+      const text = event.clipboardData.getData('text') || '';
+      const digits = text.replace(/\D/g, '').slice(0, LENGTH - i);
+      [...digits].forEach((d, k) => {
+        boxes[i + k].value = d;
+        boxes[i + k].dataset.old = d;
+      });
+      boxes[Math.min(LENGTH - 1, i + digits.length)].focus();
+      showStatus();
+    }
+
+    boxes.forEach((input, i) => {
+      input.addEventListener('input', () => onInput(i));
+      input.addEventListener('keydown', (e) => { if (e.key === 'Backspace') onBackspace(i, e); });
+      input.addEventListener('paste', (e) => onPaste(i, e));
+    });
+    boxes[0].focus();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const all = () => [...document.querySelectorAll('#otp input')];
+    const shown = () => all().map((b) => b.value || '_').join('');
+    const focused = () => all().indexOf(document.activeElement) + 1;
+    function type(text) {                          // into the focused box, as a keyboard would
+      const el = document.activeElement;
+      el.value += text;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    function backspace() {
+      const press = { key: 'Backspace', bubbles: true, cancelable: true };
+      document.activeElement.dispatchEvent(new KeyboardEvent('keydown', press));
+    }
+    function paste(index, text) {
+      const data = new DataTransfer();
+      data.setData('text', text);
+      const event = { clipboardData: data, bubbles: true, cancelable: true };
+      all()[index].dispatchEvent(new ClipboardEvent('paste', event));
+    }
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    all()[0].focus();
+    type('4');
+    type('2');
+    check('case 1 two digits         ', `${shown()} focus ${focused()}`, '42____ focus 3');
+    type('x');
+    check('case 2 a letter is refused', `${shown()} focus ${focused()}`, '42____ focus 3');
+    backspace();
+    check('case 3 backspace when empty', `${shown()} focus ${focused()}`, '4_____ focus 2');
+    paste(0, '98-76 54');
+    check('case 4 paste fills all six', `${shown()} focus ${focused()}`, '987654 focus 6');
+    const status = () => document.querySelector('#status').textContent;
+    check('case 5 the code shows     ', status(), 'Code: 987654');
+    all()[5].value = '';
+    all()[5].dispatchEvent(new Event('input', { bubbles: true }));
+    check('case 6 not complete again ', status(), '');
+  </script>
+</body>
+</html>

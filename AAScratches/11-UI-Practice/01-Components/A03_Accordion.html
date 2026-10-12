@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+ Accordion                                   Machine coding | Easy
+=====================================================================
+
+PROBLEM
+  Build an accordion from a list of { title, body } items: each title is a button, and
+  clicking it shows that item's body. Only one body is open at a time: opening one closes
+  the others. Clicking the open title closes it. Each button's aria-expanded must always
+  match whether its body is showing.
+
+EXAMPLE
+  start                 ->  all closed
+  click "Shipping"      ->  Shipping open
+  click "Returns"       ->  Returns open, Shipping closed
+  click "Returns"       ->  all closed
+
+APPROACH  (one index is the whole state)
+  1. State: openIndex, -1 when everything is closed.
+  2. build() creates a button and a panel per item once, with matching ids.
+  3. toggle(i): openIndex = (openIndex === i ? -1 : i), then render() sets every panel's
+     hidden and every button's aria-expanded from openIndex.
+
+KEY INSIGHT
+  "Only one open" is free when the state is a single index instead of a true/false per
+  item: there is no way to represent two open panels, so no code has to close the others.
+
+COMPLEXITY
+  Time  O(n) per click
+  Space O(n)
+
+INTERVIEW FOLLOW-UPS
+  - Allow several open at once: the state becomes a Set of indexes.
+  - Keyboard: Arrow Up / Down move between titles, Home / End jump to the first / last.
+  - Animate the height (grid-template-rows: 0fr -> 1fr) without measuring in JavaScript.
+  - The <details> / <summary> elements give a no-JavaScript version (name="..." makes them
+    exclusive in new browsers).
+
+RUN
+  The preview beside the code shows the page as you type.
+  Ctrl+Enter runs the test block at the bottom and ticks each check.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Accordion</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 32px; max-width: 480px; }
+    .item { border: 1px solid #ccc; border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+    .item button { width: 100%; text-align: left; font: inherit; font-weight: 600;
+                   padding: 10px 12px; border: 0; background: #f4f4f4; cursor: pointer; }
+    .item button[aria-expanded="true"] { background: #e3ecff; }
+    .panel { padding: 10px 12px; }
+  </style>
+</head>
+<body>
+  <div id="accordion"></div>
+
+  <script>
+    const ITEMS = [
+      { title: 'Shipping', body: 'Orders leave the warehouse within two working days.' },
+      { title: 'Returns', body: 'Send anything back within 30 days for a full refund.' },
+      { title: 'Warranty', body: 'Every product has a two-year warranty.' },
+    ];
+    let openIndex = -1;
+    const root = document.querySelector('#accordion');
+
+    function build() {
+      ITEMS.forEach((item, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'item';
+        const button = document.createElement('button');
+        button.id = `title-${i}`;
+        button.textContent = item.title;
+        button.setAttribute('aria-controls', `panel-${i}`);
+        button.addEventListener('click', () => toggle(i));
+        const panel = document.createElement('div');
+        panel.id = `panel-${i}`;
+        panel.className = 'panel';
+        panel.setAttribute('role', 'region');
+        panel.setAttribute('aria-labelledby', button.id);
+        panel.textContent = item.body;
+        wrap.append(button, panel);
+        root.append(wrap);
+      });
+    }
+
+    function render() {
+      ITEMS.forEach((_, i) => {
+        const open = i === openIndex;
+        document.getElementById(`panel-${i}`).hidden = !open;
+        document.getElementById(`title-${i}`).setAttribute('aria-expanded', String(open));
+      });
+    }
+
+    function toggle(i) {
+      openIndex = openIndex === i ? -1 : i;
+      render();
+    }
+
+    build();
+    render();
+  </script>
+
+  <!-- Tests: Ctrl+Enter in Code Viewer runs this block once the page has loaded.
+       Browsers skip type="test", so the page alone never runs it. -->
+  <script type="test">
+    const $ = (sel) => document.querySelector(sel);
+    const all = (sel) => [...document.querySelectorAll(sel)];
+    const shown = () => all('.panel').map((p) => (p.hidden ? '-' : 'O')).join('');
+    const isOpen = (b) => b.getAttribute('aria-expanded') === 'true';
+    const expanded = () => all('.item button').map((b) => (isOpen(b) ? 'O' : '-')).join('');
+    function check(label, actual, expected) {
+      console.log(`${label}: ${actual}   expected ${expected}`);
+    }
+
+    check('case 1 all closed       ', shown(), '---');
+    $('#title-0').click();
+    check('case 2 open Shipping    ', shown(), 'O--');
+    $('#title-1').click();
+    check('case 3 Returns closes it', shown(), '-O-');
+    check('case 4 aria matches     ', expanded(), shown());
+    $('#title-1').click();
+    check('case 5 click again      ', shown(), '---');
+    const warranty = 'Every product has a two-year warranty.';
+    check('case 6 text of Warranty ', $('#panel-2').textContent, warranty);
+  </script>
+</body>
+</html>

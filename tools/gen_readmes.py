@@ -66,7 +66,7 @@ DESC = {
     "10-JavaScript/01-Essentials": "The classic JavaScript questions: timers (debounce, throttle), promises (Promise.all), events (an emitter class).",
     "10-JavaScript/02-Functions": "Closures and `this`: memoize, curry, call/apply/bind from scratch, flatten, deep clone with cycles.",
     "10-JavaScript/03-Async": "Promises and the event loop: allSettled/race/any, retry with backoff, a concurrency limit, predict the print order.",
-    "11-UI-Practice/01-Components": "Machine-coding screens: a counter, a todo list, an autocomplete with debounce and arrow keys.",
+    "11-UI-Practice/01-Components": "Machine-coding screens: counter, star rating, accordion, todo list, pagination, OTP input, nested checkboxes, carousel, autocomplete, progress bars with a queue, file explorer.",
 }
 NOTES = {
     "01-DSA": [("Pattern recognition map (start here)", "notes/Pattern_Recognition_Map.md"),
