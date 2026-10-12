@@ -1961,11 +1961,14 @@ class Assist:
             shutil.rmtree(tmp, ignore_errors=True)
         return out
 
+    name = "autocomplete helper"
+
+    def command(self):
+        return [JAVA, *ASSIST_JVM, "-Dfile.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
+                "-Dstdout.encoding=UTF-8", "-cp", str(self.classes()), "CvAssist"]
+
     def start(self):
-        cp = self.classes()
-        self.proc = subprocess.Popen([JAVA, *ASSIST_JVM, "-Dfile.encoding=UTF-8", "-Dstderr.encoding=UTF-8",
-                                      "-Dstdout.encoding=UTF-8", "-cp", str(cp), "CvAssist"],
-                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        self.proc = subprocess.Popen(self.command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, creationflags=NO_WINDOW)
         lines = self.lines = queue.Queue()
 
@@ -1980,14 +1983,14 @@ class Assist:
         if not self.watching:
             self.watching = True
             threading.Thread(target=self.idle_watch, daemon=True).start()
-        log.info("autocomplete helper started")
+        log.info("%s started", self.name)
 
     def idle_watch(self):
         while True:
             time.sleep(60)
             with self.lock:
                 if self.proc and time.monotonic() - self.used > ASSIST_IDLE:
-                    log.info("autocomplete helper stopped after %d idle minutes", ASSIST_IDLE // 60)
+                    log.info("%s stopped after %d idle minutes", self.name, ASSIST_IDLE // 60)
                     self.stop()
 
     def stop(self):
@@ -2042,12 +2045,46 @@ class Assist:
                 return {"error": "The autocomplete helper answered something unreadable."}
 
 
+class PyAssist(Assist):
+    """12 Oct: Python's suggestions, parameter hints and hover, from Jedi in tools/pyassist.py.
+    The Java helper's protocol, start on first use and idle stop; measured at 66 MB after 30
+    requests, nothing while idle."""
+    name = "Python autocomplete helper"
+
+    def command(self):
+        if not PYTHON:
+            raise RuntimeError("no python.exe beside the Python that runs Code Viewer")
+        return [PYTHON, "-X", "utf8", "-u", "-B", str(HERE / "pyassist.py")]
+
+
 ASSIST = Assist()
 atexit.register(ASSIST.stop)
+PYASSIST = PyAssist()
+atexit.register(PYASSIST.stop)
+PY_OPS = {"complete", "signature", "hover"}
+
+
+def pyassist_available():
+    """For /api/info: Jedi is installed in the Python that runs the helper (the same install)."""
+    import importlib.util
+    return bool(PYTHON) and importlib.util.find_spec("jedi") is not None
+
+
+def py_assist_request(req):
+    op = req.get("op", "")
+    if op not in PY_OPS:
+        raise ValueError(f"unknown Python autocomplete request: {op}")
+    folder, fname = None, "Scratch.py"
+    if req.get("path"):                # its real folder, so `import helper` finds helper.py beside it
+        p = resolve(req.get("root", ""), req["path"])
+        folder, fname = p.parent, p.name
+    return PYASSIST.ask(op, req.get("code") or "", int(req.get("offset") or 0), folder, fname)
 
 
 def assist_request(req):
     op = req.get("op", "")
+    if req.get("lang") == "py":
+        return py_assist_request(req)
     if op not in ASSIST_OPS:
         raise ValueError(f"unknown autocomplete request: {op}")
     if op in ("doc", "warm"):
@@ -2151,7 +2188,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"jdk": self.server.jdk, "repo": REPO.name, "version": page_version(PAGE.read_bytes()),
                                        "autostart": autostart_on(), "platform": sys.platform, "git": True, "stub": True,
                                        "files": True, "langs": langs(), "python": PYTHON and platform_python(),
-                                       "node": node_version()})
+                                       "node": node_version(), "pyassist": pyassist_available()})
             if u.path == "/api/roots":
                 return self.send_json(STATE.roots())
             if u.path == "/api/tree":

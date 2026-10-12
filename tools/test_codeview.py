@@ -2666,7 +2666,70 @@ class UiStartersTest(unittest.TestCase):
                 self.assertGreaterEqual(tests.count("check('case"), 4)
 
 
+def has_jedi():
+    import importlib.util
+    return bool(codeview.PYTHON) and importlib.util.find_spec("jedi") is not None
+
+
+@unittest.skipUnless(has_jedi(), "Jedi is not installed")
+class PyAssistTest(unittest.TestCase):
+    """12 Oct: Python suggestions, parameter hints and hover from Jedi (tools/pyassist.py),
+    through the Java helper's protocol, start-on-first-use and idle stop."""
+
+    def ask(self, op, code, offset=None, **extra):
+        return codeview.assist_request({"op": op, "lang": "py", "code": code,
+                                        "offset": len(code) if offset is None else offset, **extra})
+
+    def names(self, code, **extra):
+        return [i["name"] for i in self.ask("complete", code, **extra).get("items", [])]
+
+    def test_a_string_lists_str_methods_and_hides_dunders(self):
+        names = self.names('s = "abc"\ns.')
+        self.assertIn("upper", names)
+        self.assertNotIn("__len__", names)
+        self.assertIn("__len__", self.names('s = "abc"\ns.__'))
+
+    def test_a_module_and_the_file_own_names(self):
+        self.assertIn("Counter", self.names("import collections\ncollections.Co"))
+        self.assertIn("two_sum", self.names("def two_sum(nums, target):\n    pass\n\ntwo_"))
+
+    def test_windows_line_ends(self):
+        self.assertIn("append", self.names("x = [1, 2]\r\nx.app"))
+
+    def test_a_module_beside_the_file(self):
+        folder = codeview.REPO / "AAScratches" / "_codeview_test"
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            (folder / "helper.py").write_bytes(b"def shout(text):\n    return text.upper()\n")
+            rid = codeview.STATE.roots()[0]["id"]
+            self.assertIn("shout", self.names("import helper\nhelper.sh", root=rid, path="AAScratches/_codeview_test/B01_Main.py"))
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+
+    def test_parameter_hints_and_hover(self):
+        sig = self.ask("signature", "def area(width, height=1):\n    return width * height\n\narea(3, ")["signatures"][0]
+        self.assertEqual((sig["label"], sig["params"], sig["active"]), ("area(width, height=1)", ["width", "height=1"], 1))
+        self.assertIn("Return the number of items", self.ask("hover", "len([1])", offset=1)["text"])
+
+    def test_half_typed_code_answers_and_unknown_requests_are_refused(self):
+        self.assertEqual(self.ask("complete", "def f(:\n    x.").get("items"), [])
+        with self.assertRaises(ValueError):
+            self.ask("format", "x = 1")
+
+    def test_it_starts_again_after_it_died(self):
+        self.assertIn("upper", self.names('"a".up'))
+        codeview.PYASSIST.proc.kill()
+        codeview.PYASSIST.proc.wait()
+        self.assertIn("upper", self.names('"a".up'))
+
+    def test_info_says_whether_jedi_is_there(self):
+        self.assertTrue(codeview.pyassist_available())
+        with mock.patch("importlib.util.find_spec", return_value=None):
+            self.assertFalse(codeview.pyassist_available())
+
+
 def tearDownModule():
+    codeview.PYASSIST.stop()
     codeview.ASSIST.stop()
     for h in list(codeview.log.handlers):      # Windows will not delete an open log file
         h.close()

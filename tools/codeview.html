@@ -732,7 +732,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
     <tr><td><kbd>↑</kbd> / <kbd>↓</kbd> in the file list</td><td>Previous / next file, which opens as you go (hold the key and only the one it stops on opens). <kbd>→</kbd> / <kbd>←</kbd> open and close a folder, Enter does too</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></td><td>Search inside every file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Run what is in the editor: Java (compiled first), Python, JavaScript (with Node.js). On a UI page (.html): its test block. Lines that say what they expected get ✓ or ✗</td></tr>
-    <tr><td>Python and JavaScript files</td><td>Run, Practice (function bodies hidden, Hints, timer, Done), Try, Compare and Next work as for Java. A syntax error is underlined in red; every file and line in a traceback or stack is a link. A .py can import a module beside it</td></tr>
+    <tr><td>Python and JavaScript files</td><td>Run, Practice (function bodies hidden, Hints, timer, Done), Try, Compare and Next work as for Java. A syntax error is underlined in red; every file and line in a traceback or stack is a link. A .py can import a module beside it. Suggestions, parameter hints and hover as you type: JavaScript's from the editor, Python's from Jedi (when it is installed: <code>pip install jedi</code>)</td></tr>
     <tr><td>UI pages (.html)</td><td>The page shows beside the code as a browser shows it, redrawn as you type; ↻ Reload under it starts it fresh, Preview hides it. Console under it lists every line it logs as you click, errors linked to their line, also after <kbd>Ctrl</kbd>+<kbd>Enter</kbd>; <code>alert()</code> shows there as <code>[alert] …</code> instead of a box. Suggestions as you type: tags and attributes in the markup, real JavaScript ones in every <code>&lt;script&gt;</code> (the page's own functions too), and CSS properties in <code>&lt;style&gt;</code>, with only the values that property accepts. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs its <code>&lt;script type="test"&gt;</code> block once the page has loaded (await works there) and ticks each check line; browsers skip that block, so it never runs on its own. Practice hides the page's JavaScript function bodies; the markup and CSS stay. The page runs locked away from Code Viewer: alert() and confirm() only log, a loop that runs 2 s without a break is stopped, and other files beside it (a .css, a .js) do not load</td></tr>
     <tr><td>Scratch pad language</td><td>The select in its bar: Java, Python, JavaScript or UI. Each keeps its own text</td></tr>
     <tr><td><kbd>Alt</kbd>+<kbd>P</kbd></td><td>Practice: hide the solution / show it</td></tr>
@@ -2068,6 +2068,7 @@ function initEditor() {
   applyTheme();
   initAssist();
   initPageAssist();
+  initPyAssist();
   initNav();
 }
 
@@ -3478,6 +3479,49 @@ function initPageAssist() {
       const doc = parts(q.documentation);
       return { range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column),
                contents: [{ value: '```js\n' + parts(q.displayParts) + '\n```' }, ...(doc ? [{ value: doc }] : [])] };
+    },
+  });
+}
+/* Python (12 Oct): suggestions, parameter hints and hover from Jedi, in the server's helper
+   (tools/pyassist.py) - "abc". lists str's methods, a module's names come from the module, and a
+   module beside the file is found. Only when the server says Jedi is installed (/api/info). */
+function initPyAssist() {
+  const L = monaco.languages, K = L.CompletionItemKind;
+  const KINDS = { function: K.Function, class: K.Class, module: K.Module, instance: K.Variable, statement: K.Variable,
+                  keyword: K.Keyword, param: K.Variable, property: K.Property, path: K.File };
+  const on = model => !!(S.info && S.info.pyassist) && !!S.cur && S.cur.kind === 'py' && langAssistOn(model);
+  L.registerCompletionItemProvider('python', {
+    triggerCharacters: ['.'],
+    async provideCompletionItems(model, pos, ctx, token) {
+      if (!on(model)) return null;
+      const r = await assistAsk('complete', model, model.getOffsetAt(pos), token, { lang: 'py' });
+      if (!r || r.stale || !r.items) return { suggestions: [], incomplete: !!(r && r.stale) };
+      const w = model.getWordUntilPosition(pos), range = new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn);
+      return { suggestions: r.items.map((it, i) => ({ label: { label: it.name, description: it.type }, kind: KINDS[it.type] ?? K.Text,
+        insertText: it.name, range, detail: it.detail, sortText: String(i).padStart(4, '0') })) };
+    },
+  });
+  L.registerSignatureHelpProvider('python', {
+    signatureHelpTriggerCharacters: ['(', ','], signatureHelpRetriggerCharacters: [','],
+    async provideSignatureHelp(model, pos, token) {
+      if (!on(model)) return null;
+      const r = await assistAsk('signature', model, model.getOffsetAt(pos), token, { lang: 'py' });
+      if (!r || r.stale || !r.signatures || !r.signatures.length) return null;
+      return {
+        value: { signatures: r.signatures.map(s => ({ label: s.label, parameters: s.params.map(p => ({ label: p })) })),
+                 activeSignature: 0, activeParameter: Math.max(0, r.signatures[0].active) },
+        dispose() {},
+      };
+    },
+  });
+  L.registerHoverProvider('python', {
+    async provideHover(model, pos, token) {
+      const w = model.getWordAtPosition(pos);
+      if (!w || !on(model)) return null;
+      const r = await assistAsk('hover', model, model.getOffsetAt(pos), token, { lang: 'py' });
+      if (!r || r.stale || !r.text) return null;
+      return { range: new monaco.Range(pos.lineNumber, w.startColumn, pos.lineNumber, w.endColumn),
+               contents: [{ value: '```text\n' + r.text + '\n```' }] };
     },
   });
 }
