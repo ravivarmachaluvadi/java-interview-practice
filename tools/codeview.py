@@ -508,35 +508,74 @@ def locate(path):
     return {"root": r["id"], "path": "" if p.is_dir() else p.name, "added": True}
 
 
-def walk(base, empty=None):
-    """Yield text files under base, skipping build/VCS folders, at most MAX_FILES. empty: a list
-    that gets every folder with nothing in it at all - a folder just made with + (8 Oct)."""
-    skip, count = skip_dirs(base), 0
-    for dirpath, dirnames, filenames in os.walk(base):
-        if empty is not None and not dirnames and not filenames and pathlib.Path(dirpath) != pathlib.Path(base):
-            empty.append(pathlib.Path(dirpath))
-        dirnames[:] = sorted(d for d in dirnames if d not in skip and not d.startswith("."))
-        for f in sorted(filenames, key=str.lower):
-            if pathlib.Path(f).suffix.lower() in TEXT_EXT:
-                yield pathlib.Path(dirpath) / f
+def walk(base, empty=None, stats=None):
+    """Yield text files under base, skipping build/VCS folders, at most MAX_FILES; each folder's
+    files first, then its sub-folders, both sorted (os.walk's order). empty: a list that gets
+    every folder with nothing in it at all - a folder just made with + (8 Oct). stats: a dict
+    that gets str(path) -> (modified ns, size); os.scandir has them from the folder listing, so
+    on Windows they cost no extra call per file (12 Oct, for build_tree's cache)."""
+    skip, count, base = skip_dirs(base), 0, pathlib.Path(base)
+
+    def visit(folder):
+        nonlocal count
+        try:
+            with os.scandir(folder) as it:
+                entries = list(it)
+        except OSError:
+            return
+        dirs = sorted((e for e in entries if e.is_dir()), key=lambda e: e.name)
+        files = [e for e in entries if not e.is_dir()]
+        here = pathlib.Path(folder)
+        if empty is not None and not dirs and not files and here != base:
+            empty.append(here)
+        for e in sorted(files, key=lambda e: e.name.lower()):
+            if pathlib.Path(e.name).suffix.lower() in TEXT_EXT:
+                p = here / e.name
+                if stats is not None:
+                    try:
+                        st = e.stat()
+                        stats[str(p)] = (st.st_mtime_ns, st.st_size)
+                    except OSError:
+                        pass
+                yield p
                 count += 1
                 if count >= MAX_FILES:
                     return
+        for d in dirs:
+            if d.name not in skip and not d.name.startswith(".") and not d.is_symlink():   # os.walk did not follow links
+                yield from visit(d.path)
+                if count >= MAX_FILES:
+                    return
+    yield from visit(str(base))
+
+
+# str(path) -> ((modified ns, size), has MUST-KNOW): a file is opened again only when it changed
+MUST_CACHE = {}
+
+
+def is_must(p, sig):
+    hit = MUST_CACHE.get(str(p))
+    if hit is None or sig is None or hit[0] != sig:
+        hit = MUST_CACHE[str(p)] = (sig, "MUST-KNOW" in read_head(p))
+    return hit[1]
 
 
 def build_tree(rid):
+    """The file list. The page asks for it every 20 s while it is visible (refreshFromDisk), so a
+    file is read for its MUST-KNOW mark only when its size or time changed (12 Oct: reading all
+    ~720 every time cost 90-270 ms of CPU per refresh)."""
     base = root_path(rid)
-    root, empty = {"name": base.name, "dirs": {}, "files": []}, []
+    root, empty, stats = {"name": base.name, "dirs": {}, "files": []}, [], {}
 
     def folder(parts):
         node = root
         for part in parts:
             node = node["dirs"].setdefault(part, {"name": part, "dirs": {}, "files": []})
         return node
-    for p in walk(base, empty):
+    for p in walk(base, empty, stats):
         rel = p.relative_to(base)
         f = {"name": p.name, "path": rel.as_posix()}
-        if langsrc.lang_of(p.name) and "MUST-KNOW" in read_head(p):
+        if langsrc.lang_of(p.name) and is_must(p, stats.get(str(p))):
             f["must"] = True
         folder(rel.parts[:-1])["files"].append(f)
     for d in empty:                      # shown, so a new folder can be opened and filled

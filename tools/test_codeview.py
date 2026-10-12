@@ -2666,6 +2666,71 @@ class UiStartersTest(unittest.TestCase):
                 self.assertGreaterEqual(tests.count("check('case"), 4)
 
 
+class TreeCacheTest(unittest.TestCase):
+    """12 Oct: the page asks for the file list every 20 s while it is visible. build_tree opened
+    every practice file each time to look for MUST-KNOW (~720 files: 90-100 ms of server CPU per
+    refresh on a fresh server, 264 ms on Ravi's tray after 90 hours). Now a file is read again
+    only when its size or modified time changed."""
+
+    def setUp(self):
+        self.base = TMP / "tree_root"
+        for rel, text in (("Topic/A01_One.java", "/* One   MUST-KNOW */\nclass One {}\n"), ("Topic/B01_Two.py", '"""Two"""\n'),
+                          ("Topic/Sub/C01_Three.js", "// three\n"), ("README.md", "# R\n"), ("Notes/x.txt", "x"),
+                          ("Notes/pic.png", "not text")):
+            (self.base / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.base / rel).write_bytes(text.encode())
+        (self.base / "Empty" / "Inner").mkdir(parents=True, exist_ok=True)
+        self.rid = codeview.STATE.add_root(str(self.base))["id"]
+
+    def tearDown(self):
+        codeview.STATE.remove_root(self.rid)
+        shutil.rmtree(self.base, ignore_errors=True)
+
+    def must(self):
+        out = {}
+        def visit(n, prefix):
+            for f in n["files"]:
+                out[prefix + f["name"]] = bool(f.get("must"))
+            for d in n["dirs"]:
+                visit(d, prefix + d["name"] + "/")
+        visit(codeview.build_tree(self.rid), "")
+        return out
+
+    def test_unchanged_files_are_not_read_again(self):
+        codeview.build_tree(self.rid)
+        with mock.patch.object(codeview, "read_head", wraps=codeview.read_head) as read:
+            codeview.build_tree(self.rid)
+        self.assertEqual(read.call_count, 0)
+
+    def test_a_changed_file_is_read_again(self):
+        self.assertEqual((self.must()["Topic/A01_One.java"], self.must()["Topic/B01_Two.py"]), (True, False))
+        two, one = self.base / "Topic/B01_Two.py", self.base / "Topic/A01_One.java"
+        two.write_bytes(b'"""Two   MUST-KNOW"""\n')
+        one.write_bytes(b"/* One   must-know */\nclass One {}\n")        # same size: only the time differs
+        later = time.time() + 5
+        os.utime(one, (later, later))
+        self.assertEqual((self.must()["Topic/A01_One.java"], self.must()["Topic/B01_Two.py"]), (False, True))
+
+    def test_walk_lists_what_it_always_listed(self):
+        """the os.walk version it replaced: same files, same order, same empty folders"""
+        def before(base, empty):
+            skip, out = codeview.skip_dirs(base), []
+            for dirpath, dirnames, filenames in os.walk(base):
+                if not dirnames and not filenames and pathlib.Path(dirpath) != pathlib.Path(base):
+                    empty.append(pathlib.Path(dirpath))
+                dirnames[:] = sorted(d for d in dirnames if d not in skip and not d.startswith("."))
+                out += [pathlib.Path(dirpath) / f for f in sorted(filenames, key=str.lower)
+                        if pathlib.Path(f).suffix.lower() in codeview.TEXT_EXT]
+            return out
+        for base in (self.base, codeview.REPO):
+            with self.subTest(base.name):
+                e1, e2 = [], []
+                self.assertEqual(list(codeview.walk(base, e1)), before(base, e2))
+                self.assertEqual(e1, e2)
+                if base == self.base:
+                    self.assertEqual(e1, [self.base / "Empty" / "Inner"])
+
+
 def has_jedi():
     import importlib.util
     return bool(codeview.PYTHON) and importlib.util.find_spec("jedi") is not None
