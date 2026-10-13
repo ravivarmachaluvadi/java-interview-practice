@@ -15,12 +15,12 @@ Language and JVM demos, one runnable file each, plus interview Q&A notes.
 
 | Folder | Files | Must-know | What is here |
 |---|---|---|---|
-| [Concurrency](Concurrency/) | 13 | 4 | Threads, locks, producer-consumer, CompletableFuture, ThreadLocal, executors. |
+| [Concurrency](Concurrency/) | 14 | 4 | Threads, locks, producer-consumer, CompletableFuture, ThreadLocal, executors. |
 | [IO](IO/) | 4 | 1 | Scanner, CSV reading and appending, basic input and output. |
 | [Language-Features](Language-Features/) | 14 | 3 | Generics, enums, varargs, immutability, dynamic proxies, streams, default methods, date-time. |
 | [Security-Crypto](Security-Crypto/) | 3 | 1 | AES, RSA and Caesar cipher examples. |
 | [Tricky-MCQ](Tricky-MCQ/) | 11 | 0 | Output-prediction puzzles: what does this print, does it compile. |
-| **Total** | **45** | **9** | |
+| **Total** | **46** | **9** | |
 
 ## Concurrency
 
@@ -43,6 +43,7 @@ Threads, locks, producer-consumer, CompletableFuture, ThreadLocal, executors.
 | [C04_MultiCSVProcessor.java](Concurrency/C04_MultiCSVProcessor.java) | Aggregate stats across many CSV files | Concurrency / Medium | Parallel aggregation is safe when the per-task result is a value you can FOLD, and the fold has a neutral element. |
 | [D01_NThreadsKNumbers.java](Concurrency/D01_NThreadsKNumbers.java) | Print 1..K in order using N threads | Concurrency / Hard | Two rules make every "ordered handoff between threads" problem work, and they are both about the WAKE-UP, not the sleep: - notifyAll, not notify. |
 | [D02_CustomFutureThreadPool.java](Concurrency/D02_CustomFutureThreadPool.java) * | Build a thread pool from scratch | Concurrency / Hard | - poll(timeout) rather than take(), so a worker can notice the shutdown flag. |
+| [Kthreads.java](Concurrency/Kthreads.java) | Kthreads | LeetCode ? / ? | ... |
 
 **Worth adding next:**
 
