@@ -43,7 +43,7 @@ Threads, locks, producer-consumer, CompletableFuture, ThreadLocal, executors.
 | [C04_MultiCSVProcessor.java](Concurrency/C04_MultiCSVProcessor.java) | Aggregate stats across many CSV files | Concurrency / Medium | Parallel aggregation is safe when the per-task result is a value you can FOLD, and the fold has a neutral element. |
 | [D01_NThreadsKNumbers.java](Concurrency/D01_NThreadsKNumbers.java) | Print 1..K in order using N threads | Concurrency / Hard | Two rules make every "ordered handoff between threads" problem work, and they are both about the WAKE-UP, not the sleep: - notifyAll, not notify. |
 | [D02_CustomFutureThreadPool.java](Concurrency/D02_CustomFutureThreadPool.java) * | Build a thread pool from scratch | Concurrency / Hard | - poll(timeout) rather than take(), so a worker can notice the shutdown flag. |
-| [Kthreads.java](Concurrency/Kthreads.java) | Kthreads | LeetCode ? / ? | ... |
+| [Kthreads.java](Concurrency/Kthreads.java) | Kthreads | LeetCode ? / Multithreading | The shared counter determines whose turn it is. |
 
 **Worth adding next:**
 
