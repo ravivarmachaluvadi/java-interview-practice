@@ -724,6 +724,49 @@ class SitePublishTest(unittest.TestCase):
         self.assertIn("not next to this one", res["error"])
 
 
+class SiteSyncTest(unittest.TestCase):
+    """6 Nov: the first real --publish stopped with "Access is denied" deleting the old site in
+    OneDrive. The site is now built elsewhere and copied over, changing only what differs."""
+
+    def setUp(self):
+        import build_site
+        self.bs = build_site
+        self.tmp = pathlib.Path(tempfile.mkdtemp(dir=TMP, prefix="sync_"))
+        self.stage, self.out = self.tmp / "stage", self.tmp / "out"
+        for root, files in ((self.stage, {"same.txt": b"same", "changed.txt": b"new", "sub/new.txt": b"n"}),
+                            (self.out, {"same.txt": b"same", "changed.txt": b"old", "gone/stale.txt": b"s"})):
+            for name, data in files.items():
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_bytes(data)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_copies_only_what_differs_and_never_removes_the_folder(self):
+        old = (self.out / "same.txt").stat().st_mtime_ns
+        time.sleep(0.02)
+        with mock.patch.object(shutil, "rmtree", side_effect=AssertionError("must not delete folders wholesale")):
+            self.bs.sync(self.stage, self.out)
+        got = {p.relative_to(self.out).as_posix(): p.read_bytes() for p in self.out.rglob("*") if p.is_file()}
+        self.assertEqual(got, {"same.txt": b"same", "changed.txt": b"new", "sub/new.txt": b"n"})
+        self.assertEqual((self.out / "same.txt").stat().st_mtime_ns, old)          # not rewritten
+        self.assertFalse((self.out / "gone").exists())                              # emptied, so removed
+
+    def test_a_moment_of_access_denied_is_waited_out(self):
+        calls = []
+
+        def flaky(*a):
+            calls.append(a)
+            if len(calls) < 3:
+                raise PermissionError(5, "Access is denied")
+            return "done"
+        with mock.patch.object(self.bs.time, "sleep"):
+            self.assertEqual(self.bs.retry(flaky), "done")
+            with self.assertRaises(PermissionError):
+                self.bs.retry(lambda: (_ for _ in ()).throw(PermissionError(5, "Access is denied")))
+        self.assertEqual(len(calls), 3)
+
+
 class DeleteTest(unittest.TestCase):
     """5 Oct: a stray New file (+) left a blank DecodeWays.java with no way to remove it
     from the page. Delete moves one file to the Recycle Bin; nothing else."""

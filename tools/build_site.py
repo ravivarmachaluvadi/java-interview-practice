@@ -28,7 +28,7 @@ the website), and of those only what Code Viewer itself lists (SKIP_IN_REPO keep
 _personal/ and 08-Reference/ out). Every page asks search engines not to index it. The build stops
 if a file looks like it holds a secret.
 """
-import hashlib, io, json, pathlib, re, shutil, subprocess, sys, tarfile, time
+import hashlib, io, json, pathlib, re, shutil, subprocess, sys, tarfile, tempfile, time
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -131,8 +131,55 @@ def run_info(text, name):
             "jdk25": bool(compact or IO_CALL.search(s) or MODULE_IMPORT.search(s))}
 
 
+def retry(fn, *args):
+    """OneDrive holds a file or folder for a moment while it syncs it, and Windows then says
+    "Access is denied" (6 Nov: the first --publish stopped half-way through deleting the old
+    site). Try again for a few seconds before giving up."""
+    for wait in (0.3, 0.7, 1.5, 3, 0):
+        try:
+            return fn(*args)
+        except PermissionError:
+            if not wait:
+                raise
+            time.sleep(wait)
+
+
+def sync(stage, out):
+    """Make out the same as stage, touching only what differs: changed and new files are
+    copied, files no longer built are deleted, and folders are never removed wholesale."""
+    want = {p.relative_to(stage) for p in stage.rglob("*") if p.is_file()}
+    for rel in sorted(want):
+        src, dest = stage / rel, out / rel
+        data = src.read_bytes()
+        if dest.is_file() and dest.stat().st_size == len(data) and dest.read_bytes() == data:
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        retry(dest.write_bytes, data)
+    if out.exists():
+        for p in sorted(out.rglob("*"), key=lambda p: -len(p.parts)):
+            if p.is_file() and p.relative_to(out) not in want:
+                retry(p.unlink)
+            elif p.is_dir() and not any(p.iterdir()):
+                try:
+                    p.rmdir()
+                except OSError:
+                    pass                                   # an empty folder left behind is harmless
+
+
 def build(out):
-    """Build the site into out. -> a one-line summary."""
+    """Build the site into out: first into a temporary folder outside OneDrive, then copied
+    over what is there. -> a one-line summary."""
+    stage = pathlib.Path(tempfile.mkdtemp(prefix="java-practice-site-"))
+    try:
+        summary = build_into(stage / "site")
+        sync(stage / "site", out)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+    size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
+    return summary.replace("{out}", str(out)).replace("{size}", f"{size / 1024 / 1024:.1f} MB")
+
+
+def build_into(out):
     head = committed_files()
     files, practice, tree, problems = {}, {}, {"name": REPO.name, "dirs": {}, "files": []}, []
     for rel in sorted(r for r, data in head.items() if listed(r, len(data))):
@@ -226,9 +273,8 @@ def build(out):
     (out / "index.html").write_text(page, encoding="utf-8", newline="\n")
     shutil.copyfile(HERE / "site_static.js", out / "static.js")
 
-    size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
-    return (f"{out}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
-            f"without a skeleton), {size / 1024 / 1024:.1f} MB, version {version}")
+    return (f"{{out}}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
+            f"without a skeleton), {{size}}, version {version}")
 
 
 def publish():
