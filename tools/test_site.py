@@ -576,12 +576,17 @@ class FakeDrive:
         return route.fulfill(status=404, headers=cors, body="not found")
 
 
+PULL_WHEN_IDLE = ("async name => { const s = window[name]; for (let i = 0; i < 80 && s.busy; i++) await new Promise(r => setTimeout(r, 250));"
+                  " await s.pull(true); }")   # a pull asked for while a push runs is skipped
 TOKEN = "try { localStorage.setItem('drivesync.token', JSON.stringify({token: 'fake-token', exp: Date.now() + 3600e3, email: 'test@example.com'})); } catch (e) {}"
 
 
 def group_sync(b, site, shots):
     G = "sync"
     drive = FakeDrive()
+    # as in Ravi's real Drive, Personal Apps exists already: from an empty Drive, two stores opening
+    # at once each made one, and the second device then looked in the other (7 Nov)
+    drive.items["folder0"] = {"name": "Personal Apps", "folder": True, "parents": [], "modified": drive.stamp()}
     f = site.files["files"]
     x = next(p for p in site.order if p.endswith(".java") and "/01-DSA/" in p)
     y = next(p for p in site.order if p.endswith(".java") and "/02-Java-Core/" in p)
@@ -653,6 +658,53 @@ def group_sync(b, site, shots):
     check(G, "signed out: marks still work in this browser", "Done 1/" in d.inner_text("#count"), d.inner_text("#count"))
     d.screenshot(path=str(shots / "sync-signed-out.png"))
     a.screenshot(path=str(shots / "sync-signed-in.png"))
+
+    # practice attempts follow too (java-practice-attempts.json; saved at most every 10 s)
+    prob = next(p for p in site.order if p.endswith(".js"))
+    key, tkey = f"practice:{R}/{prob}", f"timer:{R}/{prob}"
+    att = lambda k: ((drive.content("java-practice-attempts.json") or {}).get("items") or {}).get(k) or {}
+
+    def wait_in(pg, fn, secs=40):
+        for _ in range(secs * 4):
+            if fn():
+                return True
+            pg.wait_for_timeout(250)
+        return False
+    open_file(a, site, prob, 2000)
+    a.click("#practiceBtn")
+    a.wait_for_timeout(1200)
+    a.evaluate(EDITOR + ".focus()")
+    a.keyboard.press("Control+End")
+    a.keyboard.type("\n// attempt from device A")
+    a.wait_for_timeout(3000)                                       # the practice timer runs
+    check(G, "a practice attempt is saved in Drive", wait_in(a, lambda: "attempt from device A" in str(att(key).get("v", ""))),
+          json.dumps(att(key))[:160])
+    a_ms = (att(tkey).get("v") or {}).get("ms", 0)
+    check(G, "…with its timer", a_ms > 0, json.dumps(att(tkey)))
+    b2.evaluate(PULL_WHEN_IDLE, "cvSyncAttempts")
+    b2.wait_for_timeout(1500)
+    open_file(b2, site, prob, 2000)
+    b2.click("#practiceBtn")
+    b2.wait_for_timeout(1500)
+    check(G, "device B opens the problem with device A's attempt", "attempt from device A" in b2.evaluate(EDITOR + ".getModel().getValue()"))
+    b_ms = b2.evaluate("k => (JSON.parse(localStorage.getItem('cv:' + k) || '{}').ms || 0)", tkey)
+    check(G, "…and device A's timer carries on", b_ms >= a_ms, f"A {a_ms} ms, B {b_ms} ms")
+    a.evaluate(EDITOR + ".focus()")
+    a.keyboard.press("Control+End")
+    a.keyboard.type("\n// second line from A")
+    wait_in(a, lambda: "second line from A" in str(att(key).get("v", "")))
+    b2.evaluate(PULL_WHEN_IDLE, "cvSyncAttempts")
+    check(G, "a later change reaches device B's open editor", wait_in(b2, lambda: "second line from A" in b2.evaluate(EDITOR + ".getModel().getValue()"), 15))
+    # the race: device C opens the problem before it has Drive's attempt, so its own timer runs first
+    a_ms = max(a_ms, (att(tkey).get("v") or {}).get("ms", 0))
+    open_file(c, site, prob, 1500)
+    c.click("#practiceBtn")
+    c.wait_for_timeout(2500)
+    c.evaluate(PULL_WHEN_IDLE, "cvSyncAttempts")
+    got_code = wait_in(c, lambda: "second line from A" in c.evaluate(EDITOR + ".getModel().getValue()"), 15)
+    c_ms = c.evaluate("k => (JSON.parse(localStorage.getItem('cv:' + k) || '{}').ms || 0)", tkey)
+    check(G, "a device that opened the problem first still gets the attempt and keeps the longer time",
+          got_code and c_ms >= a_ms, f"code {got_code}, A {a_ms} ms, C {c_ms} ms")
     for ctx in (a_ctx, b_ctx, c_ctx, d_ctx):
         ctx.close()
 
@@ -745,6 +797,27 @@ def group_laptop(b, site, shots, work):
         check(G, "…and reaches the laptop", until(lambda: (laptop_marks().get(w) or {}).get("s") == "revise", "w down"),
               json.dumps(laptop_marks().get(w)))
         check(G, "the laptop's marks keep their change time", all("u" in (laptop_marks().get(p) or {}) for p in (y, z, w)))
+
+        # a practice attempt on the laptop reaches the website (attempts file, through the frame)
+        prob = next(p for p in site.order if p.endswith(".js"))
+        key = f"practice:{R}/{prob}"
+        att = lambda: ((drive.content("java-practice-attempts.json") or {}).get("items") or {}).get(key) or {}
+        lap.goto(f"{lap_base}/#/{R}/{prob}")
+        until(lambda: prob.split("/")[-1][4:12] in lap.inner_text("#crumbs"), "prob open", 20)
+        lap.wait_for_timeout(1000)
+        lap.click("#practiceBtn")
+        lap.wait_for_timeout(1200)
+        lap.evaluate(EDITOR + ".focus()")
+        lap.keyboard.press("Control+End")
+        lap.keyboard.type("\n// attempt from the laptop")
+        check(G, "a laptop practice attempt goes up to Drive", until(lambda: "attempt from the laptop" in str(att().get("v", "")), "att up", 40),
+              json.dumps(att())[:160])
+        web.evaluate(PULL_WHEN_IDLE, "cvSyncAttempts")
+        web.wait_for_timeout(1500)
+        open_file(web, site, prob, 2000)
+        web.click("#practiceBtn")
+        web.wait_for_timeout(1500)
+        check(G, "…and the website opens the problem with it", "attempt from the laptop" in web.evaluate(EDITOR + ".getModel().getValue()"))
         lap.screenshot(path=str(shots / "laptop-bridge.png"))
         no_errors(G, errors)
         ctx.close()

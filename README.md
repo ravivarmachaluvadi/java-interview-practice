@@ -120,7 +120,10 @@ Google* under the file list: they are saved in My Drive / Personal Apps / `java-
 through Personal Apps' `drive-sync.js` (same sign-in, same origin), newest change wins per file;
 signed out they stay in that browser. Code Viewer on the laptop shares the same marks (its
 frame under the file list is the website's `bridge.html`). **Python** runs too (Pyodide 0.29.5
-from jsDelivr, kept for offline use once loaded). Drafts and practice attempts always stay in the
+from jsDelivr, kept for offline use once loaded). **Practice attempts follow you too** (the code,
+its timer, the hints opened, the last solved code; `java-practice-attempts.json` in the same
+folder): open the problem on another device, signed in, and carry on. The same attempt keeps the
+longer time from either device; Reset starts a new one. Try copies and edit drafts stay in each
 browser. Java
 cannot run on a website: **▶ Run** there shows how to run the file on a PC (paste it into an
 IntelliJ scratch file, or the `java` / `javac` commands for that file). Save, new files, Push and
