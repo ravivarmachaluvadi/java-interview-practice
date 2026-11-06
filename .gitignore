@@ -31,6 +31,8 @@
 !/tools/codeview.ico
 !/tools/CvAssist.java
 !/tools/ui_tests/*.mjs
+# the website copy's in-browser server (tools/build_site.py, 6 Nov 2026)
+!/tools/site_static.js
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---
 

@@ -566,6 +566,10 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
           <option value="revise">Show: to revise</option>
           <option value="due">Show: due for review</option>
           <option value="done">Show: done</option>
+          <option value="A">Show: A building blocks</option>
+          <option value="B">Show: B easy</option>
+          <option value="C">Show: C medium</option>
+          <option value="D">Show: D hard</option>
         </select>
       </div>
     </div>
@@ -1153,6 +1157,8 @@ function visible(f) {
     case 'revise': return st === 'revise';
     case 'due': return isDue(f.path);
     case 'done': return st === 'done';
+    // 6 Nov, Ravi: "easy to search or filter" - one difficulty tier (the A01_ / B03_ / ... prefix)
+    case 'A': case 'B': case 'C': case 'D': return (f.name.match(/^([A-D])\d\d_/) || [])[1] === S.show;
     default: return true;
   }
 }

@@ -89,7 +89,7 @@ It opens http://127.0.0.1:8025:
 | UI pages | a `.html` file shows beside its code as you type; `Ctrl+Enter` runs its `<script type="test">` block and ticks each check; **Console** under the page lists what it logs as you click, also after `Ctrl+Enter` |
 | Autocomplete | suggestions, parameter hints and hover: Java from a javac helper; `.js` and a UI page's `<script>` from the editor's own JavaScript service; a UI page's `<style>` from the browser (only values the property accepts); Python from Jedi (`pip install jedi`). Off in Practice unless ⋯ → *Autocomplete in Practice* is on |
 | Practice | hides the solution bodies and approach notes (Java, Python, JavaScript, a UI page's functions); all cases passing marks the file done |
-| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* |
+| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* or one difficulty tier (A building blocks, B easy, C medium, D hard) |
 | Search | `Ctrl+Shift+F` searches inside every file |
 | Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; a bar beside the line numbers marks what you changed since opening the file, saved or not, and **Reset** or **Try** puts the file back; **+** creates a file from the template |
 | Folders | the folder menu opens any other folder, not just this repo |
@@ -103,11 +103,29 @@ and Alt becomes ⌥ on a Mac). It needs Python 3, already on macOS, and JDK 25. 
 `brew install openjdk` or the Temurin 25 installer both work, and the newest JDK is picked
 automatically. The tray icon, desktop shortcuts and `--autostart` are Windows-only.
 
-### Why not `java Foo.java`
+### On any other device: the website copy
 
-The JDK single-file launcher looks for a class named after the **file**. Files here are
-`<TIER><NN>_<Name>.java` while the class inside keeps its problem name, so the launcher
-reports `can't find class` on almost all of them. `runjava` finds the real class instead.
+**<https://ravivarmachaluvadi.github.io/learning-hub/tools/java-practice/>** is Code Viewer as a
+plain website, for a work laptop or a phone. Reading, Practice, Hint, Compare, Visual, Next,
+Done / Revise, the "Show" filters (including one difficulty tier) and search in code all work
+there, and UI pages run with their tests. Progress is kept in that browser only. Java, Python
+and JavaScript cannot run on a website: **▶ Run** there shows how to run the file on a PC
+(paste it into an IntelliJ scratch file, or the `java` / `javac` commands for that file). Save,
+new files, Push, the ticks and Java suggestions stay laptop-only.
+
+`tools/build_site.py` builds it from the files git tracks (never `_personal/`, `tools/` or
+`08-Reference/`, and it stops on anything that looks like a secret); `tools/site_static.js`
+answers the page's requests in the browser. The Learning Hub's `build.py` runs it, so to update
+the website: commit here, then `python -I build.py` in `learning-hub`, commit and push there.
+
+### `java Foo.java` works for most files, not all
+
+The JDK single-file launcher (JDK 11+) starts the **first** class in the file. Files here are
+`<TIER><NN>_<Name>.java` while the class inside keeps its problem name, which does not matter
+when `main()` is in that first class: 595 of the 695 Java files (6 Nov 2026). In the other 98 a
+helper class (`TreeNode`, `Solution`, ...) comes first, and the launcher says `can't find class`
+or `can't find main`; compile those with `javac -d out File.java` and run `java -cp out <Class>`.
+`runjava` and Code Viewer find the right class either way.
 
 ### Why this cannot be an IDE project
 
