@@ -556,7 +556,7 @@ kbd { font: 11px var(--code); border: 1px solid var(--border); border-bottom-wid
   </div>
   <div class="pane" id="filesPane">
     <div class="search">
-      <input id="filter" placeholder="Find a file…   Ctrl+P" autocomplete="off" spellcheck="false">
+      <input id="filter" placeholder="Find a file…   Ctrl+P" title="Finds files by name, among the ones the Show choice below lists" autocomplete="off" spellcheck="false">
       <div class="line">
         <select id="showSel" title="Which files to list">
           <option value="all">Show: all files</option>
@@ -1455,11 +1455,17 @@ function doFilter() {
   if (!q) { res.hidden = true; $('#tree').hidden = false; return; }
   const toks = q.split(/\s+/);
   const nameHit = f => toks.every(t => f.name.toLowerCase().includes(t));
-  S.hits = S.files.filter(f => toks.every(t => f.path.toLowerCase().includes(t)))
+  // 6 Nov, Ravi: the name search keeps to the Show choice, so "tree" with Show: C medium finds
+  // only the medium tree problems
+  S.hits = S.files.filter(f => visible(f) && toks.every(t => f.path.toLowerCase().includes(t)))
     .sort((a, b) => (nameHit(b) - nameHit(a)) || a.path.localeCompare(b.path)).slice(0, 300);
   S.hitIdx = 0;
   res.textContent = '';
-  if (!S.hits.length) res.innerHTML = '<div class="row" style="padding-left:12px;color:var(--muted)">No file name matches</div>';
+  if (!S.hits.length) {
+    const outside = S.show !== 'all' && S.files.some(f => toks.every(t => f.path.toLowerCase().includes(t)));
+    res.innerHTML = '<div class="row" style="padding-left:12px;color:var(--muted)">No file name matches'
+      + (outside ? ' in this Show choice. Set Show to "all files" to find it.' : '') + '</div>';
+  }
   for (const f of S.hits) {
     const a = fileRow(f, 0);
     a.style.paddingLeft = '';
@@ -1823,7 +1829,8 @@ async function doPush() {
   toast(r.pushed === false ? r.note
     : `Pushed ${r.files ? r.files + ' file' + (r.files > 1 ? 's' : '') : 'your commits'} to GitHub (${r.commit})`
       + (r.rebased ? ', after taking in newer commits from GitHub' : '') + '.'
-      + (r.readmes && r.readmes.length ? ' The README problem list was updated too.' : ''));
+      + (r.readmes && r.readmes.length ? ' The README problem list was updated too.' : '')
+      + (!r.site ? '' : r.site.ok ? ' ' + r.site.note : ' The website copy was not updated: ' + r.site.error));
   refreshGit();
 }
 $('#pushBtn').onclick = openPush;

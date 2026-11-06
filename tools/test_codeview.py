@@ -636,6 +636,29 @@ class GitPushTest(unittest.TestCase):
         self.assertEqual(self.remote_files(), {"AAScratches/01-DSA/01-Arrays/B01_Bar.java", "AAScratches/01-DSA/README.md"})
         self.assertIn("B01_Bar.java", git(self.remote, "show", "main:AAScratches/01-DSA/README.md"))
 
+    def test_website_updates_only_after_pushing_this_repo(self):
+        """6 Nov: a push of this repo rebuilds the website copy (build_site.py --publish); a push of
+        another folder, a push that reached no GitHub, and a test server never do."""
+        (self.work / "a.java").write_bytes(b"changed\n")
+        self.assertNotIn("site", codeview.git_push(self.rid, ["a.java"], "another repo"))
+        calls = []
+
+        def fake_run(cmd, **kw):
+            calls.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout='{"ok": true, "note": "The website updates."}\n', stderr="")
+        with mock.patch.object(codeview.subprocess, "run", fake_run):
+            self.assertIsNone(codeview.update_site(self.work, {"pushed": True}))
+            self.assertIsNone(codeview.update_site(codeview.REPO, {"pushed": True}))       # NO_PUSH: a test server
+            with mock.patch.object(codeview, "NO_PUSH", False):
+                self.assertIsNone(codeview.update_site(codeview.REPO, {"pushed": False}))
+                site = codeview.update_site(codeview.REPO, {"pushed": True})
+        self.assertEqual(site, {"ok": True, "note": "The website updates."})
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0][2].endswith("build_site.py") and "--publish" in calls[0], calls[0])
+        broken = lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="boom")
+        with mock.patch.object(codeview.subprocess, "run", broken), mock.patch.object(codeview, "NO_PUSH", False):
+            self.assertFalse(codeview.update_site(codeview.REPO, {"pushed": True})["ok"])
+
     def test_test_servers_never_push_this_repo(self):
         """test_ui.py's server clicks Push; CODEVIEW_NO_PUSH keeps it off the real repo."""
         rid = codeview.STATE.roots()[0]["id"]
@@ -646,6 +669,59 @@ class GitPushTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "switched off"):
                 codeview.git_push(rid, ["x.java"], "x")
         self.assertEqual(calls, [])
+
+
+class SitePublishTest(unittest.TestCase):
+    """6 Nov: build_site.publish() commits and pushes only tools/java-practice in learning-hub,
+    and nothing when the site did not change. The build itself is faked here (it needs the
+    17 MB offline libraries); a real build is checked by running tools/build_site.py."""
+
+    def setUp(self):
+        import build_site
+        self.bs = build_site
+        self.tmp = pathlib.Path(tempfile.mkdtemp(dir=TMP, prefix="hub_"))
+        self.remote = self.tmp / "hub.git"
+        git(self.tmp, "init", "-q", "--bare", "-b", "main", str(self.remote))
+        self.hub = self.tmp / "learning-hub"
+        git(self.tmp, "clone", "-q", str(self.remote), str(self.hub))
+        for k, v in (("user.name", "Test"), ("user.email", "t@example.com"), ("core.autocrlf", "false")):
+            git(self.hub, "config", k, v)
+        (self.hub / "index.html").write_bytes(b"hub\n")
+        git(self.hub, "add", "-A")
+        git(self.hub, "commit", "-q", "-m", "start")
+        git(self.hub, "push", "-q", "-u", "origin", "main")
+        self.version = "1"
+
+        def fake_build(out):
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "index.html").write_bytes(f"site {self.version}\n".encode())
+            return "built"
+        self.patches = [mock.patch.object(build_site, "HUB", self.hub), mock.patch.object(build_site, "build", fake_build)]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_pushes_only_the_site_folder(self):
+        (self.hub / "index.html").write_bytes(b"an unrelated edit\n")
+        res = self.bs.publish()
+        self.assertTrue(res["ok"] and res["changed"], res)
+        self.assertEqual(git(self.remote, "show", "--name-only", "--format=", "main"), "tools/java-practice/index.html")
+        self.assertEqual(git(self.hub, "status", "--porcelain"), "M index.html")          # left alone
+        again = self.bs.publish()
+        self.assertEqual((again["ok"], again["changed"]), (True, False))
+        self.version = "2"
+        self.assertTrue(self.bs.publish()["changed"])
+        self.assertEqual(git(self.remote, "show", "main:tools/java-practice/index.html"), "site 2")
+
+    def test_no_hub_next_to_the_repo(self):
+        with mock.patch.object(self.bs, "HUB", self.tmp / "missing"):
+            res = self.bs.publish()
+        self.assertFalse(res["ok"])
+        self.assertIn("not next to this one", res["error"])
 
 
 class DeleteTest(unittest.TestCase):

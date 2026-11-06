@@ -89,7 +89,7 @@ It opens http://127.0.0.1:8025:
 | UI pages | a `.html` file shows beside its code as you type; `Ctrl+Enter` runs its `<script type="test">` block and ticks each check; **Console** under the page lists what it logs as you click, also after `Ctrl+Enter` |
 | Autocomplete | suggestions, parameter hints and hover: Java from a javac helper; `.js` and a UI page's `<script>` from the editor's own JavaScript service; a UI page's `<style>` from the browser (only values the property accepts); Python from Jedi (`pip install jedi`). Off in Practice unless ⋯ → *Autocomplete in Practice* is on |
 | Practice | hides the solution bodies and approach notes (Java, Python, JavaScript, a UI page's functions); all cases passing marks the file done |
-| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* or one difficulty tier (A building blocks, B easy, C medium, D hard) |
+| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* or one difficulty tier (A building blocks, B easy, C medium, D hard); `Ctrl+P` searches names within the Show choice, so *C medium* + "tree" finds the medium tree problems |
 | Search | `Ctrl+Shift+F` searches inside every file |
 | Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; a bar beside the line numbers marks what you changed since opening the file, saved or not, and **Reset** or **Try** puts the file back; **+** creates a file from the template |
 | Folders | the folder menu opens any other folder, not just this repo |
@@ -113,10 +113,15 @@ and JavaScript cannot run on a website: **▶ Run** there shows how to run the f
 (paste it into an IntelliJ scratch file, or the `java` / `javac` commands for that file). Save,
 new files, Push, the ticks and Java suggestions stay laptop-only.
 
-`tools/build_site.py` builds it from the files git tracks (never `_personal/`, `tools/` or
-`08-Reference/`, and it stops on anything that looks like a secret); `tools/site_static.js`
-answers the page's requests in the browser. The Learning Hub's `build.py` runs it, so to update
-the website: commit here, then `python -I build.py` in `learning-hub`, commit and push there.
+**It keeps itself up to date:** every Push from Code Viewer (⇡ above the file list) also
+rebuilds the website and pushes it to `learning-hub`, and the message after Push says so; GitHub
+Pages shows it about a minute later. By hand: `python -I tools/build_site.py --publish`.
+
+`tools/build_site.py` builds it from what is committed (HEAD), so an unsaved or uncommitted edit
+never reaches the website; it leaves out `_personal/`, `tools/` and `08-Reference/`, and stops
+on anything that looks like a secret. `tools/site_static.js` answers the page's requests in the
+browser. Publishing commits only `tools/java-practice/` in `learning-hub`; anything else changed
+there is left alone.
 
 ### `java Foo.java` works for most files, not all
 

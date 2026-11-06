@@ -1380,11 +1380,32 @@ def git_push(rid, paths, message):
         raise ValueError("A push is already running")
     try:
         res = push_now(base, list(paths), (message or "").strip())
+        log.info(f"push {len(paths)} file(s) in {base.name}: " + (f"ok {res['commit']}" if res["ok"] else
+                                                                   "FAILED " + res["error"]))
+        site = update_site(base, res)
+        if site:
+            res["site"] = site
     finally:
         GIT_LOCK.release()
-    log.info(f"push {len(paths)} file(s) in {base.name}: " + (f"ok {res['commit']}" if res["ok"] else
-                                                               "FAILED " + res["error"]))
     return res
+
+
+def update_site(base, res):
+    """6 Nov, Ravi: the website copy (Learning Hub tools/java-practice/) should never fall behind.
+    After a push of this repo, rebuild it and push it to learning-hub (tools/build_site.py
+    --publish). Another folder, a push that did not reach GitHub, or a test server: nothing.
+    -> {ok, note} / {ok: False, error}, or None when it did not run."""
+    if NO_PUSH or not res.get("pushed") or not (base == REPO or REPO in base.parents):
+        return None
+    try:
+        r = subprocess.run([PYTHON or sys.executable, "-I", str(HERE / "build_site.py"), "--publish", "--json"],
+                           cwd=REPO, capture_output=True, text=True, encoding="utf-8", timeout=300,
+                           creationflags=NO_WINDOW)
+        site = json.loads(r.stdout.strip().splitlines()[-1])
+    except (OSError, ValueError, IndexError, subprocess.TimeoutExpired) as e:
+        site = {"ok": False, "error": f"the website build did not run ({e})"}
+    log.info("website: " + (site.get("note") or "FAILED " + str(site.get("error"))))
+    return site
 
 
 def push_now(base, paths, message):

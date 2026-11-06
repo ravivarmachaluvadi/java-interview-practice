@@ -5,6 +5,9 @@ Learning Hub's public copy serves it at tools/java-practice/ (6 Nov 2026, Ravi: 
 from any device without blocking by any company policy").
 
     python -I tools/build_site.py OUT_DIR
+    python -I tools/build_site.py --publish     build into ../learning-hub/tools/java-practice, then commit
+                                                and push only that folder there (Code Viewer's Push runs
+                                                this after each push of this repo); --json prints the result
 
 OUT_DIR gets:
     index.html          codeview.html with its libraries pointed at vendor/, a few website patches
@@ -20,14 +23,17 @@ browser), the file filter and search in code, and UI pages (.html), which run in
 What does not: running Java, Python or JavaScript (Run shows how to run it on a PC instead), the
 ticks, Save, new files, Push and Java suggestions.
 
-Only files git tracks are published, and of those only what Code Viewer itself lists
-(SKIP_IN_REPO keeps tools/, _personal/ and 08-Reference/ out). Every page asks search engines not
-to index it. The build stops if a file looks like it holds a secret.
+Only committed files are published, as HEAD has them (an unsaved or uncommitted edit never reaches
+the website), and of those only what Code Viewer itself lists (SKIP_IN_REPO keeps tools/,
+_personal/ and 08-Reference/ out). Every page asks search engines not to index it. The build stops
+if a file looks like it holds a secret.
 """
-import hashlib, json, pathlib, re, shutil, subprocess, sys, time
+import hashlib, io, json, pathlib, re, shutil, subprocess, sys, tarfile, time
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
+HUB = REPO.parent / "learning-hub"           # the public site's repo, next to this one
+SITE_DIR = "tools/java-practice"             # where the site lives in it
 sys.path.insert(0, str(HERE))
 import codeview  # noqa: E402  the file rules (TEXT_EXT, SKIP_*), so the site lists what Code Viewer lists
 import javasrc  # noqa: E402  which class declares main()
@@ -61,6 +67,9 @@ PATCHES = [
     # one folder only: no "Open another folder..."
     ("  sel.title = cur ? cur.path : '';", "  sel.title = cur ? cur.path : '';\n  sel.disabled = !!window.CV_STATIC;"),
     # say what this copy is at the top of the help
+    # Try cannot run here
+    ("'Try: a copy to change and run freely. The file is never touched; Discard when you are done.'",
+     "'Try: a copy to change freely; Copy takes it to your PC to run. The file is never touched; Discard when you are done.'"),
     ("<h3>Shortcuts</h3>",
      "<h3>Website copy</h3>\n  <p class=\"site-note\">This is Code Viewer's website copy. Reading, Practice, Hint, Compare, Visual, "
      "Next, Done / Revise, the file filter and Search in code work here, and UI pages (.html) run with their tests. "
@@ -75,31 +84,39 @@ CSS = """<style>
   #rootSel:disabled { opacity: 1; cursor: default; }
   .status.away { color: var(--muted); }
   .help .site-note { margin: 0 0 12px; max-width: 72ch; }
-  /* a phone: the file list or the file, one at a time (static.js hides the list once a file opens) */
+  /* a phone: the file list or the file, one at a time (static.js hides the list once a file opens).
+     The file's bar wraps: the name on the first line, then Run and Copy first, then the rest. */
   @media (max-width: 760px) {
     body:not(.side-collapsed) { grid-template-columns: 100vw 0 0 !important; }
     body:not(.side-collapsed) .vsplit, body:not(.side-collapsed) main { display: none; }
-    #jdk { display: none; }
-    main .bar { overflow-x: auto; }
+    #jdk, #timeoutSel, main .bar .spacer { display: none; }
+    main { grid-template-rows: auto auto minmax(0, 1fr) 4px var(--out-h, 230px); }
+    main.out-collapsed { grid-template-rows: auto auto minmax(0, 1fr) 4px 36px; }
+    main .bar { flex-wrap: wrap; row-gap: 6px; padding: 6px 8px; }
+    main .bar .crumbs { flex: 1 1 0; }
+    main .bar .tools { flex: 1 1 100%; flex-wrap: wrap; row-gap: 6px; }
+    #runBtn { order: -2; }
+    #copyBtn { order: -1; }
   }
 </style>
 """
 
 
-def git_files():
-    out = subprocess.run(["git", "ls-files", "-z"], cwd=REPO, capture_output=True, check=True).stdout
-    return [p for p in out.decode("utf-8").split("\0") if p]
+def committed_files():
+    """{path: bytes} of every file in HEAD, so the site shows what is committed: never an
+    unsaved draft or a file changed but not yet committed (6 Nov)."""
+    tar = subprocess.run(["git", "archive", "--format=tar", "HEAD"], cwd=REPO, capture_output=True, check=True).stdout
+    with tarfile.open(fileobj=io.BytesIO(tar)) as t:
+        return {m.name: t.extractfile(m).read() for m in t.getmembers() if m.isfile()}
 
 
-def listed(rel):
+def listed(rel, size):
     """True when Code Viewer's file list shows this repo path (codeview.walk's rules)."""
     parts = rel.split("/")
     skip = codeview.SKIP_ALWAYS | codeview.SKIP_IN_REPO
     if any(d in skip or d.startswith(".") for d in parts[:-1]):
         return False
-    p = REPO / rel
-    return (pathlib.PurePosixPath(rel).suffix.lower() in codeview.TEXT_EXT and p.is_file()
-            and p.stat().st_size <= codeview.MAX_VIEW)
+    return pathlib.PurePosixPath(rel).suffix.lower() in codeview.TEXT_EXT and size <= codeview.MAX_VIEW
 
 
 def run_info(text, name):
@@ -115,10 +132,11 @@ def run_info(text, name):
 
 
 def build(out):
-    rels = sorted(r for r in git_files() if listed(r))
+    """Build the site into out. -> a one-line summary."""
+    head = committed_files()
     files, practice, tree, problems = {}, {}, {"name": REPO.name, "dirs": {}, "files": []}, []
-    for rel in rels:
-        data = (REPO / rel).read_bytes()
+    for rel in sorted(r for r, data in head.items() if listed(r, len(data))):
+        data = head[rel]
         text = data.decode("utf-8", "replace")
         hit = SECRETS.search(text)
         if hit:
@@ -209,11 +227,49 @@ def build(out):
     shutil.copyfile(HERE / "site_static.js", out / "static.js")
 
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
-    print(f"{out}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
-          f"without a skeleton), {size / 1024 / 1024:.1f} MB, version {version}")
+    return (f"{out}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
+            f"without a skeleton), {size / 1024 / 1024:.1f} MB, version {version}")
+
+
+def publish():
+    """Build into the Learning Hub repo and push only that folder there: the website updates a
+    minute later (GitHub Pages). Anything else changed in learning-hub is left alone.
+    -> {ok, changed, commit, note} or {ok: False, error}."""
+    if not (HUB / ".git").exists():
+        return {"ok": False, "error": f"The learning-hub repo is not next to this one ({HUB}), so the website was not updated."}
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=HUB, capture_output=True, text=True, encoding="utf-8", timeout=120)
+
+    def last(r):
+        lines = (r.stderr or r.stdout).strip().splitlines()
+        return lines[-1] if lines else f"git exited with {r.returncode}"
+    summary = build(HUB / SITE_DIR)
+    git("add", "-A", "--", SITE_DIR)
+    if not git("status", "--porcelain", "--", SITE_DIR).stdout.strip():
+        return {"ok": True, "changed": False, "note": "The website already shows this.", "summary": summary}
+    src = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout.strip()
+    r = git("commit", "-q", "-m", f"Java practice: update from java-interview-practice {src}", "--", SITE_DIR)
+    if r.returncode:
+        return {"ok": False, "error": "Could not commit the website in learning-hub: " + last(r)}
+    commit = git("rev-parse", "--short", "HEAD").stdout.strip()
+    r = git("push")
+    if r.returncode:
+        return {"ok": False, "commit": commit, "error": f"The website was committed in learning-hub ({commit}) but not "
+                f"pushed: {last(r)}. Run git push in learning-hub."}
+    return {"ok": True, "changed": True, "commit": commit, "summary": summary,
+            "note": f"The website updates in about a minute (learning-hub {commit})."}
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    if args and args[0] == "--publish":
+        try:
+            res = publish()
+        except (SystemExit, Exception) as e:              # noqa: BLE001 - the caller gets the reason, not a traceback
+            res = {"ok": False, "error": f"The website build stopped: {e}"}
+        print(json.dumps(res) if "--json" in args else (res.get("note") or res.get("error")))
+        sys.exit(0 if res["ok"] else 1)
+    if len(args) != 1:
         sys.exit(__doc__)
-    build(pathlib.Path(sys.argv[1]).resolve())
+    print(build(pathlib.Path(args[0]).resolve()))
