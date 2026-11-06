@@ -132,6 +132,37 @@ def run_info(text, name):
             "jdk25": bool(compact or IO_CALL.search(s) or MODULE_IMPORT.search(s))}
 
 
+# Offline after one visit (tools/site_sw.js): the editor files saved up front. The JavaScript/HTML/
+# CSS language services (6.5 MB), the diagram library (3.2 MB) and other languages are saved when
+# first used instead, so a first visit on a phone does not download all 26 MB.
+VENDOR_UP_FRONT = re.compile(r"^vendor/(marked@[^/]+/.*|monaco-editor@[^/]+/min/vs/(loader\.js|editor/.*|base/.*"
+                             r"|basic-languages/(java|python|javascript|typescript|html|css|markdown|xml|sql|yaml"
+                             r"|ini|shell|kotlin)/.*))$")
+MANIFEST = {"name": "Java Practice · Code Viewer", "short_name": "Java Practice", "start_url": "./", "scope": "./",
+            "display": "standalone", "background_color": "#1e1f22", "theme_color": "#3574f0",
+            "description": "The java-interview-practice problems and notes in Code Viewer, offline too.",
+            "icons": [{"src": f"icon-{n}.png", "sizes": f"{n}x{n}", "type": "image/png"} for n in (192, 512)]}
+HEAD_LINKS = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="theme-color" content="#3574f0">\n'
+              '<link rel="apple-touch-icon" href="icon-192.png">\n')
+
+
+def write_offline(out, version):
+    """sw.js (site_sw.js with this build's file lists), the manifest and its icons."""
+    for n in (192, 512):
+        codeview.draw_icon(n).save(out / f"icon-{n}.png")
+    (out / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
+    core = ["./", "static.js", "outcheck.js", "manifest.webmanifest", "icon-192.png", "icon-512.png",
+            "data/tree.json", "data/files.json", "data/practice.json"]
+    vendor = sorted(r for r in (p.relative_to(out).as_posix() for p in (out / "vendor").rglob("*") if p.is_file())
+                    if VENDOR_UP_FRONT.match(r))
+    sw = (HERE / "site_sw.js").read_text(encoding="utf-8")
+    for key, value in (("'__VERSION__'", json.dumps(version)), ("__CORE__", json.dumps(core)), ("__VENDOR__", json.dumps(vendor))):
+        if sw.count(key) != 1:
+            sys.exit(f"site_sw.js: expected one {key}")
+        sw = sw.replace(key, value)
+    (out / "sw.js").write_text(sw, encoding="utf-8", newline="\n")
+
+
 def retry(fn, *args):
     """OneDrive holds a file or folder for a moment while it syncs it, and Windows then says
     "Access is denied" (6 Nov: the first --publish stopped half-way through deleting the old
@@ -257,7 +288,8 @@ def build_into(out):
         page = page.replace(old, new)
     built = time.strftime("%d %b %Y")
     version = "site-" + hashlib.sha1(page.encode() + CSS.encode() + (HERE / "site_static.js").read_bytes()
-                                     + (HERE / "outcheck.js").read_bytes()).hexdigest()[:10]
+                                     + (HERE / "outcheck.js").read_bytes() + (HERE / "site_sw.js").read_bytes()
+                                     + json.dumps(files, sort_keys=True).encode()).hexdigest()[:10]
     page = page.replace("__CV_VERSION__", version)
     for key, url in urls.items():
         page = page.replace(key, url)
@@ -265,7 +297,7 @@ def build_into(out):
     boot = (f"<script>window.CV_SITE = {site};</script>\n<script src=\"outcheck.js\"></script>\n"
             f"<script src=\"static.js\"></script>\n")
     for old, new in (('<meta charset="utf-8">', '<meta charset="utf-8">\n' + NOINDEX),
-                     ("</head>", CSS + "</head>"),
+                     ("</head>", CSS + HEAD_LINKS + "</head>"),
                      ("<!-- marked must load before", boot + "<!-- marked must load before"),
                      ("<title>Code Viewer</title>", "<title>Code Viewer · Java practice</title>")):
         if page.count(old) != 1:
@@ -276,6 +308,7 @@ def build_into(out):
     (out / "index.html").write_text(page, encoding="utf-8", newline="\n")
     shutil.copyfile(HERE / "site_static.js", out / "static.js")
     shutil.copyfile(HERE / "outcheck.js", out / "outcheck.js")
+    write_offline(out, version)
 
     return (f"{{out}}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
             f"without a skeleton), {{size}}, version {version}")

@@ -111,7 +111,10 @@ Done / Revise, the "Show" filters (including one difficulty tier) and search in 
 there. **JavaScript files run in the browser** (a Web Worker; all 13 print exactly what Node
 prints, 6 Nov) and UI pages run with their tests, both with ✓ / ✗ from `tools/outcheck.js` (a
 port of `outcheck.py` that calls all 4,923 lines in `tools/outcheck_corpus.json` the same way),
-so a solved practice marks itself done. Progress is kept in that browser only. Java and Python
+so a solved practice marks itself done. **It works offline after one visit** and can be
+installed like an app (Chrome's install icon in the address bar, or "Add to Home screen" on a
+phone): a service worker (`tools/site_sw.js`) keeps a copy, and online the page and its data
+always come fresh. Progress is kept in that browser only. Java and Python
 cannot run on a website: **▶ Run** there shows how to run the file on a PC (paste it into an
 IntelliJ scratch file, or the `java` / `javac` commands for that file). Save, new files, Push and
 Java suggestions stay laptop-only.
@@ -125,6 +128,11 @@ never reaches the website; it leaves out `_personal/`, `tools/` and `08-Referenc
 on anything that looks like a secret. `tools/site_static.js` answers the page's requests in the
 browser. Publishing commits only `tools/java-practice/` in `learning-hub`; anything else changed
 there is left alone.
+
+**Checking it:** `python -I tools/test_site.py` builds the site into a temp folder, serves it on
+this PC and drives it in headless Chrome (84 checks: the file list, filters, search, Run's how-to,
+Practice, Edit / Try, every `.js` file against Node, offline, a new build replacing the saved
+copy). `--live` runs the same against the public site.
 
 ### `java Foo.java` works for most files, not all
 

@@ -750,6 +750,42 @@ class OutcheckJsTest(unittest.TestCase):
             self.assertEqual((verdicts, checks), (js["verdicts"], js["checks"]), out[:200])
 
 
+class SiteOfflineTest(unittest.TestCase):
+    """6 Nov: the website copy works offline after one visit (tools/site_sw.js, written as sw.js)
+    and is installable (manifest + icons). The browser side is checked in headless Chrome; this
+    checks what the build writes."""
+
+    def test_sw_manifest_and_icons(self):
+        import build_site
+        from PIL import Image
+        out = pathlib.Path(tempfile.mkdtemp(dir=TMP, prefix="offline_"))
+        mon = out / "vendor" / "monaco-editor@0.52.2" / "min" / "vs"
+        wanted = [mon / "loader.js", mon / "editor" / "editor.main.js", mon / "basic-languages" / "java" / "java.js",
+                  out / "vendor" / "marked@18.0.14" / "lib" / "marked.umd.js"]
+        later = [mon / "basic-languages" / "abap" / "abap.js", mon / "language" / "typescript" / "tsWorker.js",
+                 out / "vendor" / "mermaid@11.15.0" / "dist" / "mermaid.min.js", mon / "nls.messages.de.js"]
+        for p in wanted + later:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b"//")
+        build_site.write_offline(out, "site-test")
+        sw = (out / "sw.js").read_text(encoding="utf-8")
+        self.assertNotIn("__CORE__", sw)
+        self.assertIn('const VERSION = "site-test";', sw)
+        vendor = json.loads(re.search(r"const VENDOR = (\[.*?\]);", sw).group(1))
+        self.assertEqual(sorted(vendor), sorted(p.relative_to(out).as_posix() for p in wanted))
+        core = json.loads(re.search(r"const CORE = (\[.*?\]);", sw).group(1))
+        self.assertIn("data/files.json", core)
+        self.assertIn("./", core)
+        man = json.loads((out / "manifest.webmanifest").read_text(encoding="utf-8"))
+        self.assertEqual((man["start_url"], man["display"]), ("./", "standalone"))
+        for icon in man["icons"]:
+            n = int(icon["sizes"].split("x")[0])
+            self.assertEqual(Image.open(out / icon["src"]).size, (n, n))
+        if codeview.NODE:
+            r = subprocess.run([codeview.NODE, "--check", str(out / "sw.js")], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+
+
 class SiteSyncTest(unittest.TestCase):
     """6 Nov: the first real --publish stopped with "Access is denied" deleting the old site in
     OneDrive. The site is now built elsewhere and copied over, changing only what differs."""
