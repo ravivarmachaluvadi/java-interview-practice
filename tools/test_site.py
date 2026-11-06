@@ -148,7 +148,7 @@ def group_site(b, site, shots):
 
     pg.click("#progBtn")
     pg.wait_for_timeout(600)
-    prog = pg.evaluate("JSON.parse(localStorage.getItem('cvsite:progress') || '{}')")
+    prog = pg.evaluate("fetch('/api/progress').then(r => r.json())")
     check(G, "Mark done is kept in this browser", (prog.get(java_first) or {}).get("s") == "done")
     check(G, "the footer counts it", "Done 1/" in pg.inner_text("#count"), pg.inner_text("#count"))
 
@@ -357,7 +357,7 @@ def group_js(b, site, shots):
     pg.click("#runBtn")
     pg.wait_for_function("/match expected|differ/.test(document.querySelector('#verdict').textContent)", timeout=20000)
     pg.wait_for_timeout(800)
-    prog = pg.evaluate("JSON.parse(localStorage.getItem('cvsite:progress') || '{}')")
+    prog = pg.evaluate("fetch('/api/progress').then(r => r.json())")
     check(G, "a solved .js practice marks itself done", (prog.get(rel) or {}).get("s") == "done", pg.inner_text("#toast")[:80])
     no_errors(G, errors)
     pg.context.close()
@@ -416,6 +416,152 @@ def group_offline(b_type, site, shots, work):
     ctx.close()
 
 
+# ---------------------------------------------------------------- sync (a fake Google Drive)
+
+class FakeDrive:
+    """Google Drive's REST calls that drive-sync.js makes, answered in memory, so two browsers
+    (two "devices") can sync through it without a Google account."""
+
+    def __init__(self):
+        self.items, self.n = {}, 0
+
+    def stamp(self):
+        self.n += 1
+        return f"2026-11-07T00:00:{self.n // 1000:02d}.{self.n % 1000:03d}Z"
+
+    def content(self, name="java-practice.json"):
+        f = next((x for x in self.items.values() if x["name"] == name and not x.get("trashed")), None)
+        return json.loads(f["content"]) if f and f.get("content") else None
+
+    def handle(self, route, request):
+        from urllib.parse import urlparse, parse_qs
+        u = urlparse(request.url)
+        q, path, m = parse_qs(u.query), u.path, request.method
+        cors = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Authorization, Content-Type",
+                "Access-Control-Allow-Methods": "GET, POST, PATCH"}
+        if m == "OPTIONS":
+            return route.fulfill(status=204, headers=cors)
+        ok = lambda obj: route.fulfill(status=200, content_type="application/json", headers=cors, body=json.dumps(obj))
+        if request.headers.get("authorization") != "Bearer fake-token":
+            return route.fulfill(status=401, headers=cors, body="no")
+        fid = re.match(r".*/files/([^/?]+)$", path)
+        if path == "/drive/v3/files" and m == "GET":
+            query = q.get("q", [""])[0]
+            name = re.search(r"name='([^']*)'", query).group(1)
+            parent = re.search(r"'([^']+)' in parents", query)
+            folder = "mimeType='application/vnd.google-apps.folder'" in query
+            hits = [{"id": i, "name": x["name"], "modifiedTime": x["modified"]} for i, x in self.items.items()
+                    if x["name"] == name and not x.get("trashed") and x["folder"] == folder
+                    and (not parent or parent.group(1) in x["parents"])]
+            return ok({"files": hits})
+        if path == "/drive/v3/files" and m == "POST":
+            body = json.loads(request.post_data)
+            i = f"folder{len(self.items)}"
+            self.items[i] = {"name": body["name"], "folder": True, "parents": body.get("parents") or [], "modified": self.stamp()}
+            return ok({"id": i})
+        if path == "/upload/drive/v3/files" and m == "POST":
+            boundary = request.headers["content-type"].split("boundary=", 1)[1]
+            parts = [p for p in request.post_data.split("--" + boundary) if p.strip() and p.strip() != "--"]
+            meta, data = (json.loads(p.split("\r\n\r\n", 1)[1].strip()) for p in parts[:2])
+            i = f"file{len(self.items)}"
+            self.items[i] = {"name": meta["name"], "folder": False, "parents": meta["parents"], "content": json.dumps(data),
+                             "modified": self.stamp()}
+            return ok({"id": i, "modifiedTime": self.items[i]["modified"]})
+        if fid and fid.group(1) in self.items:
+            x = self.items[fid.group(1)]
+            if "/upload/" in path and m == "PATCH":
+                x["content"], x["modified"] = request.post_data, self.stamp()
+                return ok({"id": fid.group(1), "modifiedTime": x["modified"]})
+            if m == "PATCH":
+                x["trashed"] = True
+                return ok({"id": fid.group(1)})
+            if q.get("alt") == ["media"]:
+                return route.fulfill(status=200, content_type="application/json", headers=cors, body=x["content"])
+            return ok({"id": fid.group(1), "modifiedTime": x["modified"], "trashed": bool(x.get("trashed"))})
+        return route.fulfill(status=404, headers=cors, body="not found")
+
+
+TOKEN = "localStorage.setItem('drivesync.token', JSON.stringify({token: 'fake-token', exp: Date.now() + 3600e3, email: 'test@example.com'}));"
+
+
+def group_sync(b, site, shots):
+    G = "sync"
+    drive = FakeDrive()
+    f = site.files["files"]
+    x = next(p for p in site.order if p.endswith(".java") and "/01-DSA/" in p)
+    y = next(p for p in site.order if p.endswith(".java") and "/02-Java-Core/" in p)
+
+    def device(token=True, init=""):
+        ctx = b.new_context(viewport={"width": 1300, "height": 820})
+        ctx.route(re.compile(r"https://www\.googleapis\.com/.*"), drive.handle)
+        if token:
+            ctx.add_init_script(TOKEN)
+        if init:
+            ctx.add_init_script(init)
+        pg = ctx.new_page()
+        pg.goto(site.url(), wait_until="load")
+        wait_list(pg)
+        return ctx, pg
+
+    def settled(pg):
+        pg.wait_for_function("window.cvSync && !window.cvSync.dirty && !window.cvSync.busy && window.cvSync.status.state === 'saved'",
+                             timeout=30000)
+
+    def mark(pg, path, status):
+        pg.evaluate("([path, status]) => fetch('/api/progress', {method: 'POST', headers: {'Content-Type': 'application/json'},"
+                    " body: JSON.stringify({root: 'java-interview-practice', path, status})}).then(r => r.json())", [path, status])
+
+    has = lambda path, key="s": ((drive.content() or {}).get("items") or {}).get(path, {}).get(key)
+    a_ctx, a = device()
+    settled(a)
+    check(G, "device A connects to Drive", a.evaluate("window.cvSync.status.text").startswith("Saved in Drive"), a.evaluate("window.cvSync.status.text"))
+    mark(a, x, "done")
+    settled(a)
+    check(G, "a mark on device A is saved in Drive", has(x) == "done", json.dumps(drive.content())[:200])
+
+    b_ctx, b2 = device()
+    b2.wait_for_function("/Done 1\\//.test(document.querySelector('#count').textContent)", timeout=30000)
+    check(G, "device B shows device A's mark", True, b2.inner_text("#count"))
+    open_file(b2, site, x)
+    check(G, "…on the file's own button too", "Done" in b2.inner_text("#progBtn") or "done" in b2.inner_text("#progBtn").lower(), b2.inner_text("#progBtn"))
+    mark(b2, x, "revise")
+    settled(b2)
+    check(G, "device B's change is saved in Drive", has(x) == "revise")
+    a.evaluate("window.cvSync.pull(true)")
+    a.wait_for_function("/to revise <b>1<\\/b>/.test(document.querySelector('#count').innerHTML)", timeout=30000)
+    check(G, "device A picks up device B's change", True, a.inner_text("#count"))
+    mark(a, x, "none")
+    settled(a)
+    entry = ((drive.content() or {}).get("items") or {}).get(x, {})
+    check(G, "clearing a mark syncs as cleared (as the laptop keeps it: a date, no mark)", "s" not in entry and "t" in entry, json.dumps(entry))
+    b2.evaluate("window.cvSync.pull(true)")
+    b2.wait_for_function("/Done 0\\//.test(document.querySelector('#count').textContent) && !/to revise <b>1/.test(document.querySelector('#count').innerHTML)", timeout=30000)
+    check(G, "device B drops the cleared mark", True, b2.inner_text("#count"))
+    a.evaluate("p => fetch('/api/progress', {method: 'POST', headers: {'Content-Type': 'application/json'},"
+               " body: JSON.stringify({root: 'java-interview-practice', path: p, restore: {}})}).then(r => r.json())", x)
+    settled(a)
+    entry = ((drive.content() or {}).get("items") or {}).get(x, {})
+    check(G, "an emptied entry (Undo of a first mark) is a tombstone, so no device brings it back",
+          entry.get("deleted") is True, json.dumps(entry))
+
+    seed = ("if (!localStorage.getItem('cvsite:progress')) localStorage.setItem('cvsite:progress', JSON.stringify("
+            + json.dumps({y: {"s": "done", "t": "2026-11-01"}}) + "));")
+    c_ctx, c = device(init=seed)
+    settled(c)
+    check(G, "marks made before sync existed are uploaded once", has(y) == "done", json.dumps(drive.content())[:200])
+
+    d_ctx, d = device(token=False)
+    check(G, "signed out: the Continue with Google button shows", "Continue with Google" in d.inner_text("#cvSyncWrap"), d.inner_text("#cvSyncWrap"))
+    mark(d, x, "done")
+    d.reload()
+    wait_list(d)
+    check(G, "signed out: marks still work in this browser", "Done 1/" in d.inner_text("#count"), d.inner_text("#count"))
+    d.screenshot(path=str(shots / "sync-signed-out.png"))
+    a.screenshot(path=str(shots / "sync-signed-in.png"))
+    for ctx in (a_ctx, b_ctx, c_ctx, d_ctx):
+        ctx.close()
+
+
 # ---------------------------------------------------------------- update (local only)
 
 def group_update(b_type, site, shots, work):
@@ -456,7 +602,7 @@ def group_update(b_type, site, shots, work):
         sw_path.write_bytes(orig_sw)
 
 
-GROUPS = ("site", "edit", "js", "offline", "update")
+GROUPS = ("site", "edit", "js", "sync", "offline", "update")
 
 
 def main():
@@ -490,7 +636,7 @@ def main():
                     if g in ("offline", "update"):
                         (group_offline if g == "offline" else group_update)(pw.chromium, site, shots, work)
                     else:
-                        {"site": group_site, "edit": group_edit, "js": group_js}[g](b, site, shots)
+                        {"site": group_site, "edit": group_edit, "js": group_js, "sync": group_sync}[g](b, site, shots)
                 except Exception as e:                 # noqa: BLE001 - one broken group must not hide the others
                     check(g, "the group ran to the end", False, f"{type(e).__name__}: {str(e)[:300]}")
             b.close()

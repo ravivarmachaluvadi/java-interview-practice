@@ -61,9 +61,17 @@ PATCHES = [
      "out.innerHTML = c && isCode(c) && (c.kind === 'java' || c.kind === 'py') && window.CV_STATIC ? `<div class=\"hint\">This website cannot run "
      "${KIND_NAME[c.kind]}. Copy the code (the copy button above) to run it on your PC; ▶ Run shows how.</div>`\n"
      "      : c && isCode(c) ? `<div class=\"hint\">Press"),
+    # ...and its hint on a file that is not code
+    ("'<div class=\"hint\">Java, Python, JavaScript and UI (.html) files run. Open one on the left, or the Scratch pad.</div>'",
+     "'<div class=\"hint\">JavaScript and UI (.html) files run here; on Java and Python files ▶ Run shows how to run them "
+     "on your PC. Open one on the left, or the Scratch pad.</div>'"),
     # the list's right-click menu is all laptop actions (open in Explorer, rename, delete...)
     ("function showRowMenu(e) {\n  if (e.shiftKey) return;",
      "function showRowMenu(e) {\n  if (e.shiftKey || window.CV_STATIC) return;"),
+    # Done / Revise changed on another device (Drive sync in site_static.js): show it
+    ("window.addEventListener('focus', refreshFromDisk);",
+     "window.addEventListener('focus', refreshFromDisk);\n"
+     "window.addEventListener('cv-progress', async () => { try { await loadProgress(); renderTree(); refreshBar(); } catch {} });"),
     # one folder only: no "Open another folder..."
     ("  sel.title = cur ? cur.path : '';", "  sel.title = cur ? cur.path : '';\n  sel.disabled = !!window.CV_STATIC;"),
     # say what this copy is at the top of the help
@@ -74,7 +82,10 @@ PATCHES = [
      "<h3>Website copy</h3>\n  <p class=\"site-note\">This is Code Viewer's website copy. Reading, Practice, Hint, Compare, Visual, "
      "Next, Done / Revise, the file filter and Search in code work here. JavaScript files run in this browser and UI "
      "pages (.html) run with their tests, both with ✓ / ✗ on each expected line, so a solved practice marks itself done. "
-     "Your progress, drafts and attempts are kept in this browser only. Java and Python cannot run here: "
+     "Drafts and practice attempts are kept in this browser. Done / Revise marks too, until you press "
+     "<b>Continue with Google</b> under the file list: then they are saved in your Google Drive (Personal Apps / "
+     "java-practice.json) and every browser you sign in on shows the same marks. It works offline after one visit. "
+     "Java and Python cannot run here: "
      "▶ Run shows how to run the file on a PC (copy it into an IntelliJ scratch file, or <code>java File.java</code>). "
      "Save, new files, Push and Java suggestions need Code Viewer on the laptop.</p>\n  <h3>Shortcuts</h3>"),
 ]
@@ -85,6 +96,12 @@ CSS = """<style>
   #rootSel:disabled { opacity: 1; cursor: default; }
   .status.away { color: var(--muted); }
   .help .site-note { margin: 0 0 12px; max-width: 72ch; }
+  /* Drive sync (Personal Apps' drive-sync.js) in Code Viewer's colours; its menu opens upward */
+  #cvSyncWrap { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; position: relative;
+                --surface: var(--panel); --surface-2: var(--hover); --line: var(--border); --faint: var(--muted); }
+  #cvSyncWrap .ds { font-size: 11px; }
+  #cvSyncWrap .ds .ds-google { padding: 4px 9px; font-size: 12px; background: var(--bg); color: var(--text); }
+  #cvSyncWrap .ds-menu { top: auto; bottom: calc(100% + 6px); right: auto; left: 0; background: var(--panel); color: var(--text); }
   /* a phone: the file list or the file, one at a time (static.js hides the list once a file opens).
      The file's bar wraps: the name on the first line, then Run and Copy first, then the rest. */
   @media (max-width: 760px) {
@@ -146,13 +163,28 @@ HEAD_LINKS = ('<link rel="manifest" href="manifest.webmanifest">\n<meta name="th
               '<link rel="apple-touch-icon" href="icon-192.png">\n')
 
 
-def write_offline(out, version):
+PERSONAL_APPS = REPO.parent / "personal-apps" / "docs"
+
+
+def drive_sync():
+    """Personal Apps' Google Drive sync (6 Nov): its drive-sync.js and OAuth client ID, when that
+    repo is next to this one -> (script, client id), else None and marks stay in each browser.
+    The client ID is public by design; Google accepts it only from the origins set up for it,
+    and this site shares Personal Apps' origin (ravivarmachaluvadi.github.io)."""
+    js, cfg = PERSONAL_APPS / "drive-sync.js", PERSONAL_APPS / "config.js"
+    if not (js.is_file() and cfg.is_file()):
+        return None
+    m = re.search(r"googleClientId:\s*'([^']+)'", cfg.read_text(encoding="utf-8"))
+    return (js.read_text(encoding="utf-8"), m.group(1)) if m else None
+
+
+def write_offline(out, version, extra=()):
     """sw.js (site_sw.js with this build's file lists), the manifest and its icons."""
     for n in (192, 512):
         codeview.draw_icon(n).save(out / f"icon-{n}.png")
     (out / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8", newline="\n")
     core = ["./", "static.js", "outcheck.js", "manifest.webmanifest", "icon-192.png", "icon-512.png",
-            "data/tree.json", "data/files.json", "data/practice.json"]
+            "data/tree.json", "data/files.json", "data/practice.json", *extra]
     vendor = sorted(r for r in (p.relative_to(out).as_posix() for p in (out / "vendor").rglob("*") if p.is_file())
                     if VENDOR_UP_FRONT.match(r))
     sw = (HERE / "site_sw.js").read_text(encoding="utf-8")
@@ -287,14 +319,19 @@ def build_into(out):
             sys.exit(f"codeview.html: expected one {old[:60]!r}, found {n}; update PATCHES in build_site.py")
         page = page.replace(old, new)
     built = time.strftime("%d %b %Y")
+    sync = drive_sync()
     version = "site-" + hashlib.sha1(page.encode() + CSS.encode() + (HERE / "site_static.js").read_bytes()
                                      + (HERE / "outcheck.js").read_bytes() + (HERE / "site_sw.js").read_bytes()
+                                     + (sync[0].encode() if sync else b"")
                                      + json.dumps(files, sort_keys=True).encode()).hexdigest()[:10]
     page = page.replace("__CV_VERSION__", version)
     for key, url in urls.items():
         page = page.replace(key, url)
     site = json.dumps({"version": version, "root": REPO.name, "built": built})
-    boot = (f"<script>window.CV_SITE = {site};</script>\n<script src=\"outcheck.js\"></script>\n"
+    sync_tags = "" if not sync else (
+        f"<script>window.APP_CONFIG = {json.dumps({'googleClientId': sync[1], 'driveFolderName': 'Personal Apps'})};</script>\n"
+        "<script src=\"drive-sync.js\"></script>\n")
+    boot = (f"<script>window.CV_SITE = {site};</script>\n{sync_tags}<script src=\"outcheck.js\"></script>\n"
             f"<script src=\"static.js\"></script>\n")
     for old, new in (('<meta charset="utf-8">', '<meta charset="utf-8">\n' + NOINDEX),
                      ("</head>", CSS + HEAD_LINKS + "</head>"),
@@ -308,7 +345,9 @@ def build_into(out):
     (out / "index.html").write_text(page, encoding="utf-8", newline="\n")
     shutil.copyfile(HERE / "site_static.js", out / "static.js")
     shutil.copyfile(HERE / "outcheck.js", out / "outcheck.js")
-    write_offline(out, version)
+    if sync:
+        (out / "drive-sync.js").write_text(sync[0], encoding="utf-8", newline="\n")
+    write_offline(out, version, ["drive-sync.js"] if sync else [])
 
     return (f"{{out}}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
             f"without a skeleton), {{size}}, version {version}")

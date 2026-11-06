@@ -786,6 +786,22 @@ class SiteOfflineTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
 
 
+class SiteDriveSyncTest(unittest.TestCase):
+    """6 Nov: Done / Revise sync through Google Drive uses Personal Apps' drive-sync.js and its
+    client ID, found next to this repo; without them the site keeps marks per browser."""
+
+    def test_found_next_to_the_repo_or_left_out(self):
+        import build_site
+        docs = pathlib.Path(tempfile.mkdtemp(dir=TMP, prefix="pa_"))
+        with mock.patch.object(build_site, "PERSONAL_APPS", docs):
+            self.assertIsNone(build_site.drive_sync())
+            (docs / "drive-sync.js").write_text("window.DriveStore = {};", encoding="utf-8")
+            (docs / "config.js").write_text("window.APP_CONFIG = {\n  googleClientId: '123-abc.apps.googleusercontent.com',\n};", encoding="utf-8")
+            self.assertEqual(build_site.drive_sync(), ("window.DriveStore = {};", "123-abc.apps.googleusercontent.com"))
+            (docs / "config.js").write_text("window.APP_CONFIG = { googleClientId: '' };", encoding="utf-8")
+            self.assertIsNone(build_site.drive_sync())
+
+
 class SiteSyncTest(unittest.TestCase):
     """6 Nov: the first real --publish stopped with "Access is denied" deleting the old site in
     OneDrive. The site is now built elsewhere and copied over, changing only what differs."""
