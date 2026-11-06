@@ -55,6 +55,18 @@ class Site:
     def text(self, path):
         return self.files["files"][path]["text"]
 
+    def json_tree_entry(self, path):
+        """path's entry in tree.json (name, must, tags, src)"""
+        if not hasattr(self, "_tree"):
+            self._tree = {}
+            def visit(n):
+                for f in n["files"]:
+                    self._tree[f["path"]] = f
+                for d in n["dirs"]:
+                    visit(d)
+            visit(self.json("tree.json"))
+        return self._tree.get(path)
+
     def url(self, path=""):
         return self.base + ("#/" + R + "/" + path if path else "")
 
@@ -171,6 +183,22 @@ def group_site(b, site, shots):
     pg.keyboard.type("two sum")
     pg.wait_for_timeout(400)
     check(G, "the name search finds 'two sum'", any("TwoSum" in h for h in pg.eval_on_selector_all("#results .row.file", "rs => rs.map(r => r.dataset.path)")))
+
+    def search(q):
+        pg.fill("#filter", q)
+        pg.wait_for_timeout(300)
+        return pg.eval_on_selector_all("#results .row.file", "rs => rs.map(r => [r.dataset.path.split('/').pop(), r.querySelector('.sub').textContent])")
+    lc = [p for p in site.order if (site.json_tree_entry(p) or {}).get("src", "").startswith("LeetCode 1046 ")]
+    hits = search("lc 1046")
+    check(G, "search: 'lc 1046' finds that LeetCode problem, label shown", hits and all("LeetCode 1046 ·" in s for _, s in hits)
+          and {h for h, _ in hits} == {p.split("/")[-1] for p in lc}, str(hits[:3]))
+    hits42 = search("lc 42")
+    check(G, "search: 'lc 42' is exactly 42 (not 420, 142...)", hits42 and all("LeetCode 42 ·" in s for _, s in hits42), str(hits42[:3]))
+    check(G, "search: '#42' means the same", search("#42") == hits42)
+    hard = search("hard heap")
+    check(G, "search: 'hard heap' lists only hard heap problems", hard and all("Hard" in s for _, s in hard), f"{len(hard)} hits")
+    tech = search("two pointers")
+    check(G, "search: a technique ('two pointers') finds problems", len(tech) >= 5, f"{len(tech)} hits")
     pg.fill("#filter", "")
     pg.keyboard.press("Escape")
 

@@ -258,8 +258,9 @@ def build_into(out):
         f = {"name": name, "path": rel}
         if lang:
             problems.append(rel)
-            if "MUST-KNOW" in data[:1500].decode("utf-8", "replace"):      # codeview.is_must
+            if b"MUST-KNOW" in data[:1500]:                                 # codeview.file_info
                 f["must"] = True
+            f.update(codeview.header_info(data[:6000].decode("utf-8", "replace")))   # what Ctrl+P matches
             try:
                 skeleton, hidden = langsrc.practice_skeleton(text, lang)
                 practice[rel] = {"text": skeleton, "hidden": hidden, "hints": langsrc.practice_hints(text, lang)}

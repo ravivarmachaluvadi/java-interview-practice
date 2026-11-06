@@ -2893,6 +2893,18 @@ class TreeCacheTest(unittest.TestCase):
         visit(codeview.build_tree(self.rid), "")
         return out
 
+    def test_header_words_for_the_search(self):
+        """6 Nov: Ctrl+P finds a practice file by LeetCode number, difficulty or technique too."""
+        info = codeview.header_info(SAMPLE)
+        for word in ("Two Sum", "LeetCode 1 | Easy", "lc 1", "lc1", "#1", "hash map"):
+            self.assertIn(word, info["tags"])
+        self.assertEqual(info["src"], "LeetCode 1 · Easy")
+        self.assertNotIn("hash map", info["src"])                       # the approach would be a spoiler
+        gfg = codeview.header_info("/*\n *  Kth Smallest      GfG 123 | Medium\n */\n")
+        self.assertIn("gfg123", gfg["tags"])
+        self.assertNotIn("lc123", gfg["tags"])
+        self.assertEqual(codeview.header_info("class Bare {}\n"), {})
+
     def test_unchanged_files_are_not_read_again(self):
         codeview.build_tree(self.rid)
         with mock.patch.object(codeview, "read_head", wraps=codeview.read_head) as read:

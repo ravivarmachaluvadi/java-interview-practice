@@ -549,15 +549,65 @@ def walk(base, empty=None, stats=None):
     yield from visit(str(base))
 
 
-# str(path) -> ((modified ns, size), has MUST-KNOW): a file is opened again only when it changed
+# ---- what Ctrl+P can find besides the file name (6 Nov, Ravi: "filter by technique or LeetCode
+# number"): a practice file's header title line ("Last Stone Weight    LeetCode 1046 | Easy") and
+# its "APPROACH  (max-heap simulation loop)". Measured 6 Nov over 722 practice files: 716 have the
+# title line, 693 a difficulty, 487 a LeetCode/GfG number, 501 an approach.
+HEAD_TITLE = re.compile(r"^[ \t]*(?:\*[ \t]*)?(\S.*?\S)[ \t]{2,}(\S.*?)[ \t]*$")
+HEAD_SOURCE = re.compile(r"\b(LeetCode|LC|GfG|GeeksforGeeks|HackerRank|InterviewBit|Codeforces|CSES)\s*#?\s*(\d+)?", re.I)
+HEAD_DIFF = re.compile(r"\b(Easy|Medium|Hard)\b")
+HEAD_APPROACH = re.compile(r"^[ \t]*(?:\*[ \t]*)?(?:APPROACH|PATTERN)\b[^\n(]*\(([^)\n]+)\)", re.M)
+
+
+def header_info(head):
+    """-> {"tags": words Ctrl+P matches, "src": the short label the results show} (either may be
+    absent). tags: the title, the title line's right side (source, number, difficulty, topic),
+    "lc 42" / "lc42" for a LeetCode number, and the approach. The label is only source + number +
+    difficulty: the approach would give the answer away in practice mode."""
+    title = None
+    for line in head.splitlines()[:8]:
+        m = HEAD_TITLE.match(line)
+        if m and not set(m.group(1)) <= set("=-*/ "):
+            title = m
+            break
+    tags, label = [], []
+    if title:
+        right = title.group(2).replace("MUST-KNOW", "").strip()
+        tags += [title.group(1), right]
+        s = HEAD_SOURCE.search(right)
+        if s and s.group(2):
+            n, site = s.group(2), s.group(1).lower()
+            short = "lc" if site in ("leetcode", "lc") else "gfg" if site in ("gfg", "geeksforgeeks") else site
+            tags += [f"{short} {n}", f"{short}{n}", f"#{n}"]
+            label.append(("LeetCode" if short == "lc" else s.group(1)) + " " + n)
+        d = HEAD_DIFF.search(right)
+        if d:
+            label.append(d.group(1))
+    a = HEAD_APPROACH.search(head)
+    if a:
+        tags.append(a.group(1))
+    out = {}
+    if tags:
+        out["tags"] = " ".join(t for t in tags if t)
+    if label:
+        out["src"] = " · ".join(label)
+    return out
+
+
+# str(path) -> ((modified ns, size), {must, tags, src}): a file is opened again only when it changed
 MUST_CACHE = {}
 
 
-def is_must(p, sig):
+def file_info(p, sig):
     hit = MUST_CACHE.get(str(p))
     if hit is None or sig is None or hit[0] != sig:
-        hit = MUST_CACHE[str(p)] = (sig, "MUST-KNOW" in read_head(p))
+        head = read_head(p, 6000)
+        hit = MUST_CACHE[str(p)] = (sig, {"must": b"MUST-KNOW" in head.encode("utf-8")[:1500], **header_info(head)})
     return hit[1]
+
+
+def is_must(p, sig):
+    return file_info(p, sig)["must"]
 
 
 def build_tree(rid):
@@ -575,8 +625,11 @@ def build_tree(rid):
     for p in walk(base, empty, stats):
         rel = p.relative_to(base)
         f = {"name": p.name, "path": rel.as_posix()}
-        if langsrc.lang_of(p.name) and is_must(p, stats.get(str(p))):
-            f["must"] = True
+        if langsrc.lang_of(p.name):
+            info = file_info(p, stats.get(str(p)))
+            if info["must"]:
+                f["must"] = True
+            f.update({k: info[k] for k in ("tags", "src") if k in info})
         folder(rel.parts[:-1])["files"].append(f)
     for d in empty:                      # shown, so a new folder can be opened and filled
         folder(d.relative_to(base).parts)
