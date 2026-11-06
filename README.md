@@ -89,7 +89,8 @@ It opens http://127.0.0.1:8025:
 | UI pages | a `.html` file shows beside its code as you type; `Ctrl+Enter` runs its `<script type="test">` block and ticks each check; **Console** under the page lists what it logs as you click, also after `Ctrl+Enter` |
 | Autocomplete | suggestions, parameter hints and hover: Java from a javac helper; `.js` and a UI page's `<script>` from the editor's own JavaScript service; a UI page's `<style>` from the browser (only values the property accepts); Python from Jedi (`pip install jedi`). Off in Practice unless ⋯ → *Autocomplete in Practice* is on |
 | Practice | hides the solution bodies and approach notes (Java, Python, JavaScript, a UI page's functions); all cases passing marks the file done |
-| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* or one difficulty tier (A building blocks, B easy, C medium, D hard); `Ctrl+P` searches names within the Show choice, so *C medium* + "tree" finds the medium tree problems |
+| Progress | Done / Revise per file (`Alt+M`), "Show" filters such as *must-know, not done* or one difficulty tier (A building blocks, B easy, C medium, D hard). **The same marks as the website**: the frame under the file list (the website's `bridge.html`) signs in to Google Drive and syncs them both ways, newest change per file wins (`CODEVIEW_BRIDGE=""` turns it off) |
+| Find | `Ctrl+P` matches the name, the folder, the LeetCode number (`lc 42`, `#42`), the difficulty (`hard`) and the technique (`two pointers`, `heap`) from each file's header, within the Show choice; results show *LeetCode 42 · Hard* |
 | Search | `Ctrl+Shift+F` searches inside every file |
 | Edit | **Edit** keeps a draft in the browser; `Ctrl+S` saves it; a bar beside the line numbers marks what you changed since opening the file, saved or not, and **Reset** or **Try** puts the file back; **+** creates a file from the template |
 | Folders | the folder menu opens any other folder, not just this repo |
@@ -117,8 +118,10 @@ phone): a service worker (`tools/site_sw.js`) keeps a copy, and online the page 
 always come fresh. **Done / Revise marks sync between devices** once you press *Continue with
 Google* under the file list: they are saved in My Drive / Personal Apps / `java-practice.json`
 through Personal Apps' `drive-sync.js` (same sign-in, same origin), newest change wins per file;
-signed out they stay in that browser. Drafts and practice attempts always stay in the browser.
-Java and Python
+signed out they stay in that browser. Code Viewer on the laptop shares the same marks (its
+frame under the file list is the website's `bridge.html`). **Python** runs too (Pyodide 0.29.5
+from jsDelivr, kept for offline use once loaded). Drafts and practice attempts always stay in the
+browser. Java
 cannot run on a website: **▶ Run** there shows how to run the file on a PC (paste it into an
 IntelliJ scratch file, or the `java` / `javac` commands for that file). Save, new files, Push and
 Java suggestions stay laptop-only.

@@ -576,7 +576,7 @@ class FakeDrive:
         return route.fulfill(status=404, headers=cors, body="not found")
 
 
-TOKEN = "localStorage.setItem('drivesync.token', JSON.stringify({token: 'fake-token', exp: Date.now() + 3600e3, email: 'test@example.com'}));"
+TOKEN = "try { localStorage.setItem('drivesync.token', JSON.stringify({token: 'fake-token', exp: Date.now() + 3600e3, email: 'test@example.com'})); } catch (e) {}"
 
 
 def group_sync(b, site, shots):
@@ -657,6 +657,104 @@ def group_sync(b, site, shots):
         ctx.close()
 
 
+# ---------------------------------------------------------------- laptop (local only)
+
+def group_laptop(b, site, shots, work):
+    """The laptop's Code Viewer and the website share one set of marks: a throwaway Code Viewer
+    server shows the site's bridge.html, which syncs with a fake Drive; the website reads the same."""
+    G = "laptop"
+    import codeview, time as _time
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    java = [p for p in site.order if p.endswith(".java") and "/01-DSA/" in p]
+    x, y, z, w = java[0], java[1], java[2], java[3]
+    state = work / "laptop-state.json"
+    state.write_text(json.dumps({"roots": [], "progress": {str(codeview.REPO): {x: {"s": "done", "t": "2026-11-05"}}}}),
+                     encoding="utf-8")
+    drive = FakeDrive()
+    now = int(_time.time() * 1000)
+    drive.items["folder0"] = {"name": "Personal Apps", "folder": True, "parents": [], "modified": drive.stamp()}
+    drive.items["file1"] = {"name": "java-practice.json", "folder": False, "parents": ["folder0"], "modified": drive.stamp(),
+                            "content": json.dumps({"v": 1, "items": {y: {"s": "revise", "t": "2026-11-06", "updatedAt": now}}})}
+    env = dict(os.environ, CODEVIEW_STATE=str(state), CODEVIEW_LOG=str(work / "laptop.log"), CODEVIEW_NO_PUSH="1",
+               CODEVIEW_BRIDGE=site.base + "bridge.html")
+    server = subprocess.Popen([sys.executable, str(HERE / "codeview.py"), "--port", str(port), "--no-open"], env=env,
+                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    lap_base = f"http://127.0.0.1:{port}"
+
+    def laptop_marks():
+        with urllib.request.urlopen(lap_base + "/api/progress?root=" + R, timeout=5) as r:
+            return json.load(r)
+    try:
+        for _ in range(150):
+            try:
+                laptop_marks()
+                break
+            except OSError:
+                _time.sleep(0.2)
+        ctx = b.new_context(viewport={"width": 1300, "height": 820})
+        ctx.route(re.compile(r"https://www\.googleapis\.com/.*"), drive.handle)
+        ctx.add_init_script(TOKEN)
+        lap = ctx.new_page()
+        errors = page_errors(lap)
+
+        def until(fn, what, timeout=30):              # wait in the browser, so the fake Drive keeps answering
+            for _ in range(int(timeout * 4)):
+                try:
+                    if fn():
+                        return True
+                except Exception:                    # noqa: BLE001 - not there yet
+                    pass
+                lap.wait_for_timeout(250)
+            return False
+        item = lambda p: ((drive.content() or {}).get("items") or {}).get(p) or {}
+        lap.goto(lap_base + "/", wait_until="load")
+        wait_list(lap)
+        check(G, "the laptop page shows the sync frame", until(lambda: lap.query_selector("iframe.bridge") is not None, "frame", 15))
+        bridge_frame = lambda: next((f for f in lap.frames if f.url.startswith(site.base + "bridge.html")), None)
+        until(lambda: bridge_frame() is not None, "frame loaded", 20)
+        frame = bridge_frame()
+        if frame is None:
+            raise AssertionError("no bridge frame; frames: " + ", ".join(f.url for f in lap.frames))
+        check(G, "the frame signs in (fake Drive)", until(lambda: "Saved in Drive" in frame.inner_text("#s"), "signed in"),
+              frame.inner_text("#s"))
+        check(G, "a laptop mark made before goes up to Drive", until(lambda: item(x).get("s") == "done", "x up"), json.dumps(item(x)))
+        check(G, "a website mark comes down to the laptop", until(lambda: (laptop_marks().get(y) or {}).get("s") == "revise", "y down"),
+              json.dumps(laptop_marks().get(y)))
+        check(G, "…and the laptop's list shows it", until(lambda: "to revise <b>1</b>" in lap.inner_html("#count"), "footer"),
+              lap.inner_text("#count"))
+        lap.goto(f"{lap_base}/#/{R}/{z}")              # the laptop page itself, not the website (open_file)
+        until(lambda: z.split("/")[-1][4:12] in lap.inner_text("#crumbs"), "z open", 20)
+        lap.wait_for_timeout(800)
+        lap.click("#progBtn")
+        check(G, "a new mark on the laptop goes up", until(lambda: item(z).get("s") == "done", "z up"), json.dumps(item(z)))
+        check(G, "…made on the laptop page (its server has it)", (laptop_marks().get(z) or {}).get("s") == "done"
+              and lap.url.startswith(lap_base))
+
+        web = ctx.new_page()
+        web.goto(site.url(), wait_until="load")
+        check(G, "the website shows the laptop's marks", until(lambda: "Done 2/" in web.inner_text("#count")
+                                                               and "to revise <b>1" in web.inner_html("#count"), "web"),
+              web.inner_text("#count"))
+        web.evaluate("p => fetch('/api/progress', {method: 'POST', headers: {'Content-Type': 'application/json'},"
+                     " body: JSON.stringify({root: 'java-interview-practice', path: p, status: 'revise'})})", w)
+        check(G, "a website mark is saved in Drive", until(lambda: item(w).get("s") == "revise", "w up"))
+        check(G, "the sync frame was never reloaded", not frame.is_detached(), str([f.url for f in lap.frames]))
+        frame.evaluate("window.cvBridge.pull(true)")
+        check(G, "…and reaches the laptop", until(lambda: (laptop_marks().get(w) or {}).get("s") == "revise", "w down"),
+              json.dumps(laptop_marks().get(w)))
+        check(G, "the laptop's marks keep their change time", all("u" in (laptop_marks().get(p) or {}) for p in (y, z, w)))
+        lap.screenshot(path=str(shots / "laptop-bridge.png"))
+        no_errors(G, errors)
+        ctx.close()
+    finally:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(server.pid), "/T", "/F"], capture_output=True)
+        else:
+            server.kill()
+
+
 # ---------------------------------------------------------------- update (local only)
 
 def group_update(b_type, site, shots, work):
@@ -697,7 +795,7 @@ def group_update(b_type, site, shots, work):
         sw_path.write_bytes(orig_sw)
 
 
-GROUPS = ("site", "edit", "js", "py", "sync", "offline", "update")
+GROUPS = ("site", "edit", "js", "py", "sync", "laptop", "offline", "update")
 
 
 def main():
@@ -715,9 +813,10 @@ def main():
     try:
         if args.live:
             site = Site(LIVE)
-            if "update" in only:
-                only.remove("update")
-                print("(the 'update' group changes the site's files, so it runs only on a local build)")
+            for g in ("update", "laptop"):
+                if g in only:
+                    only.remove(g)
+                    print(f"(the '{g}' group needs a local build, so it is skipped with --live)")
         else:
             import build_site
             print(build_site.build(work / "site"))
@@ -728,7 +827,9 @@ def main():
             for g in only:
                 print(f"--- {g}")
                 try:
-                    if g in ("offline", "update"):
+                    if g == "laptop":
+                        group_laptop(b, site, shots, work)
+                    elif g in ("offline", "update"):
                         (group_offline if g == "offline" else group_update)(pw.chromium, site, shots, work)
                     else:
                         {"site": group_site, "edit": group_edit, "js": group_js, "py": group_py, "sync": group_sync}[g](b, site, shots)

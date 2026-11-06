@@ -331,7 +331,7 @@ def build_into(out):
                                      + (HERE / "outcheck.js").read_bytes() + (HERE / "site_sw.js").read_bytes()
                                      + (sync[0].encode() if sync else b"")
                                      + json.dumps(files, sort_keys=True).encode()).hexdigest()[:10]
-    page = page.replace("__CV_VERSION__", version)
+    page = page.replace("__CV_VERSION__", version).replace("__CV_BRIDGE__", "")   # the bridge is the laptop's
     for key, url in urls.items():
         page = page.replace(key, url)
     site = json.dumps({"version": version, "root": REPO.name, "built": built})
@@ -354,6 +354,12 @@ def build_into(out):
     shutil.copyfile(HERE / "outcheck.js", out / "outcheck.js")
     if sync:
         (out / "drive-sync.js").write_text(sync[0], encoding="utf-8", newline="\n")
+        # the laptop's Code Viewer shows this in a frame to share its marks (site_bridge.html)
+        bridge = (HERE / "site_bridge.html").read_text(encoding="utf-8")
+        config = json.dumps({"googleClientId": sync[1], "driveFolderName": "Personal Apps"})
+        if bridge.count("__CONFIG__") != 1:
+            sys.exit("site_bridge.html: expected one __CONFIG__")
+        (out / "bridge.html").write_text(bridge.replace("__CONFIG__", config), encoding="utf-8", newline="\n")
     write_offline(out, version, ["drive-sync.js"] if sync else [])
 
     return (f"{{out}}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "

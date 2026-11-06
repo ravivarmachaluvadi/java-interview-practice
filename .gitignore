@@ -36,6 +36,7 @@
 !/tools/outcheck.js
 !/tools/outcheck_corpus.json
 !/tools/site_sw.js
+!/tools/site_bridge.html
 
 # --- Re-exclusions. These come AFTER the allow-list so they win. ---
 

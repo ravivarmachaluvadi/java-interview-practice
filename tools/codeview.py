@@ -110,6 +110,11 @@ LOG_FILE = pathlib.Path(os.environ.get("CODEVIEW_LOG") or HERE / "codeview.log")
 # Test servers (test_ui.py, test_codeview.py) set this so a Push click can never reach GitHub
 # from this repo; their pushes go to throwaway repos.
 NO_PUSH = bool(os.environ.get("CODEVIEW_NO_PUSH"))
+# 7 Nov: Done / Revise marks shared with the website copy through Google Drive. The page shows the
+# website's bridge page in a small frame under the file list; it signs in and syncs there (Google
+# accepts this sign-in only from the website's address). CODEVIEW_BRIDGE="" turns it off; tests
+# point it at a local build.
+BRIDGE = os.environ.get("CODEVIEW_BRIDGE", "https://ravivarmachaluvadi.github.io/learning-hub/tools/java-practice/bridge.html")
 # A page loaded before an update keeps running its old JavaScript (seen 3 Oct: Run still
 # showed the old crosses). The page carries the version it was served with and compares
 # it with /api/info, so it can offer a reload. Server code counts as of this start-up.
@@ -394,6 +399,9 @@ class State:
                 entry["practiced"] = time.strftime("%Y-%m-%d")
                 entry["pass"] = bool(practice_pass)
             if entry:
+                # u: when it last changed, in ms (7 Nov): the page syncs marks with the website through
+                # Google Drive, and the newer change of the two wins
+                entry["u"] = int(time.time() * 1000)
                 files[rel] = entry
             else:
                 files.pop(rel, None)
@@ -426,6 +434,8 @@ class State:
                 clean[k] = whole(v, k, 100)
             elif k in ("secs", "best"):
                 clean[k] = whole(v, k, 7 * 86400)
+            elif k == "u":                                  # when it changed (ms): kept as given
+                clean[k] = whole(v, k, 10 ** 14)
             elif k == "pass" and isinstance(v, bool):
                 clean[k] = v
             else:
@@ -2290,7 +2300,8 @@ class Handler(BaseHTTPRequestHandler):
                 body = (html.replace(b"__CV_VERSION__", page_version(html).encode())
                         .replace(b"__CV_MONACO__", offline.url_for(offline.MONACO).encode())
                         .replace(b"__CV_MARKED__", offline.url_for(offline.MARKED).encode())
-                        .replace(b"__CV_MERMAID__", offline.url_for(offline.MERMAID).encode()))
+                        .replace(b"__CV_MERMAID__", offline.url_for(offline.MERMAID).encode())
+                        .replace(b"__CV_BRIDGE__", BRIDGE.encode()))
                 return self.send(200, body, "text/html; charset=utf-8")
             if u.path.startswith("/vendor/"):
                 p = offline.path_for(unquote(u.path[len("/vendor/"):]))

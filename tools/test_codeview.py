@@ -1330,6 +1330,18 @@ class ProgressTest(unittest.TestCase):
         e = codeview.STATE.set_progress(self.rid, "a/B01_X.java", "revise")
         self.assertNotIn("r", e)
 
+    def test_each_change_is_stamped(self):
+        """7 Nov: marks sync with the website through Drive, newest change wins, so each carries u (ms)"""
+        before = int(time.time() * 1000)
+        first = codeview.STATE.set_progress(self.rid, "a/B01_X.java", "done")["u"]    # the entry itself is returned
+        self.assertTrue(before <= first <= int(time.time() * 1000) + 1)
+        time.sleep(0.01)
+        self.assertGreater(codeview.STATE.set_progress(self.rid, "a/B01_X.java", "revise")["u"], first)
+        given = {"s": "done", "t": "2026-11-01", "u": 1_793_000_000_000}         # a mark from Drive keeps its time
+        self.assertEqual(codeview.STATE.restore_progress(self.rid, "a/B01_X.java", given), given)
+        with self.assertRaises(ValueError):
+            codeview.STATE.restore_progress(self.rid, "a/B01_X.java", {"s": "done", "u": -1})
+
     def test_bad_numbers_are_refused(self):
         with self.assertRaises(ValueError):
             codeview.STATE.set_progress(self.rid, "a/B01_X.java", "done", True, secs="abc")
