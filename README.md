@@ -108,10 +108,13 @@ automatically. The tray icon, desktop shortcuts and `--autostart` are Windows-on
 **<https://ravivarmachaluvadi.github.io/learning-hub/tools/java-practice/>** is Code Viewer as a
 plain website, for a work laptop or a phone. Reading, Practice, Hint, Compare, Visual, Next,
 Done / Revise, the "Show" filters (including one difficulty tier) and search in code all work
-there, and UI pages run with their tests. Progress is kept in that browser only. Java, Python
-and JavaScript cannot run on a website: **▶ Run** there shows how to run the file on a PC
-(paste it into an IntelliJ scratch file, or the `java` / `javac` commands for that file). Save,
-new files, Push, the ticks and Java suggestions stay laptop-only.
+there. **JavaScript files run in the browser** (a Web Worker; all 13 print exactly what Node
+prints, 6 Nov) and UI pages run with their tests, both with ✓ / ✗ from `tools/outcheck.js` (a
+port of `outcheck.py` that calls all 4,923 lines in `tools/outcheck_corpus.json` the same way),
+so a solved practice marks itself done. Progress is kept in that browser only. Java and Python
+cannot run on a website: **▶ Run** there shows how to run the file on a PC (paste it into an
+IntelliJ scratch file, or the `java` / `javac` commands for that file). Save, new files, Push and
+Java suggestions stay laptop-only.
 
 **It keeps itself up to date:** every Push from Code Viewer (⇡ above the file list) also
 rebuilds the website and pushes it to `learning-hub`, and the message after Push says so; GitHub

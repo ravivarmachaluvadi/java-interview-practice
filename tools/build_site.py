@@ -19,9 +19,9 @@ OUT_DIR gets:
     vendor/             Monaco, marked and Mermaid from Code Viewer's offline copy (tools/offline.py)
 
 What works there: reading, Practice, Hint, Compare, Visual, Next, Done / Revise (kept in that
-browser), the file filter and search in code, and UI pages (.html), which run in the browser.
-What does not: running Java, Python or JavaScript (Run shows how to run it on a PC instead), the
-ticks, Save, new files, Push and Java suggestions.
+browser), the file filter and search in code. JavaScript runs in a Web Worker and UI pages (.html)
+in their frame, both ticked by tools/outcheck.js (outcheck.py ported). What does not: running Java
+or Python (Run shows how to run it on a PC instead), Save, new files, Push and Java suggestions.
 
 Only committed files are published, as HEAD has them (an unsaved or uncommitted edit never reaches
 the website), and of those only what Code Viewer itself lists (SKIP_IN_REPO keeps tools/,
@@ -58,7 +58,7 @@ PATCHES = [
      "const runStatus = res => res.phase === 'elsewhere' ? ['Runs on your PC: how, below', 'away']\n  : res.phase === 'compile' && !res.ok"),
     # the output pane's first hint
     ("out.innerHTML = c && isCode(c) ? `<div class=\"hint\">Press",
-     "out.innerHTML = c && isCode(c) && c.kind !== 'html' && window.CV_STATIC ? `<div class=\"hint\">This website cannot run "
+     "out.innerHTML = c && isCode(c) && (c.kind === 'java' || c.kind === 'py') && window.CV_STATIC ? `<div class=\"hint\">This website cannot run "
      "${KIND_NAME[c.kind]}. Copy the code (the copy button above) to run it on your PC; ▶ Run shows how.</div>`\n"
      "      : c && isCode(c) ? `<div class=\"hint\">Press"),
     # the list's right-click menu is all laptop actions (open in Explorer, rename, delete...)
@@ -72,10 +72,11 @@ PATCHES = [
      "'Try: a copy to change freely; Copy takes it to your PC to run. The file is never touched; Discard when you are done.'"),
     ("<h3>Shortcuts</h3>",
      "<h3>Website copy</h3>\n  <p class=\"site-note\">This is Code Viewer's website copy. Reading, Practice, Hint, Compare, Visual, "
-     "Next, Done / Revise, the file filter and Search in code work here, and UI pages (.html) run with their tests. "
-     "Your progress, drafts and attempts are kept in this browser only. Java, Python and JavaScript cannot run here: "
+     "Next, Done / Revise, the file filter and Search in code work here. JavaScript files run in this browser and UI "
+     "pages (.html) run with their tests, both with ✓ / ✗ on each expected line, so a solved practice marks itself done. "
+     "Your progress, drafts and attempts are kept in this browser only. Java and Python cannot run here: "
      "▶ Run shows how to run the file on a PC (copy it into an IntelliJ scratch file, or <code>java File.java</code>). "
-     "Save, new files, Push, the ticks and Java suggestions need Code Viewer on the laptop.</p>\n  <h3>Shortcuts</h3>"),
+     "Save, new files, Push and Java suggestions need Code Viewer on the laptop.</p>\n  <h3>Shortcuts</h3>"),
 ]
 # laptop-only controls, hidden
 CSS = """<style>
@@ -255,12 +256,14 @@ def build_into(out):
             sys.exit(f"codeview.html: expected one {old[:60]!r}, found {n}; update PATCHES in build_site.py")
         page = page.replace(old, new)
     built = time.strftime("%d %b %Y")
-    version = "site-" + hashlib.sha1(page.encode() + CSS.encode() + (HERE / "site_static.js").read_bytes()).hexdigest()[:10]
+    version = "site-" + hashlib.sha1(page.encode() + CSS.encode() + (HERE / "site_static.js").read_bytes()
+                                     + (HERE / "outcheck.js").read_bytes()).hexdigest()[:10]
     page = page.replace("__CV_VERSION__", version)
     for key, url in urls.items():
         page = page.replace(key, url)
     site = json.dumps({"version": version, "root": REPO.name, "built": built})
-    boot = (f"<script>window.CV_SITE = {site};</script>\n<script src=\"static.js\"></script>\n")
+    boot = (f"<script>window.CV_SITE = {site};</script>\n<script src=\"outcheck.js\"></script>\n"
+            f"<script src=\"static.js\"></script>\n")
     for old, new in (('<meta charset="utf-8">', '<meta charset="utf-8">\n' + NOINDEX),
                      ("</head>", CSS + "</head>"),
                      ("<!-- marked must load before", boot + "<!-- marked must load before"),
@@ -272,6 +275,7 @@ def build_into(out):
         sys.exit("codeview.html: a __CV_ placeholder was left unfilled")
     (out / "index.html").write_text(page, encoding="utf-8", newline="\n")
     shutil.copyfile(HERE / "site_static.js", out / "static.js")
+    shutil.copyfile(HERE / "outcheck.js", out / "outcheck.js")
 
     return (f"{{out}}: {len(files)} files ({len(problems)} practice files, {sum(1 for p in practice.values() if 'error' in p)} "
             f"without a skeleton), {{size}}, version {version}")

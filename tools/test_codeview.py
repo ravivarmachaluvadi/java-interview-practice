@@ -724,6 +724,32 @@ class SitePublishTest(unittest.TestCase):
         self.assertIn("not next to this one", res["error"])
 
 
+class OutcheckJsTest(unittest.TestCase):
+    """6 Nov: the website copy ticks output in the browser with tools/outcheck.js. It must call
+    every line exactly as outcheck.py does. The corpus is every "expected" line the repo's
+    programs printed when each was run once on 6 Nov, hand-made edge cases, and whole outputs
+    for check_lines' counts."""
+
+    @unittest.skipUnless(codeview.NODE, "needs Node.js")
+    def test_same_verdicts_as_outcheck_py(self):
+        import outcheck
+        corpus = json.loads((HERE / "outcheck_corpus.json").read_text(encoding="utf-8"))
+        self.assertGreater(len(corpus["lines"]), 3000)               # a pass on an empty corpus proves nothing
+        script = ("const o = require(process.argv[1]); let s = '';"
+                  "process.stdin.on('data', d => s += d).on('end', () => { const c = JSON.parse(s);"
+                  "process.stdout.write(JSON.stringify({ lines: c.lines.map(o.judge), outputs: c.outputs.map(o.checkLines) })); });")
+        r = subprocess.run([codeview.NODE, "-e", script, str(HERE / "outcheck.js")], input=json.dumps(corpus),
+                           capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        got = json.loads(r.stdout)
+        diffs = [(line, outcheck.judge(line), js) for line, js in zip(corpus["lines"], got["lines"]) if outcheck.judge(line) != js]
+        self.assertEqual(diffs, [], f"{len(diffs)} lines differ, first ones: {diffs[:5]}")
+        self.assertEqual(Counter(got["lines"])[True] > 2000 and Counter(got["lines"])[False] > 0, True)
+        for out, js in zip(corpus["outputs"], got["outputs"]):
+            verdicts, checks = codeview.check_lines(out)
+            self.assertEqual((verdicts, checks), (js["verdicts"], js["checks"]), out[:200])
+
+
 class SiteSyncTest(unittest.TestCase):
     """6 Nov: the first real --publish stopped with "Access is denied" deleting the old site in
     OneDrive. The site is now built elsewhere and copied over, changing only what differs."""
