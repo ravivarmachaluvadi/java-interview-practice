@@ -391,6 +391,65 @@ def group_js(b, site, shots):
     pg.context.close()
 
 
+# ---------------------------------------------------------------- py (Pyodide)
+
+PY_EDGE = {
+    "traceback": "def f(x):\n    return 10 // x\n\nprint('before')\nprint(f(0))\n",
+    "syntax error": "print('ok')\nif True\n    print('no colon')\n",
+    "stdin": "name = input()\nn = int(input())\nprint(f'{name} x{n}')\n",
+    "exit code": "import sys\nprint('bye')\nsys.exit(3)\n",
+    "exit message": "import sys\nsys.exit('stopped here')\n",
+    "unicode": "print('naïve ✓ 😀', [1, 2], {'a': (1, None)})\n",
+}
+
+
+def group_py(b, site, shots):
+    G = "py"
+    import codeview
+    rid = codeview.STATE.roots()[0]["id"]
+    pg = b.new_context().new_page()
+    errors = page_errors(pg)
+    pg.goto(site.base, wait_until="load")
+    wait_list(pg)
+
+    def run(code, path, stdin="", timeout=30):
+        return pg.evaluate("([code, path, stdin, timeout]) => fetch('/api/run', {method: 'POST', headers: {'Content-Type': "
+                           "'application/json'}, body: JSON.stringify({code, path, lang: 'py', timeout, stdin})}).then(r => r.json())",
+                           [code, path, stdin, timeout])
+    py_files = [p for p in site.order if p.endswith(".py")]
+    check(G, "there are Python files to compare", len(py_files) >= 3, f"{len(py_files)}")
+    first = run("print('loaded')", None, timeout=60)
+    check(G, "Python loads in the browser (Pyodide, first run)", first.get("output") == "loaded\n" and first.get("ok"),
+          f"{first.get('runner')} | {first.get('output', '')[:200]!r}")
+    for rel in py_files:
+        code = site.text(rel)
+        want = codeview.run_code(code, rid, rel, "", 15, None)["output"].replace("\r\n", "\n")
+        got = run(code, rel)
+        check(G, f"{rel.split('/')[-1]} prints what Python prints", got["output"] == want and got["ok"],
+              "" if got["output"] == want else f"browser {got['output'][:160]!r} | python {want[:160]!r}")
+        check(G, f"{rel.split('/')[-1]} ticks as outcheck.py does", got.get("verdicts") == codeview.check_lines(got["output"])[0])
+    for name, code in PY_EDGE.items():
+        stdin = "Ravi\n3\n" if name == "stdin" else ""
+        want = codeview.run_code(code, rid, None, stdin, 15, None, lang="py")
+        got = run(code, None, stdin)
+        same = (got["phase"], got.get("exitCode"), got["output"]) == (want["phase"], want.get("exitCode"), want["output"].replace("\r\n", "\n"))
+        check(G, f"edge '{name}': same as Python", same,
+              "" if same else f"browser {got['phase']} {got.get('exitCode')} {got['output'][-200:]!r} | python {want['phase']} {want.get('exitCode')} {want['output'][-200:]!r}")
+    loop = run("while True:\n    pass\n", None, timeout=2)
+    check(G, "an endless loop stops at the time limit", loop.get("timedOut") and not loop.get("ok"))
+    again = run("print(6 * 7)", None, timeout=60)
+    check(G, "the next run loads Python again and works", again.get("output") == "42\n", again.get("output", "")[:100])
+
+    rel = py_files[0]
+    open_file(pg, site, rel, 2500)
+    pg.click("#runBtn")
+    pg.wait_for_function("/match expected|differ/.test(document.querySelector('#verdict').textContent)", timeout=60000)
+    check(G, "Run on a .py file shows ticks", "match expected" in pg.inner_text("#verdict"), pg.inner_text("#verdict"))
+    pg.screenshot(path=str(shots / "py-run.png"))
+    no_errors(G, errors)
+    pg.context.close()
+
+
 # ---------------------------------------------------------------- offline
 
 def group_offline(b_type, site, shots, work):
@@ -416,6 +475,11 @@ def group_offline(b_type, site, shots, work):
     for p in (java, js):
         pg.goto(site.url(p))
         pg.wait_for_timeout(1500)
+    py = next(p for p in site.order if p.endswith(".py"))
+    run_py = ("code => fetch('/api/run', {method: 'POST', headers: {'Content-Type': 'application/json'},"
+              " body: JSON.stringify({code, path: null, lang: 'py', timeout: 60, stdin: ''})}).then(r => r.json())")
+    online = pg.evaluate(run_py, "print('py online')")
+    check(G, "Python runs online first (so it is kept)", online.get("output") == "py online\n", online.get("output", "")[:120])
     ctx.set_offline(True)
     pg.reload(wait_until="load")
     wait_list(pg)
@@ -432,6 +496,9 @@ def group_offline(b_type, site, shots, work):
     pg.click("#runBtn")
     pg.wait_for_function("/match expected|differ/.test(document.querySelector('#verdict').textContent)", timeout=20000)
     check(G, "offline: JavaScript runs, with ticks", "match expected" in pg.inner_text("#verdict"))
+    offline_py = pg.evaluate(run_py, "print('py offline')")
+    check(G, "offline: Python runs (Pyodide kept by the service worker)", offline_py.get("output") == "py offline\n",
+          offline_py.get("output", "")[:200])
     pg.goto(site.url(md))
     pg.wait_for_timeout(1500)
     check(G, "offline: a note renders", pg.is_visible("#md") and len(pg.inner_text("#md")) > 200)
@@ -630,7 +697,7 @@ def group_update(b_type, site, shots, work):
         sw_path.write_bytes(orig_sw)
 
 
-GROUPS = ("site", "edit", "js", "sync", "offline", "update")
+GROUPS = ("site", "edit", "js", "py", "sync", "offline", "update")
 
 
 def main():
@@ -664,7 +731,7 @@ def main():
                     if g in ("offline", "update"):
                         (group_offline if g == "offline" else group_update)(pw.chromium, site, shots, work)
                     else:
-                        {"site": group_site, "edit": group_edit, "js": group_js, "sync": group_sync}[g](b, site, shots)
+                        {"site": group_site, "edit": group_edit, "js": group_js, "py": group_py, "sync": group_sync}[g](b, site, shots)
                 except Exception as e:                 # noqa: BLE001 - one broken group must not hide the others
                     check(g, "the group ran to the end", False, f"{type(e).__name__}: {str(e)[:300]}")
             b.close()

@@ -62,13 +62,17 @@ async function cacheFirst(req) {
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
-  if (res.ok) await cache.put(req, res.clone());
+  if (res.ok || res.type === 'opaque') await cache.put(req, res.clone());
   return res;
 }
+
+// Python on Pyodide (site_static.js) comes from jsDelivr under a versioned path: kept once used
+const PYODIDE_URL = 'https://cdn.jsdelivr.net/npm/pyodide@';
 
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  if (req.url.startsWith(PYODIDE_URL)) { event.respondWith(cacheFirst(req)); return; }
   const url = new URL(req.url);
   if (url.origin !== location.origin || !url.pathname.startsWith(SCOPE)) return;   // fonts and the rest: as usual
   event.respondWith(url.pathname.startsWith(SCOPE + 'vendor/') ? cacheFirst(req) : networkFirst(req));

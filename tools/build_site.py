@@ -58,13 +58,17 @@ PATCHES = [
      "const runStatus = res => res.phase === 'elsewhere' ? ['Runs on your PC: how, below', 'away']\n  : res.phase === 'compile' && !res.ok"),
     # the output pane's first hint
     ("out.innerHTML = c && isCode(c) ? `<div class=\"hint\">Press",
-     "out.innerHTML = c && isCode(c) && (c.kind === 'java' || c.kind === 'py') && window.CV_STATIC ? `<div class=\"hint\">This website cannot run "
+     "out.innerHTML = c && isCode(c) && c.kind === 'java' && window.CV_STATIC ? `<div class=\"hint\">This website cannot run "
      "${KIND_NAME[c.kind]}. Copy the code (the copy button above) to run it on your PC; ▶ Run shows how.</div>`\n"
      "      : c && isCode(c) ? `<div class=\"hint\">Press"),
     # ...and its hint on a file that is not code
     ("'<div class=\"hint\">Java, Python, JavaScript and UI (.html) files run. Open one on the left, or the Scratch pad.</div>'",
-     "'<div class=\"hint\">JavaScript and UI (.html) files run here; on Java and Python files ▶ Run shows how to run them "
+     "'<div class=\"hint\">Python, JavaScript and UI (.html) files run here; on Java files ▶ Run shows how to run them "
      "on your PC. Open one on the left, or the Scratch pad.</div>'"),
+    # The editor's helper workers from this site, not from a data: URL: the service worker controls
+    # only same-origin workers, so offline the data: one failed to load workerMain.js (7 Nov test)
+    ("  getWorkerUrl: () => 'data:text/javascript;charset=utf-8,' + encodeURIComponent(",
+     "  getWorkerUrl: () => window.CV_STATIC ? MONACO + '/vs/base/worker/workerMain.js' : 'data:text/javascript;charset=utf-8,' + encodeURIComponent("),
     # the list's right-click menu is all laptop actions (open in Explorer, rename, delete...)
     ("function showRowMenu(e) {\n  if (e.shiftKey) return;",
      "function showRowMenu(e) {\n  if (e.shiftKey || window.CV_STATIC) return;"),
@@ -77,15 +81,17 @@ PATCHES = [
     # say what this copy is at the top of the help
     # Try cannot run here
     ("'Try: a copy to change and run freely. The file is never touched; Discard when you are done.'",
-     "'Try: a copy to change freely; Copy takes it to your PC to run. The file is never touched; Discard when you are done.'"),
+     "'Try: a copy to change freely (Python and JavaScript run here; for Java, Copy takes it to your PC). The file is never "
+     "touched; Discard when you are done.'"),
     ("<h3>Shortcuts</h3>",
      "<h3>Website copy</h3>\n  <p class=\"site-note\">This is Code Viewer's website copy. Reading, Practice, Hint, Compare, Visual, "
-     "Next, Done / Revise, the file filter and Search in code work here. JavaScript files run in this browser and UI "
-     "pages (.html) run with their tests, both with ✓ / ✗ on each expected line, so a solved practice marks itself done. "
+     "Next, Done / Revise, the file filter and Search in code work here. Python files (Pyodide, loaded from "
+     "cdn.jsdelivr.net the first time) and JavaScript files run in this browser, and UI pages (.html) run with their "
+     "tests, all with ✓ / ✗ on each expected line, so a solved practice marks itself done. "
      "Drafts and practice attempts are kept in this browser. Done / Revise marks too, until you press "
      "<b>Continue with Google</b> under the file list: then they are saved in your Google Drive (Personal Apps / "
      "java-practice.json) and every browser you sign in on shows the same marks. It works offline after one visit. "
-     "Java and Python cannot run here: "
+     "Java cannot run here: "
      "▶ Run shows how to run the file on a PC (copy it into an IntelliJ scratch file, or <code>java File.java</code>). "
      "Save, new files, Push and Java suggestions need Code Viewer on the laptop.</p>\n  <h3>Shortcuts</h3>"),
 ]
